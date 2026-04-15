@@ -33,5 +33,5 @@ Rscript plot_run_metrics.R 1 ${METRIC_PLOTS_DIR}/intermediate_metrics_files/join
 echo "; Running python script to create the metrics plots"
 mkdir -p ${RESULTS_DIR_python}
 
-uv run plot_run_metrics.py 1 ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joint_sequencing_QC_file.tsv ${RESULTS_DIR_R}/TSO500_run_metrics.pdf ${METRIC_PLOTS_DIR}/intermediate_metrics_files/master_metrics_table.tsv ${RUN_ID} False ${METRIC_PLOTS_DIR}/intermediate_metrics_files/${RUN_ID}_metrics.tsv ${RUN_ID}
-uv run plot_run_metrics.py 1 ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joint_sequencing_QC_file.tsv ${RESULTS_DIR_R}/TSO500_run_metrics.pdf ${METRIC_PLOTS_DIR}/intermediate_metrics_files/master_metrics_table.tsv ${RUN_ID} True ${METRIC_PLOTS_DIR}/intermediate_metrics_files/${RUN_ID}_metrics.tsv ${RUN_ID}
+uv run plot_run_metrics.py 1 ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joint_sequencing_QC_file.tsv ${RESULTS_DIR_python}/TSO500_run_metrics.pdf ${METRIC_PLOTS_DIR}/intermediate_metrics_files/master_metrics_table.tsv ${RUN_ID} False ${METRIC_PLOTS_DIR}/intermediate_metrics_files/${RUN_ID}_metrics.tsv ${RUN_ID}
+uv run plot_run_metrics.py 1 ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joint_sequencing_QC_file.tsv ${RESULTS_DIR_python}/TSO500_run_metrics.pdf ${METRIC_PLOTS_DIR}/intermediate_metrics_files/master_metrics_table.tsv ${RUN_ID} True ${METRIC_PLOTS_DIR}/intermediate_metrics_files/${RUN_ID}_metrics.tsv ${RUN_ID}
