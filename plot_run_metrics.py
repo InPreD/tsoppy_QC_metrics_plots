@@ -19,8 +19,9 @@ Command-line parameters:
 
 import sys
 import polars as pl
-
-from plotnine import ggplot
+from plotnine import *
+from matplotlib.backends.backend_pdf import PdfPages
+import matplotlib.pyplot as plt
 
 
 # This can be moved to a config file
@@ -144,10 +145,102 @@ def main():
           .alias('contamination_label')
     ])
     
-    print(dna_data_table)
     print("; Creating the metrics plots")
-    # Plotting functionality to be implemented
-    # (continues from line 92 onwards in the R script)
+    
+    # Open PDF file for multi-page output
+    pdf = PdfPages(output_pdf)
+
+
+    # ------------- #
+    # Plot settings #
+    # ------------- #
+    angle_x_names = 35
+
+
+    # --------------------------- #
+    # Sequencer-generated metrics #
+    # --------------------------- #
+    
+    # Plot 1: Clusters passing filter
+    # Filter for non-null CLUSTERS_PASSING_FILTER values and cast to float
+    filtered_qc = (joint_qc_table.filter(pl.col('CLUSTERS_PASSING_FILTER').is_not_null())
+                                 .with_columns(pl.col('CLUSTERS_PASSING_FILTER').cast(pl.Float64))
+                  )
+    
+
+    if filtered_qc.height > 0:
+        # Convert to pandas and ensure numeric types
+        plot_data = filtered_qc.to_pandas()
+        
+        plot = (
+            ggplot(plot_data, aes(x='RUN_ID', y='CLUSTERS_PASSING_FILTER')) +
+            geom_col(aes(fill='RUN_ID'), alpha=0.8) +
+            guides(fill=guide_legend('Run')) +
+            xlab('Run ID') +
+            ylab('Clusters passing filter (percent)') +
+            coord_cartesian(ylim=(0, 104)) +
+            ggtitle(
+                '[Sequencer flowcell run metric] Clusters passing filter '
+                '(based on RunCompletionStatus.xml files)\n'
+                '(only displaying runs with non-NA values)'
+            ) +
+            theme_minimal() +
+            theme(
+                axis_text_x=element_text(angle=angle_x_names, vjust=0.5, hjust=1, size=7),
+                figure_size=(15, 6),
+                axis_line=element_line(color="#4d4d4d"),
+                plot_title=element_text(weight='bold')
+            )
+        )
+        
+        fig = plot.draw()
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close(fig)
+    
+    # Plot 2: Cluster density against estimated yield
+    # Filter for non-null ESTIMATED_YIELD values and cast numeric columns
+    filtered_qc2 = (joint_qc_table.filter(pl.col('ESTIMATED_YIELD').is_not_null())
+                                   .with_columns([
+                                       pl.col('CLUSTER_DENSITY').cast(pl.Float64),
+                                       pl.col('ESTIMATED_YIELD').cast(pl.Float64),
+                                       (pl.col('RUN_NUMBER').cast(pl.Utf8) + ' - ' + pl.col('RUN_ID')).alias('RUN_LABEL')
+                                   ])
+                   )
+    
+    if filtered_qc2.height > 0:
+        plot_data2 = filtered_qc2.to_pandas()
+        
+        plot = (
+            ggplot(plot_data2, aes(x='CLUSTER_DENSITY', y='ESTIMATED_YIELD')) +
+            geom_point(aes(color='RUN_LABEL'), alpha=0.8, size=4) +
+            geom_text(aes(label='RUN_NUMBER'), alpha=0.8, size=4, nudge_y=-5) +
+            guides(color=guide_legend('Run')) +
+            coord_cartesian(xlim=(0, 400), ylim=(0, 150)) +
+            xlab('Cluster density') +
+            ylab('Estimated yield') +
+            ggtitle(
+                '[Sequencer flowcell run metric] Cluster density against estimated yield '
+                '(based on RunCompletionStatus.xml files)\n'
+                '(only displaying runs with non-NA values)'
+            ) +
+            scale_x_continuous(breaks=[i * 50 for i in range(9)]) +
+            scale_y_continuous(breaks=[i * 10 for i in range(16)]) +
+            theme_minimal() +
+            theme(
+                axis_text_x=element_text(angle=angle_x_names, vjust=0.5, hjust=1, size=7),
+                figure_size=(15, 6),
+                axis_line=element_line(color="#4d4d4d"),
+                plot_title=element_text(weight='bold')
+            )
+        )
+        
+        fig = plot.draw()
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close(fig)
+    
+    # Close PDF file
+    pdf.close()
+    print("; Plots saved to PDF")
 
 
 if __name__ == "__main__":
