@@ -23,6 +23,8 @@ from plotnine import *
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
 
+from plots import plot_tsoppy_barplot
+
 
 # This can be moved to a config file
 VERSION_STRING = "0.3:22-03-10"
@@ -172,26 +174,40 @@ def main():
         # Convert to pandas and ensure numeric types
         plot_data = filtered_qc.to_pandas()
         
-        plot = (
-            ggplot(plot_data, aes(x='RUN_ID', y='CLUSTERS_PASSING_FILTER')) +
-            geom_col(aes(fill='RUN_ID'), alpha=0.8) +
-            guides(fill=guide_legend('Run')) +
-            xlab('Run ID') +
-            ylab('Clusters passing filter (percent)') +
-            coord_cartesian(ylim=(0, 104)) +
-            ggtitle(
-                '[Sequencer flowcell run metric] Clusters passing filter '
-                '(based on RunCompletionStatus.xml files)\n'
-                '(only displaying runs with non-NA values)'
-            ) +
-            theme_minimal() +
-            theme(
-                axis_text_x=element_text(angle=angle_x_names, vjust=0.5, hjust=1, size=7),
-                figure_size=(15, 6),
-                axis_line=element_line(color="#4d4d4d"),
-                plot_title=element_text(weight='bold')
-            )
-        )
+        # plot = (
+        #     ggplot(plot_data, aes(x='RUN_ID', y='CLUSTERS_PASSING_FILTER')) +
+        #     geom_col(aes(fill='RUN_ID'), alpha=0.8) +
+        #     guides(fill=guide_legend('Run')) +
+        #     xlab('Run ID') +
+        #     ylab('Clusters passing filter (percent)') +
+        #     coord_cartesian(ylim=(0, 104)) +
+        #     ggtitle(
+        #         '[Sequencer flowcell run metric] Clusters passing filter '
+        #         '(based on RunCompletionStatus.xml files)\n'
+        #         '(only displaying runs with non-NA values)'
+        #     ) +
+        #     theme_minimal() +
+        #     theme(
+        #         axis_text_x=element_text(angle=angle_x_names, vjust=0.5, hjust=1, size=7),
+        #         figure_size=(15, 6),
+        #         axis_line=element_line(color="#4d4d4d"),
+        #         plot_title=element_text(weight='bold')
+        #     )
+        # )
+
+
+        plot = plot_tsoppy_barplot(data        = plot_data,
+                                   x_var       = 'RUN_ID',
+                                   y_var       = 'CLUSTERS_PASSING_FILTER',
+                                   fill_var    = 'RUN_ID',
+                                   guide_title = 'Run',
+                                   x_lab       = 'Run ID',
+                                   y_lab       = 'Clusters passing filter (percent)',
+                                   cart_ylim   = (0, 104),
+                                   title       = '[Sequencer flowcell run metric] Clusters passing filter (based on RunCompletionStatus.xml files)\n(only displaying runs with non-NA values)',
+                                   x_lab_angle = angle_x_names,
+                                   fig_size    = (15, 6),
+                                   alpha_value = 0.8)
         
         fig = plot.draw()
         pdf.savefig(fig, bbox_inches='tight')
@@ -238,7 +254,43 @@ def main():
         pdf.savefig(fig, bbox_inches='tight')
         plt.close(fig)
     
-    # Close PDF file
+    # --------------------------- #
+    # LocalApp core run metrics   #
+    # --------------------------- #
+    
+    # Plot 3: Percentage of PF reads
+    # Cast numeric column to float
+    plot_data3 = (joint_qc_table.with_columns(
+                      pl.col('PCT_PF_READS').cast(pl.Float64)
+                  ).to_pandas())
+    
+    # plot = (
+    #     ggplot(plot_data3, aes(x='RUN_ID', y='PCT_PF_READS')) +
+    #     geom_col(aes(fill='RUN_ID'), alpha=0.8) +
+    #     guides(fill=guide_legend('Run')) +
+    #     xlab('\\nRun ID') +
+    #     ylab('Percentage of PF reads') +
+    #     coord_cartesian(ylim=(0, 104)) +
+    #     ggtitle('[LocalApp core run metric] Percentage of reads passing instrument filters') +
+    #     geom_hline(yintercept=80, alpha=0.3, color='red') +
+    #     annotate('text', x=joint_qc_table.height + 1, y=80,
+    #              label='LSL_Guideline: 80', angle=90) +
+    #     theme_minimal() +
+    #     theme(
+    #         axis_text_x=element_text(angle=angle_x_names, vjust=0.5, hjust=1, size=7),
+    #         figure_size=(15, 6),
+    #         axis_line=element_line(color="#4d4d4d"),
+    #         plot_title=element_text(weight='bold')
+    #     )
+    # )
+    
+    # fig = plot.draw()
+    # pdf.savefig(fig, bbox_inches='tight')
+    # plt.close(fig)
+    
+    # ---------------------------------------- #
+    # Close PDF file after all plots are saved #
+    # ---------------------------------------- # 
     pdf.close()
     print("; Plots saved to PDF")
 
