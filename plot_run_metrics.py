@@ -230,7 +230,7 @@ def main():
                 axis_text_x=element_text(angle=angle_x_names, vjust=0.5, hjust=1, size=7),
                 figure_size=(15, 6),
                 axis_line=element_line(color="#4d4d4d"),
-                plot_title=element_text(weight='bold'),
+                plot_title=element_text(weight='bold', ha = 'left'),
                 panel_grid_major=element_line(color='gray', size=0.5),
                 panel_grid_minor=element_line(color='lightgray', size=0.25)
             )
@@ -252,26 +252,6 @@ def main():
     plot_data3 = (joint_qc_table.with_columns(
                       pl.col('PCT_PF_READS').cast(pl.Float64)
                   ).to_pandas())
-    
-    # plot = (
-    #     ggplot(plot_data3, aes(x='RUN_ID', y='PCT_PF_READS')) +
-    #     geom_col(aes(fill='RUN_ID'), alpha=0.8) +
-    #     guides(fill=guide_legend('Run')) +
-    #     xlab('\\nRun ID') +
-    #     ylab('Percentage of PF reads') +
-    #     coord_cartesian(ylim=(0, 104)) +
-    #     ggtitle('[LocalApp core run metric] Percentage of reads passing instrument filters') +
-    #     geom_hline(yintercept=80, alpha=0.3, color='red') +
-    #     annotate('text', x=joint_qc_table.height + 1, y=80,
-    #              label='LSL_Guideline: 80', angle=90) +
-    #     theme_minimal() +
-    #     theme(
-    #         axis_text_x=element_text(angle=angle_x_names, vjust=0.5, hjust=1, size=7),
-    #         figure_size=(15, 6),
-    #         axis_line=element_line(color="#4d4d4d"),
-    #         plot_title=element_text(weight='bold')
-    #     )
-    # )
 
     plot = plot_tsoppy_barplot(data        = plot_data3,
                                x_var       = 'RUN_ID',
@@ -282,6 +262,66 @@ def main():
                                y_lab       = 'Percentage of PF reads',
                                cart_ylim   = (0, 104),
                                title       = '[Sequencer flowcell run metric] Percentage of PF reads (based on RunCompletionStatus.xml files)\n(only displaying runs with non-NA values)',
+                               x_lab_angle = angle_x_names,
+                               fig_size    = (15, 6),
+                               alpha_value = 0.8,
+                               hline_y     = 80,
+                               hline_alpha = 0.3,
+                               hline_color = "red",
+                               hline_label = "LSL_Guideline: 80")
+
+    fig = plot.draw()
+    pdf.savefig(fig, bbox_inches='tight')
+    plt.close(fig)
+    
+
+    # ------------------------------------ #
+    # Plot 4: Percentage of Q30 R1 reads   #
+    # ------------------------------------ #
+    # Cast numeric column to float
+    plot_data4 = (joint_qc_table.with_columns(
+                      pl.col('PCT_Q30_R1').cast(pl.Float64)
+                  ).to_pandas())
+    
+    plot = plot_tsoppy_barplot(data        = plot_data4,
+                               x_var       = 'RUN_ID',
+                               y_var       = 'PCT_Q30_R1',
+                               fill_var    = 'RUN_ID',
+                               guide_title = 'Run',
+                               x_lab       = 'Run ID',
+                               y_lab       = 'Percentage of Q30 R1 reads',
+                               cart_ylim   = (0, 104),
+                               title       = '[LocalApp core run metric] Percentage of R1 reads with quality >= 30',
+                               x_lab_angle = angle_x_names,
+                               fig_size    = (15, 6),
+                               alpha_value = 0.8,
+                               hline_y     = 80,
+                               hline_alpha = 0.3,
+                               hline_color = "red",
+                               hline_label = "LSL_Guideline: 80")
+
+    fig = plot.draw()
+    pdf.savefig(fig, bbox_inches='tight')
+    plt.close(fig)
+    
+
+    # ------------------------------------ #
+    # Plot 5: Percentage of Q30 R2 reads   #
+    # ------------------------------------ #
+    # Cast numeric column to float
+    plot_data5 = (joint_qc_table.with_columns(
+                      pl.col('PCT_Q30_R2').cast(pl.Float64)
+                  ).to_pandas())
+    
+    plot = plot_tsoppy_barplot(data        = plot_data5,
+                               x_var       = 'RUN_ID',
+                               y_var       = 'PCT_Q30_R2',
+                               fill_var    = 'RUN_ID',
+                               guide_title = 'Run',
+                               x_lab       = 'Run ID',
+                               y_lab       = 'Percentage of Q30 R2 reads',
+                               cart_ylim   = (0, 104),
+                               title       = '[LocalApp core run metric] Percentage of R2 reads with quality >= 30',
                                x_lab_angle = angle_x_names,
                                fig_size    = (15, 6),
                                alpha_value = 0.8,
