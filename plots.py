@@ -1,6 +1,14 @@
 import pandas as pd
 from plotnine import *
 
+# ------------------------------------------------------ #
+# Define  attributes for consistent styling across plots #
+# ------------------------------------------------------ #
+AXIS_LINE_COLOR = "#888686"
+HV_LINE_COLOR   = "#e00202"  # A distinct red color for horizontal lines
+HV_LINE_SIZE    = 1
+HV_LINE_ALPHA   = 0.75
+
 
 def plot_tsoppy_barplot(data        : pd.DataFrame = None,
                         x_var       : str          = None,
@@ -15,10 +23,10 @@ def plot_tsoppy_barplot(data        : pd.DataFrame = None,
                         fig_size    : tuple        = (15, 6),
                         alpha_value : float        = 0.8,
                         hline_y     : float        = None,
-                        hline_alpha : float        = 1.0,
-                        hline_color : str          = "red",
+                        hline_alpha : float        = HV_LINE_ALPHA,
+                        hline_color : str          = HV_LINE_COLOR,
                         hline_label : str          = "",
-                        hline_size  : float        = 1.0
+                        hline_size  : float        = HV_LINE_SIZE
                         ) -> ggplot:
     """
     Function to create a bar plot using plotnine (ggplot2 in Python) for TSOPPI run metrics.
@@ -62,7 +70,7 @@ def plot_tsoppy_barplot(data        : pd.DataFrame = None,
         theme_minimal() +
         theme(axis_text_x = element_text(angle = x_lab_angle, vjust = 0.5, hjust = 1, size = 7),
               figure_size = fig_size,
-              axis_line   = element_line(color = "#4d4d4d"),
+              axis_line   = element_line(color = AXIS_LINE_COLOR),
               plot_title  = element_text(weight = 'bold', ha = 'left')
             ) +
         scale_x_discrete(expand = (0.05, 0, 0.1, 0))  # Add 15% space on right side
@@ -78,5 +86,88 @@ def plot_tsoppy_barplot(data        : pd.DataFrame = None,
                            size       = hline_size) +
                 annotate("text", len(data) + 2/3, hline_y, label = hline_label, angle = 90, size = 13)
                )   
+    
+    return plot
+
+
+
+def plot_contamination_scatter(data                    : pd.DataFrame = None,
+                               color_var               : str          = None,
+                               label_var               : str          = None,
+                               guide_title             : str          = 'Run',
+                               title                   : str          = None,
+                               x_lab_angle             : int          = 45,
+                               fig_size                : tuple        = (15, 6),
+                               max_contamination_score : float        = 5000,
+                               usl_contamination_score : float        = None,
+                               usl_contamination_pval  : float        = None
+                               ) -> ggplot:
+    """
+    Function to create a contamination assessment scatter plot for TSOPPI run metrics.
+    
+    Parameters:
+    - data: A pandas DataFrame containing the contamination data to be plotted.
+    - color_var: The name of the column to use for point colors (e.g., 'RUN' or 'highlighted_run').
+    - label_var: The name of the column to use for point labels (optional, set to None for no labels).
+    - guide_title: The title for the legend guide.
+    - title: The title of the plot.
+    - x_lab_angle: The angle for the x-axis labels (default is 45 degrees).
+    - fig_size: A tuple specifying the size of the figure (default is (15, 6)).
+    - max_contamination_score: The maximum contamination score for x-axis range.
+    - usl_contamination_score: The USL guideline value for contamination score (x-axis).
+    - usl_contamination_pval: The USL guideline value for contamination p-value (y-axis).
+    
+    Returns:
+    - A plotnine ggplot object representing the contamination scatter plot.
+    """
+    
+    # Calculate breaks for axes
+    x_breaks = [i * 1000 for i in range(int(max_contamination_score / 1000) + 2)]
+    y_breaks = [i * 0.1 for i in range(11)]
+    
+    plot = (
+        ggplot(data, aes(x='DNA_CONTAMINATION_SCORE', y='DNA_CONTAMINATION_P_VALUE')) +
+        geom_point(aes(color=color_var), size=3) +
+        guides(color=guide_legend(guide_title)) +
+        xlab('Contamination score') +
+        ylab('Contamination P-value') +
+        coord_cartesian(xlim=(0, max_contamination_score + 500), ylim=(0.0, 1.05)) +
+        scale_x_continuous(breaks=x_breaks, minor_breaks=[i * 500 for i in range(int(max_contamination_score / 500) + 2)]) +
+        scale_y_continuous(breaks=y_breaks, minor_breaks=[i * 0.05 for i in range(21)]) +
+        ggtitle(title) +
+        annotate('rect', 
+                 xmin=usl_contamination_score, 
+                 xmax=max_contamination_score + 250,
+                 ymin=usl_contamination_pval, 
+                 ymax=1, 
+                 fill=HV_LINE_COLOR, 
+                 alpha=0.3) +
+        geom_hline(yintercept=usl_contamination_pval, alpha=HV_LINE_ALPHA, color=HV_LINE_COLOR, size = HV_LINE_SIZE) +
+        annotate('text', 
+                 x=max_contamination_score + 500, 
+                 y=usl_contamination_pval + 0.1,
+                 label=f'USL_Guideline: {usl_contamination_pval}', 
+                 angle=90, 
+                 size=10) +
+        geom_vline(xintercept=usl_contamination_score, alpha=HV_LINE_ALPHA, color=HV_LINE_COLOR, size = HV_LINE_SIZE) +
+        annotate('text', 
+                 x=usl_contamination_score + 200, 
+                 y=1.05,
+                 label=f'USL_Guideline: {usl_contamination_score}', 
+                 size=10) +
+        theme_minimal() +
+        theme(
+            axis_text_x=element_text(angle=x_lab_angle, vjust=0.5, hjust=1, size=7),
+            figure_size=fig_size,
+            axis_line=element_line(color=AXIS_LINE_COLOR),
+            plot_title=element_text(weight='bold', ha='left'),
+            panel_grid_major=element_line(color=AXIS_LINE_COLOR, size=0.75, alpha=0.5),
+            panel_grid_minor=element_line(color=AXIS_LINE_COLOR, size=0.25, alpha=0.5)
+        )
+    )
+    
+    # Add text labels if label_var is provided
+    if label_var is not None:
+        plot = plot + geom_text(aes(label=label_var), angle=-25, nudge_y=0.02, size=7)
     
     return plot

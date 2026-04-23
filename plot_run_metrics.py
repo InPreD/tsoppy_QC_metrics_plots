@@ -23,7 +23,7 @@ from plotnine import *
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
 
-from plots import plot_tsoppy_barplot
+from plots import plot_tsoppy_barplot, plot_contamination_scatter, AXIS_LINE_COLOR
 
 
 # This can be moved to a config file
@@ -229,10 +229,10 @@ def main():
             theme(
                 axis_text_x=element_text(angle=angle_x_names, vjust=0.5, hjust=1, size=7),
                 figure_size=(15, 6),
-                axis_line=element_line(color="#4d4d4d"),
+                axis_line=element_line(color = AXIS_LINE_COLOR),
                 plot_title=element_text(weight='bold', ha = 'left'),
-                panel_grid_major=element_line(color='gray', size=0.5),
-                panel_grid_minor=element_line(color='lightgray', size=0.25)
+                panel_grid_major=element_line(color = AXIS_LINE_COLOR, size=0.5, alpha=0.5),
+                panel_grid_minor=element_line(color = AXIS_LINE_COLOR, size=0.25, alpha=0.5)
             )
         )
         
@@ -333,6 +333,91 @@ def main():
     fig = plot.draw()
     pdf.savefig(fig, bbox_inches='tight')
     plt.close(fig)
+    
+
+    # ----------------------------- #
+    # LocalApp core DNA metrics     #
+    # ----------------------------- #
+    
+    if dna_sample_count > 0:
+        
+        # ------------------------------------------------------------- #
+        # Plot 6: Contamination assessment by TSO 500 LocalApp (by Run) #
+        # ------------------------------------------------------------- #
+        
+        # Extract guideline values - cast to Float64 first, handling "NA" strings
+        usl_contamination_score = float(
+            dna_guideline_table.filter(pl.col('SAMPLE_ID') == 'USL_Guideline')
+                               .select(pl.col('DNA_CONTAMINATION_SCORE').cast(pl.Float64))
+                               .item()
+        )
+        
+        usl_contamination_pval = float(
+            dna_guideline_table.filter(pl.col('SAMPLE_ID') == 'USL_Guideline')
+                               .select(pl.col('DNA_CONTAMINATION_P_VALUE').cast(pl.Float64))
+                               .item()
+        )
+        
+        # Calculate max contamination score - filter out NA values first
+        max_contamination_score_from_data = (
+            dna_data_table.filter(pl.col('DNA_CONTAMINATION_SCORE') != 'NA')
+                         .select(pl.col('DNA_CONTAMINATION_SCORE').cast(pl.Float64))
+                         .max()
+                         .item()
+        )
+        max_contamination_score = max(5000, max_contamination_score_from_data)
+        
+        # Prepare plot data - filter out NA values and cast to Float64
+        plot_data_contamination = (dna_data_table
+                                  .filter((pl.col('DNA_CONTAMINATION_SCORE') != 'NA') & 
+                                          (pl.col('DNA_CONTAMINATION_P_VALUE') != 'NA'))
+                                  .with_columns([
+                                      pl.col('DNA_CONTAMINATION_SCORE').cast(pl.Float64),
+                                      pl.col('DNA_CONTAMINATION_P_VALUE').cast(pl.Float64)
+                                  ])
+                                  .to_pandas())
+        
+        plot = plot_contamination_scatter(data                    = plot_data_contamination,
+                                          color_var               = 'RUN',
+                                          label_var               = None,
+                                          guide_title             = 'Run',
+                                          title                   = ('[LocalApp core DNA metric] Contamination assessment by TSO 500 LocalApp\n'
+                                                                     '(samples located within the red box are deemed contaminated)'),
+                                          x_lab_angle             = angle_x_names,
+                                          fig_size                = (15, 6),
+                                          max_contamination_score = max_contamination_score,
+                                          usl_contamination_score = usl_contamination_score,
+                                          usl_contamination_pval  = usl_contamination_pval
+        )
+        
+        fig = plot.draw()
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close(fig)
+        
+        
+        # ---------------------------------------------------------------------- #
+        # Plot 7: Contamination assessment by TSO 500 LocalApp (highlighted run) #
+        # ---------------------------------------------------------------------- #
+        
+        plot = plot_contamination_scatter(data                    = plot_data_contamination,
+                                          color_var               = 'highlighted_run',
+                                          label_var               = 'contamination_label',
+                                          guide_title             = 'Latest run',
+                                          title                   = ('[LocalApp core DNA metric] Contamination assessment by TSO 500 LocalApp\n'
+                                                                     '(samples located within the red box are deemed contaminated)'),
+                                          x_lab_angle             = angle_x_names,
+                                          fig_size                = (15, 6),
+                                          max_contamination_score = max_contamination_score,
+                                          usl_contamination_score = usl_contamination_score,
+                                          usl_contamination_pval  = usl_contamination_pval
+                                         )
+        
+        fig = plot.draw()
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close(fig)
+    
+    else:
+        print("; No DNA samples included in the plotted runs")
     
     # ---------------------------------------- #
     # Close PDF file after all plots are saved #
