@@ -163,7 +163,9 @@ def main():
     # Sequencer-generated metrics #
     # --------------------------- #
     
-    # Plot 1: Clusters passing filter
+    # ------------------------------- #
+    # Plot 1: Clusters passing filter #
+    # ------------------------------- #
     # Filter for non-null CLUSTERS_PASSING_FILTER values and cast to float
     filtered_qc = (joint_qc_table.filter(pl.col('CLUSTERS_PASSING_FILTER').is_not_null())
                                  .with_columns(pl.col('CLUSTERS_PASSING_FILTER').cast(pl.Float64))
@@ -174,27 +176,6 @@ def main():
         # Convert to pandas and ensure numeric types
         plot_data = filtered_qc.to_pandas()
         
-        # plot = (
-        #     ggplot(plot_data, aes(x='RUN_ID', y='CLUSTERS_PASSING_FILTER')) +
-        #     geom_col(aes(fill='RUN_ID'), alpha=0.8) +
-        #     guides(fill=guide_legend('Run')) +
-        #     xlab('Run ID') +
-        #     ylab('Clusters passing filter (percent)') +
-        #     coord_cartesian(ylim=(0, 104)) +
-        #     ggtitle(
-        #         '[Sequencer flowcell run metric] Clusters passing filter '
-        #         '(based on RunCompletionStatus.xml files)\n'
-        #         '(only displaying runs with non-NA values)'
-        #     ) +
-        #     theme_minimal() +
-        #     theme(
-        #         axis_text_x=element_text(angle=angle_x_names, vjust=0.5, hjust=1, size=7),
-        #         figure_size=(15, 6),
-        #         axis_line=element_line(color="#4d4d4d"),
-        #         plot_title=element_text(weight='bold')
-        #     )
-        # )
-
 
         plot = plot_tsoppy_barplot(data        = plot_data,
                                    x_var       = 'RUN_ID',
@@ -212,8 +193,11 @@ def main():
         fig = plot.draw()
         pdf.savefig(fig, bbox_inches='tight')
         plt.close(fig)
-    
-    # Plot 2: Cluster density against estimated yield
+
+
+    # ----------------------------------------------- #
+    # Plot 2: Cluster density against estimated yield #
+    # ----------------------------------------------- #
     # Filter for non-null ESTIMATED_YIELD values and cast numeric columns
     filtered_qc2 = (joint_qc_table.filter(pl.col('ESTIMATED_YIELD').is_not_null())
                                    .with_columns([
@@ -228,8 +212,8 @@ def main():
         
         plot = (
             ggplot(plot_data2, aes(x='CLUSTER_DENSITY', y='ESTIMATED_YIELD')) +
-            geom_point(aes(color='RUN_LABEL'), alpha=0.8, size=4) +
-            geom_text(aes(label='RUN_NUMBER'), alpha=0.8, size=4, nudge_y=-5) +
+            geom_point(aes(color='RUN_LABEL'), alpha=0.8, size=4.5) +
+            geom_text(aes(label='RUN_NUMBER'), alpha=0.8, size=10, nudge_y=-5) +
             guides(color=guide_legend('Run')) +
             coord_cartesian(xlim=(0, 400), ylim=(0, 150)) +
             xlab('Cluster density') +
@@ -239,26 +223,31 @@ def main():
                 '(based on RunCompletionStatus.xml files)\n'
                 '(only displaying runs with non-NA values)'
             ) +
-            scale_x_continuous(breaks=[i * 50 for i in range(9)]) +
-            scale_y_continuous(breaks=[i * 10 for i in range(16)]) +
+            scale_x_continuous(breaks=[i * 50 for i in range(9)], minor_breaks=[i * 25 for i in range(17)]) +
+            scale_y_continuous(breaks=[i * 10 for i in range(16)], minor_breaks=[i * 5 for i in range(31)]) +
             theme_minimal() +
             theme(
                 axis_text_x=element_text(angle=angle_x_names, vjust=0.5, hjust=1, size=7),
                 figure_size=(15, 6),
                 axis_line=element_line(color="#4d4d4d"),
-                plot_title=element_text(weight='bold')
+                plot_title=element_text(weight='bold'),
+                panel_grid_major=element_line(color='gray', size=0.5),
+                panel_grid_minor=element_line(color='lightgray', size=0.25)
             )
         )
         
         fig = plot.draw()
         pdf.savefig(fig, bbox_inches='tight')
         plt.close(fig)
-    
+
+
     # --------------------------- #
     # LocalApp core run metrics   #
     # --------------------------- #
     
-    # Plot 3: Percentage of PF reads
+    # ------------------------------ #
+    # Plot 3: Percentage of PF reads #
+    # ------------------------------ #
     # Cast numeric column to float
     plot_data3 = (joint_qc_table.with_columns(
                       pl.col('PCT_PF_READS').cast(pl.Float64)
@@ -283,10 +272,27 @@ def main():
     #         plot_title=element_text(weight='bold')
     #     )
     # )
-    
-    # fig = plot.draw()
-    # pdf.savefig(fig, bbox_inches='tight')
-    # plt.close(fig)
+
+    plot = plot_tsoppy_barplot(data        = plot_data3,
+                               x_var       = 'RUN_ID',
+                               y_var       = 'PCT_PF_READS',
+                               fill_var    = 'RUN_ID',
+                               guide_title = 'Run',
+                               x_lab       = 'Run ID',
+                               y_lab       = 'Percentage of PF reads',
+                               cart_ylim   = (0, 104),
+                               title       = '[Sequencer flowcell run metric] Percentage of PF reads (based on RunCompletionStatus.xml files)\n(only displaying runs with non-NA values)',
+                               x_lab_angle = angle_x_names,
+                               fig_size    = (15, 6),
+                               alpha_value = 0.8,
+                               hline_y     = 80,
+                               hline_alpha = 0.3,
+                               hline_color = "red",
+                               hline_label = "LSL_Guideline: 80")
+
+    fig = plot.draw()
+    pdf.savefig(fig, bbox_inches='tight')
+    plt.close(fig)
     
     # ---------------------------------------- #
     # Close PDF file after all plots are saved #
