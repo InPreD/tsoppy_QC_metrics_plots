@@ -2,38 +2,6 @@ import pandas as pd
 from plotnine import *
 
 
-# ggplot(plot_data3, aes(x='RUN_ID', y='PCT_PF_READS')) +
-# geom_col(aes(fill='RUN_ID'), alpha=0.8) +
-# guides(fill=guide_legend('Run')) +
-# xlab('\\nRun ID') +
-# ylab('Percentage of PF reads') +
-# coord_cartesian(ylim=(0, 104)) +
-# ggtitle('[LocalApp core run metric] Percentage of reads passing instrument filters') +
-# geom_hline(yintercept=80, alpha=0.3, color='red') +
-# annotate('text', x=joint_qc_table.height + 1, y=80, label='LSL_Guideline: 80', angle=90) +
-# theme_minimal() +
-# theme(axis_text_x=element_text(angle=angle_x_names, vjust=0.5, hjust=1, size=7),
-#       figure_size=(15, 6),
-#       axis_line=element_line(color="#4d4d4d"),
-#       plot_title=element_text(weight='bold'))
-
-
-# ggplot(plot_data, aes(x='RUN_ID', y='CLUSTERS_PASSING_FILTER')) +
-# geom_col(aes(fill='RUN_ID'), alpha=0.8) +
-# guides(fill=guide_legend('Run')) +
-# xlab('Run ID') +
-# ylab('Clusters passing filter (percent)') +
-# coord_cartesian(ylim=(0, 104)) +
-# ggtitle('[Sequencer flowcell run metric] Clusters passing filter '
-#         '(based on RunCompletionStatus.xml files)\n'
-#         '(only displaying runs with non-NA values)') +
-# theme_minimal() +
-# theme(axis_text_x=element_text(angle=angle_x_names, vjust=0.5, hjust=1, size=7),
-#       figure_size=(15, 6),
-#       axis_line=element_line(color="#4d4d4d"),
-#       plot_title=element_text(weight='bold'))
-
-
 def plot_tsoppy_barplot(data        : pd.DataFrame = None,
                         x_var       : str          = None,
                         y_var       : str          = None,
@@ -55,7 +23,10 @@ def plot_tsoppy_barplot(data        : pd.DataFrame = None,
     """
     Function to create a bar plot using plotnine (ggplot2 in Python) for TSOPPI run metrics.
     This function is designed to be flexible and can be used for various run metrics by passing the appropriate parameters.
+
+    When hline_y is provided, a horizontal line will be added to the plot at the specified y-value, along with an annotation label if hline_label is provided.
     
+
     Parameters:
     - data: A pandas DataFrame containing the data to be plotted.
     - x_var: The name of the column in the DataFrame to be used for the x-axis.
@@ -69,6 +40,11 @@ def plot_tsoppy_barplot(data        : pd.DataFrame = None,
     - x_lab_angle: The angle for the x-axis labels (default is 45 degrees).
     - fig_size: A tuple specifying the size of the figure (default is (15, 6)).
     - alpha_value: The transparency level for the bars (default is 0.8).
+    - hline_y: The y-value at which to draw a horizontal line (optional).
+    - hline_alpha: The transparency level for the horizontal line (default is 1.0).
+    - hline_color: The color of the horizontal line (default is "red").
+    - hline_label: The label for the horizontal line annotation (default is an empty string).
+    - hline_size: The thickness of the horizontal line (default is 1.0).
 
     Returns:
     - A plotnine ggplot object representing the bar plot. 
@@ -87,18 +63,20 @@ def plot_tsoppy_barplot(data        : pd.DataFrame = None,
         theme(axis_text_x = element_text(angle = x_lab_angle, vjust = 0.5, hjust = 1, size = 7),
               figure_size = fig_size,
               axis_line   = element_line(color = "#4d4d4d"),
-              plot_title  = element_text(weight = 'bold')
-            )
+              plot_title  = element_text(weight = 'bold', ha = 'left')
+            ) +
+        scale_x_discrete(expand = (0.05, 0, 0.1, 0))  # Add 15% space on right side
     )
 
-    # Add horizontal line and annotation if hline_y is provided    
+    # Add horizontal line and annotation if hline_y is provided
+    # Also add extra space on the right for the annotation label
     if hline_y is not None:
         plot = (plot +
                 geom_hline(yintercept = hline_y,
                            alpha      = hline_alpha,
                            color      = hline_color,
                            size       = hline_size) +
-                annotate("text", len(data) + 0.49, hline_y, label = hline_label, angle = 90, size = 13)
+                annotate("text", len(data) + 2/3, hline_y, label = hline_label, angle = 90, size = 13)
                )   
     
     return plot
