@@ -68,7 +68,7 @@ def plot_tsoppy_barplot(data        : pd.DataFrame = None,
         coord_cartesian(ylim = cart_ylim) +
         ggtitle(title) +
         theme_minimal() +
-        theme(axis_text_x = element_text(angle = x_lab_angle, vjust = 0.5, hjust = 1, size = 7),
+        theme(axis_text_x = element_text(angle = x_lab_angle, vjust = 0.5, hjust = 1, size = 9),
               figure_size = fig_size,
               axis_line   = element_line(color = AXIS_LINE_COLOR),
               plot_title  = element_text(weight = 'bold', ha = 'left')
@@ -84,7 +84,7 @@ def plot_tsoppy_barplot(data        : pd.DataFrame = None,
                            alpha      = hline_alpha,
                            color      = hline_color,
                            size       = hline_size) +
-                annotate("text", len(data) + 2/3, hline_y, label = hline_label, angle = 90, size = 13)
+                annotate("text", len(data) + 2/3, hline_y, label = hline_label, angle = 90, size = 12)
                )   
     
     return plot
