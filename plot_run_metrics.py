@@ -415,6 +415,42 @@ def main():
         fig = plot.draw()
         pdf.savefig(fig, bbox_inches='tight')
         plt.close(fig)
+        
+        
+        # ----------------------------------------- #
+        # Plot 8: Median exon coverage (DNA)        #
+        # ----------------------------------------- #
+        
+        # Extract guideline value
+        lsl_dna_median_exon_coverage = int(
+            dna_guideline_table.filter(pl.col('SAMPLE_ID') == 'LSL_Guideline')
+                               .select(pl.col('DNA_MEDIAN_EXON_COVERAGE').cast(pl.Int32))
+                               .item()
+        )
+        
+        # Prepare plot data
+        plot_data8 = (dna_data_table
+                     .filter(pl.col('DNA_MEDIAN_EXON_COVERAGE') != 'NA')
+                     .with_columns(pl.col('DNA_MEDIAN_EXON_COVERAGE').cast(pl.Float64))
+                     .to_pandas())
+        
+        plot = plot_tsoppy_barplot(data        = plot_data8,
+                                   x_var       = 'SAMPLE_ID',
+                                   y_var       = 'DNA_MEDIAN_EXON_COVERAGE',
+                                   fill_var    = 'RUN',
+                                   guide_title = 'Run',
+                                   x_lab       = 'Sample ID',
+                                   y_lab       = 'Median exon coverage',
+                                   title       = '[LocalApp core DNA metric] Median exon coverage',
+                                   fig_size    = (15, 6),
+                                   alpha_value = 0.8,
+                                   hline_y     = lsl_dna_median_exon_coverage,
+                                   hline_label = f"LSL_Guideline: {lsl_dna_median_exon_coverage}"
+        )
+        
+        fig = plot.draw()
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close(fig)
     
     else:
         print("; No DNA samples included in the plotted runs")
