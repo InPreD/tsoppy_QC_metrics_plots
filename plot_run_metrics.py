@@ -451,6 +451,81 @@ def main():
         fig = plot.draw()
         pdf.savefig(fig, bbox_inches='tight')
         plt.close(fig)
+
+
+        # --------------------------------------------------------------- #
+        # Plot 9: Percentage of exons with coverage >= 50X (DNA)         #
+        # --------------------------------------------------------------- #
+
+        # Extract guideline value
+        lsl_dna_pct_exon_50x = int(
+            dna_guideline_table.filter(pl.col('SAMPLE_ID') == 'LSL_Guideline')
+                               .select(pl.col('DNA_PCT_EXON_50X').cast(pl.Float64))
+                               .item()
+        )
+
+        # Prepare plot data
+        plot_data9 = (dna_data_table
+                     .filter(pl.col('DNA_PCT_EXON_50X') != 'NA')
+                     .with_columns(pl.col('DNA_PCT_EXON_50X').cast(pl.Float64))
+                     .to_pandas())
+
+        plot = plot_tsoppy_barplot(data         = plot_data9,
+                                   x_var        = 'SAMPLE_ID',
+                                   y_var        = 'DNA_PCT_EXON_50X',
+                                   fill_var     = 'RUN',
+                                   guide_title  = 'Run',
+                                   x_lab        = 'Sample ID',
+                                   y_lab        = 'Percentage of exons with coverage >= 50X',
+                                   cart_ylim    = (0, 105),
+                                   title        = '[LocalApp core DNA metric] Percentage of exons with coverage >= 50X',
+                                   fig_size     = (15, 6),
+                                   alpha_value  = 0.8,
+                                   hline_y      = lsl_dna_pct_exon_50x,
+                                   hline_label  = f"LSL_Guideline: {lsl_dna_pct_exon_50x}",
+                                   ann_y_offset = -5
+        )
+
+        fig = plot.draw()
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close(fig)
+
+
+        # ----------------------------------------- #
+        # Plot 10: Median insert size (DNA)        #
+        # ----------------------------------------- #
+
+        # Extract guideline value
+        lsl_median_insert_size = int(
+            dna_guideline_table.filter(pl.col('SAMPLE_ID') == 'LSL_Guideline')
+                               .select(pl.col('DNA_MEDIAN_INSERT_SIZE').cast(pl.Int32))
+                               .item()
+        )
+
+        # Prepare plot data
+        plot_data10 = (dna_data_table
+                      .filter(pl.col('DNA_MEDIAN_INSERT_SIZE') != 'NA')
+                      .with_columns(pl.col('DNA_MEDIAN_INSERT_SIZE').cast(pl.Float64))
+                      .to_pandas())
+
+        plot = plot_tsoppy_barplot(data         = plot_data10,
+                                   x_var        = 'SAMPLE_ID',
+                                   y_var        = 'DNA_MEDIAN_INSERT_SIZE',
+                                   fill_var     = 'RUN',
+                                   guide_title  = 'Run',
+                                   x_lab        = 'Sample ID',
+                                   y_lab        = 'Median insert size',
+                                   title        = '[LocalApp core DNA metric] Median insert size',
+                                   fig_size     = (15, 6),
+                                   alpha_value  = 0.8,
+                                   hline_y      = lsl_median_insert_size,
+                                   hline_label  = f"LSL_Guideline: {lsl_median_insert_size}",
+                                   ann_y_offset = 10
+        )
+
+        fig = plot.draw()
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close(fig)
     
     else:
         print("; No DNA samples included in the plotted runs")
