@@ -526,6 +526,117 @@ def main():
         fig = plot.draw()
         pdf.savefig(fig, bbox_inches='tight')
         plt.close(fig)
+
+
+        # -------------------------------------------------------------- #
+        # Plot 11: Coverage MAD (DNA)                                   #
+        # -------------------------------------------------------------- #
+
+        # Extract guideline value
+        usl_median_coverage_mad = float(
+            dna_guideline_table.filter(pl.col('SAMPLE_ID') == 'USL_Guideline')
+                               .select(pl.col('DNA_COVERAGE_MAD').cast(pl.Float64))
+                               .item()
+        )
+
+        # Prepare plot data
+        plot_data11 = (dna_data_table
+                      .filter(pl.col('DNA_COVERAGE_MAD') != 'NA')
+                      .with_columns(pl.col('DNA_COVERAGE_MAD').cast(pl.Float64))
+                      .to_pandas())
+
+        plot = plot_tsoppy_barplot(data         = plot_data11,
+                                   x_var        = 'SAMPLE_ID',
+                                   y_var        = 'DNA_COVERAGE_MAD',
+                                   fill_var     = 'RUN',
+                                   guide_title  = 'Run',
+                                   x_lab        = 'Sample ID',
+                                   y_lab        = 'Coverage MAD (Median Absolute Deviation)',
+                                   title        = '[LocalApp core DNA metric] Coverage MAD\n(median normalized deviation across all regions used for CNV calling)',
+                                   fig_size     = (15, 6),
+                                   alpha_value  = 0.8,
+                                   hline_y      = usl_median_coverage_mad,
+                                   hline_label  = f"USL_Guideline: {usl_median_coverage_mad}",
+                                   ann_y_offset = 0
+        )
+
+        fig = plot.draw()
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close(fig)
+
+
+        # ---------------------------------------------------------------- #
+        # Plot 12: Median raw bin count per CNV target (DNA)             #
+        # ---------------------------------------------------------------- #
+
+        # Extract guideline value
+        lsl_median_bin_count = int(
+            dna_guideline_table.filter(pl.col('SAMPLE_ID') == 'LSL_Guideline')
+                               .select(pl.col('DNA_MEDIAN_BIN_COUNT_CNV_TARGET').cast(pl.Int32))
+                               .item()
+        )
+
+        # Prepare plot data
+        plot_data12 = (dna_data_table
+                      .filter(pl.col('DNA_MEDIAN_BIN_COUNT_CNV_TARGET') != 'NA')
+                      .with_columns(pl.col('DNA_MEDIAN_BIN_COUNT_CNV_TARGET').cast(pl.Float64))
+                      .to_pandas())
+
+        plot = plot_tsoppy_barplot(data         = plot_data12,
+                                   x_var        = 'SAMPLE_ID',
+                                   y_var        = 'DNA_MEDIAN_BIN_COUNT_CNV_TARGET',
+                                   fill_var     = 'RUN',
+                                   guide_title  = 'Run',
+                                   x_lab        = 'Sample ID',
+                                   y_lab        = 'Median raw bin count per CNV target',
+                                   title        = '[LocalApp core DNA metric] Median raw bin count per CNV target',
+                                   fig_size     = (15, 6),
+                                   alpha_value  = 0.8,
+                                   hline_y      = lsl_median_bin_count,
+                                   hline_label  = f"LSL_Guideline: {lsl_median_bin_count}",
+                                   ann_y_offset = 1
+        )
+
+        fig = plot.draw()
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close(fig)
+
+
+        # ---------------------------------------------------------------- #
+        # Plot 13: Number of usable MSI sites (DNA)                       #
+        # ---------------------------------------------------------------- #
+
+        # Extract guideline value
+        lsl_usable_msi_sites = int(
+            dna_guideline_table.filter(pl.col('SAMPLE_ID') == 'LSL_Guideline')
+                               .select(pl.col('DNA_USABLE_MSI_SITES').cast(pl.Int32))
+                               .item()
+        )
+
+        # Prepare plot data
+        plot_data13 = (dna_data_table
+                      .filter(pl.col('DNA_USABLE_MSI_SITES') != 'NA')
+                      .with_columns(pl.col('DNA_USABLE_MSI_SITES').cast(pl.Float64))
+                      .to_pandas())
+
+        plot = plot_tsoppy_barplot(data         = plot_data13,
+                                   x_var        = 'SAMPLE_ID',
+                                   y_var        = 'DNA_USABLE_MSI_SITES',
+                                   fill_var     = 'RUN',
+                                   guide_title  = 'Run',
+                                   x_lab        = 'Sample ID',
+                                   y_lab        = 'Usable MSI sites',
+                                   title        = '[LocalApp core DNA metric] Number of usable MSI sites',
+                                   fig_size     = (15, 6),
+                                   alpha_value  = 0.8,
+                                   hline_y      = lsl_usable_msi_sites,
+                                   hline_label  = f"LSL_Guideline: {lsl_usable_msi_sites}",
+                                   ann_y_offset = 0
+        )
+
+        fig = plot.draw()
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close(fig)
     
     else:
         print("; No DNA samples included in the plotted runs")
