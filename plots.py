@@ -10,23 +10,24 @@ HV_LINE_SIZE    = 1
 HV_LINE_ALPHA   = 0.75
 
 
-def plot_tsoppy_barplot(data        : pd.DataFrame = None,
-                        x_var       : str          = None,
-                        y_var       : str          = None,
-                        fill_var    : str          = None,
-                        guide_title : str          = None,
-                        x_lab       : str          = None,
-                        y_lab       : str          = None,
-                        cart_ylim   : tuple        = None,
-                        title       : str          = None,
-                        x_lab_angle : int          = 45,
-                        fig_size    : tuple        = (15, 6),
-                        alpha_value : float        = 0.8,
-                        hline_y     : float        = None,
-                        hline_alpha : float        = HV_LINE_ALPHA,
-                        hline_color : str          = HV_LINE_COLOR,
-                        hline_label : str          = "",
-                        hline_size  : float        = HV_LINE_SIZE
+def plot_tsoppy_barplot(data         : pd.DataFrame = None,
+                        x_var        : str          = None,
+                        y_var        : str          = None,
+                        fill_var     : str          = None,
+                        guide_title  : str          = None,
+                        x_lab        : str          = None,
+                        y_lab        : str          = None,
+                        cart_ylim    : tuple        = None,
+                        title        : str          = None,
+                        x_lab_angle  : int          = 45,
+                        fig_size     : tuple        = (15, 6),
+                        alpha_value  : float        = 0.8,
+                        hline_y      : float        = None,
+                        hline_alpha  : float        = HV_LINE_ALPHA,
+                        hline_color  : str          = HV_LINE_COLOR,
+                        hline_label  : str          = "",
+                        hline_size   : float        = HV_LINE_SIZE,
+                        ann_y_offset : float        = 0.0
                         ) -> ggplot:
     """
     Function to create a bar plot using plotnine (ggplot2 in Python) for TSOPPI run metrics.
@@ -53,6 +54,7 @@ def plot_tsoppy_barplot(data        : pd.DataFrame = None,
     - hline_color: The color of the horizontal line (default is "red").
     - hline_label: The label for the horizontal line annotation (default is an empty string).
     - hline_size: The thickness of the horizontal line (default is 1.0).
+    - ann_y_offset: The vertical offset for the annotation label (default is 0.0, which means it will be placed directly at the end of the line). Negative values will place the label below the line, while positive values will place it above the line.
 
     Returns:
     - A plotnine ggplot object representing the bar plot. 
@@ -84,7 +86,8 @@ def plot_tsoppy_barplot(data        : pd.DataFrame = None,
                            alpha      = hline_alpha,
                            color      = hline_color,
                            size       = hline_size) +
-                annotate("text", len(data) + 2/3, hline_y, label = hline_label, angle = 90, size = 12)
+                annotate("text", len(data) + 2/3, hline_y + ann_y_offset,
+                         label = hline_label, angle = 90, size = 12)
                )   
     
     return plot
