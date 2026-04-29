@@ -640,6 +640,193 @@ def main():
     
     else:
         print("; No DNA samples included in the plotted runs")
+
+
+    # --------------------------- #
+    # LocalApp core RNA metrics   #
+    # --------------------------- #
+
+    if rna_sample_count > 0:
+
+        # -------------------------------------------------------------- #
+        # Plot 14: Uniformity of coverage across transcripts (RNA)      #
+        # -------------------------------------------------------------- #
+
+        # Extract guideline value
+        usl_median_cv = int(
+            rna_guideline_table.filter(pl.col('SAMPLE_ID') == 'USL_Guideline')
+                               .select(pl.col('RNA_MEDIAN_CV_GENE_500X').cast(pl.Float64))
+                               .item()
+        )
+
+        # Prepare plot data
+        plot_data14 = (rna_data_table
+                      .filter(pl.col('RNA_MEDIAN_CV_GENE_500X') != 'NA')
+                      .with_columns(pl.col('RNA_MEDIAN_CV_GENE_500X').cast(pl.Float64))
+                      .to_pandas())
+
+        plot = plot_tsoppy_barplot(data         = plot_data14,
+                                   x_var        = 'SAMPLE_ID',
+                                   y_var        = 'RNA_MEDIAN_CV_GENE_500X',
+                                   fill_var     = 'RUN',
+                                   guide_title  = 'Run',
+                                   x_lab        = 'Sample ID',
+                                   y_lab        = 'Median CV for genes with median coverage >500',
+                                   cart_ylim    = (0, 125),
+                                   title        = '[LocalApp core RNA metric] Uniformity of coverage across transcripts',
+                                   fig_size     = (15, 6),
+                                   alpha_value  = 0.8,
+                                   hline_y      = usl_median_cv,
+                                   hline_label  = f"USL_Guideline: {usl_median_cv}",
+                                   ann_y_offset = 0
+        )
+
+        fig = plot.draw()
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close(fig)
+
+
+        # -------------------------------------------------------------- #
+        # Plot 15: Total on-target reads in millions (RNA)              #
+        # -------------------------------------------------------------- #
+
+        # Extract guideline value
+        lsl_total_on_target_reads = int(
+            rna_guideline_table.filter(pl.col('SAMPLE_ID') == 'LSL_Guideline')
+                               .select((pl.col('RNA_TOTAL_ON_TARGET_READS').cast(pl.Float64) / 1000000.0))
+                               .item()
+        )
+
+        # Prepare plot data
+        plot_data15 = (rna_data_table
+                      .filter(pl.col('RNA_TOTAL_ON_TARGET_READS') != 'NA')
+                      .with_columns(
+                          (pl.col('RNA_TOTAL_ON_TARGET_READS').cast(pl.Float64) / 1000000.0)
+                          .alias('RNA_TOTAL_ON_TARGET_READS_MILLIONS')
+                      )
+                      .to_pandas())
+
+        plot = plot_tsoppy_barplot(data         = plot_data15,
+                                   x_var        = 'SAMPLE_ID',
+                                   y_var        = 'RNA_TOTAL_ON_TARGET_READS_MILLIONS',
+                                   fill_var     = 'RUN',
+                                   guide_title  = 'Run',
+                                   x_lab        = 'Sample ID',
+                                   y_lab        = 'On target reads (millions)',
+                                   title        = '[LocalApp core RNA metric] Total on-target reads in millions',
+                                   fig_size     = (15, 6),
+                                   alpha_value  = 0.8,
+                                   hline_y      = lsl_total_on_target_reads,
+                                   hline_label  = f"LSL_Guideline: {lsl_total_on_target_reads}",
+                                   ann_y_offset = 0
+        )
+
+        fig = plot.draw()
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close(fig)
+
+
+        # -------------------------------------------------------------- #
+        # Plot 16: Median insert size (RNA)                             #
+        # -------------------------------------------------------------- #
+
+        # Extract guideline value
+        lsl_median_insert_size = int(
+            rna_guideline_table.filter(pl.col('SAMPLE_ID') == 'LSL_Guideline')
+                               .select(pl.col('RNA_MEDIAN_INSERT_SIZE').cast(pl.Float64))
+                               .item()
+        )
+
+        # Prepare plot data
+        plot_data16 = (rna_data_table
+                      .filter(pl.col('RNA_MEDIAN_INSERT_SIZE') != 'NA')
+                      .with_columns(pl.col('RNA_MEDIAN_INSERT_SIZE').cast(pl.Float64))
+                      .to_pandas())
+
+        plot = plot_tsoppy_barplot(data         = plot_data16,
+                                   x_var        = 'SAMPLE_ID',
+                                   y_var        = 'RNA_MEDIAN_INSERT_SIZE',
+                                   fill_var     = 'RUN',
+                                   guide_title  = 'Run',
+                                   x_lab        = 'Sample ID',
+                                   y_lab        = 'Median insert size',
+                                   title        = '[LocalApp core RNA metric] Median insert size',
+                                   fig_size     = (15, 6),
+                                   alpha_value  = 0.8,
+                                   hline_y      = lsl_median_insert_size,
+                                   hline_label  = f"LSL_Guideline: {lsl_median_insert_size}",
+                                   ann_y_offset = 0
+        )
+
+        fig = plot.draw()
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close(fig)
+
+    else:
+        print("; No RNA samples included in the plotted runs")
+
+
+    # --------------------------- #
+    # In-house core metrics       #
+    # --------------------------- #
+
+    if dna_sample_count > 0:
+
+        # -------------------------------------------------------------- #
+        # Plot 17: Pipeline completion (DNA)                            #
+        # -------------------------------------------------------------- #
+
+        # Prepare plot data
+        plot_data17 = (dna_data_table
+                      .filter(pl.col('SAMPLE_ID').str.contains(r'-D0\d-'))
+                      .filter(pl.col('COMPLETED_ALL_STEPS') != 'NA')
+                      .with_columns(pl.col('COMPLETED_ALL_STEPS'))
+                      .to_pandas())
+
+        plot = plot_tsoppy_barplot(data         = plot_data17,
+                                   x_var        = 'SAMPLE_ID',
+                                   y_var        = 'COMPLETED_ALL_STEPS',
+                                   fill_var     = 'RUN',
+                                   guide_title  = 'Run',
+                                   x_lab        = 'Sample ID',
+                                   y_lab        = 'Pipeline completion',
+                                   title        = '[InPreD core DNA metric] Pipeline completion',
+                                   fig_size     = (15, 6),
+                                   alpha_value  = 0.8
+        )
+
+        fig = plot.draw()
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close(fig)
+
+    if rna_sample_count > 0:
+
+        # -------------------------------------------------------------- #
+        # Plot 18: Pipeline completion (RNA)                            #
+        # -------------------------------------------------------------- #
+
+        # Prepare plot data
+        plot_data18 = (rna_data_table
+                      .filter(pl.col('SAMPLE_ID').str.contains(r'-R0\d-'))
+                      .filter(pl.col('COMPLETED_ALL_STEPS') != 'NA')
+                      .with_columns(pl.col('COMPLETED_ALL_STEPS'))
+                      .to_pandas())
+
+        plot = plot_tsoppy_barplot(data         = plot_data18,
+                                   x_var        = 'SAMPLE_ID',
+                                   y_var        = 'COMPLETED_ALL_STEPS',
+                                   fill_var     = 'RUN',
+                                   guide_title  = 'Run',
+                                   x_lab        = 'Sample ID',
+                                   y_lab        = 'Pipeline completion',
+                                   title        = '[InPreD core RNA metric] Pipeline completion',
+                                   fig_size     = (15, 6),
+                                   alpha_value  = 0.8
+        )
+
+        fig = plot.draw()
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close(fig)
     
     # ---------------------------------------- #
     # Close PDF file after all plots are saved #
