@@ -27,7 +27,8 @@ def plot_tsoppy_barplot(data         : pd.DataFrame = None,
                         hline_color  : str          = HV_LINE_COLOR,
                         hline_label  : str          = "",
                         hline_size   : float        = HV_LINE_SIZE,
-                        ann_y_offset : float        = 0.0
+                        ann_y_offset : float        = 0.0,
+                        y_tick_step  : int          = None
                         ) -> ggplot:
     """
     Function to create a bar plot using plotnine (ggplot2 in Python) for TSOPPI run metrics.
@@ -55,6 +56,7 @@ def plot_tsoppy_barplot(data         : pd.DataFrame = None,
     - hline_label: The label for the horizontal line annotation (default is an empty string).
     - hline_size: The thickness of the horizontal line (default is 1.0).
     - ann_y_offset: The vertical offset for the annotation label (default is 0.0, which means it will be placed directly at the end of the line). Negative values will place the label below the line, while positive values will place it above the line.
+    - y_tick_step: Optional fixed separation between y-axis ticks (e.g., 10, 50, 100).
 
     Returns:
     - A plotnine ggplot object representing the bar plot. 
@@ -77,6 +79,17 @@ def plot_tsoppy_barplot(data         : pd.DataFrame = None,
             ) +
         scale_x_discrete(expand = (0.05, 0, 0.1, 0))  # Add 15% space on right side
     )
+
+    # Add fixed y-axis tick spacing when requested
+    if y_tick_step is not None and y_tick_step > 0:
+        y_series = pd.to_numeric(data[y_var], errors='coerce')
+        data_max = y_series.max()
+        upper_lim = cart_ylim[1] if cart_ylim is not None and cart_ylim[1] is not None else data_max
+
+        if pd.notna(upper_lim):
+            upper_tick = int(upper_lim) + y_tick_step
+            y_breaks = list(range(0, upper_tick + 1, y_tick_step))
+            plot = plot + scale_y_continuous(breaks = y_breaks)
 
     # Add horizontal line and annotation if hline_y is provided
     # Also add extra space on the right for the annotation label
