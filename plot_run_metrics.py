@@ -434,18 +434,20 @@ def main():
                      .with_columns(pl.col('DNA_MEDIAN_EXON_COVERAGE').cast(pl.Float64))
                      .to_pandas())
         
-        plot = plot_tsoppy_barplot(data        = plot_data8,
-                                   x_var       = 'SAMPLE_ID',
-                                   y_var       = 'DNA_MEDIAN_EXON_COVERAGE',
-                                   fill_var    = 'RUN',
-                                   guide_title = 'Run',
-                                   x_lab       = 'Sample ID',
-                                   y_lab       = 'Median exon coverage',
-                                   title       = '[LocalApp core DNA metric] Median exon coverage',
-                                   fig_size    = (15, 6),
-                                   alpha_value = 0.8,
-                                   hline_y     = lsl_dna_median_exon_coverage,
-                                   hline_label = f"LSL_Guideline: {lsl_dna_median_exon_coverage}"
+        plot = plot_tsoppy_barplot(data         = plot_data8,
+                                   x_var        = 'SAMPLE_ID',
+                                   y_var        = 'DNA_MEDIAN_EXON_COVERAGE',
+                                   fill_var     = 'RUN',
+                                   guide_title  = 'Run',
+                                   x_lab        = 'Sample ID',
+                                   y_lab        = 'Median exon coverage',
+                                   title        = '[LocalApp core DNA metric] Median exon coverage',
+                                   fig_size     = (15, 6),
+                                   alpha_value  = 0.8,
+                                   hline_y      = lsl_dna_median_exon_coverage,
+                                   hline_label  = f"LSL_Guideline: {lsl_dna_median_exon_coverage}",
+                                   y_tick_step  = 100,
+                                   ann_y_offset = 200
         )
         
         fig = plot.draw()
@@ -477,13 +479,14 @@ def main():
                                    guide_title  = 'Run',
                                    x_lab        = 'Sample ID',
                                    y_lab        = 'Percentage of exons with coverage >= 50X',
-                                   cart_ylim    = (0, 105),
+                                   cart_ylim    = (0, 104),
                                    title        = '[LocalApp core DNA metric] Percentage of exons with coverage >= 50X',
                                    fig_size     = (15, 6),
                                    alpha_value  = 0.8,
                                    hline_y      = lsl_dna_pct_exon_50x,
                                    hline_label  = f"LSL_Guideline: {lsl_dna_pct_exon_50x}",
-                                   ann_y_offset = -5
+                                   ann_y_offset = -15,
+                                   y_tick_step  = 10,
         )
 
         fig = plot.draw()
@@ -678,7 +681,8 @@ def main():
                                    alpha_value  = 0.8,
                                    hline_y      = usl_median_cv,
                                    hline_label  = f"USL_Guideline: {usl_median_cv}",
-                                   ann_y_offset = 0
+                                   ann_y_offset = 0,
+                                   y_tick_step  = 20
         )
 
         fig = plot.draw()
@@ -755,7 +759,8 @@ def main():
                                    alpha_value  = 0.8,
                                    hline_y      = lsl_median_insert_size,
                                    hline_label  = f"LSL_Guideline: {lsl_median_insert_size}",
-                                   ann_y_offset = 0
+                                   ann_y_offset = 0,
+                                   y_tick_step  = 10
         )
 
         fig = plot.draw()
@@ -827,10 +832,118 @@ def main():
         fig = plot.draw()
         pdf.savefig(fig, bbox_inches='tight')
         plt.close(fig)
-    
+
+    if dna_sample_count > 0:
+
+        # -------------------------------------------------------------- #
+        # Plot 19: Number of reads in millions (DNA)                    #
+        # -------------------------------------------------------------- #
+
+        # Prepare plot data
+        plot_data19 = (dna_data_table
+                      #.filter(pl.col('SAMPLE_ID').str.contains(r'-D0\d-'))
+                      .filter(pl.col('DNA_TOTAL_PF_READS') != 'NA')
+                      .with_columns(
+                          (pl.col('DNA_TOTAL_PF_READS').cast(pl.Float64) / 1000000.0)
+                          .alias('DNA_TOTAL_PF_READS_MILLIONS')
+                      )
+                      .to_pandas())
+
+        plot = plot_tsoppy_barplot(data         = plot_data19,
+                                   x_var        = 'SAMPLE_ID',
+                                   y_var        = 'DNA_TOTAL_PF_READS_MILLIONS',
+                                   fill_var     = 'RUN',
+                                   guide_title  = 'Run',
+                                   x_lab        = 'Sample ID',
+                                   y_lab        = 'Number of reads (millions)',
+                                   title        = '[InPreD core DNA metric] Number of reads in millions',
+                                   fig_size     = (15, 6),
+                                   alpha_value  = 0.8,
+                                   hline_y      = 80,
+                                   hline_alpha  = 0.3,
+                                   hline_color  = 'red',
+                                   hline_label  = 'Internal Guideline: 80',
+                                   ann_y_offset = -20,
+                                   y_tick_step  = 10
+        )
+
+        fig = plot.draw()
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close(fig)
+
+
+        # -------------------------------------------------------------- #
+        # Plot 20: Mean target coverage (DNA)                           #
+        # -------------------------------------------------------------- #
+
+        # Prepare plot data
+        plot_data20 = (dna_data_table
+                      .filter(pl.col('DNA_MEAN_TARGET_COVERAGE') != 'NA')
+                      .with_columns(pl.col('DNA_MEAN_TARGET_COVERAGE').cast(pl.Float64))
+                      .to_pandas())
+
+        plot = plot_tsoppy_barplot(data         = plot_data20,
+                                   x_var        = 'SAMPLE_ID',
+                                   y_var        = 'DNA_MEAN_TARGET_COVERAGE',
+                                   fill_var     = 'RUN',
+                                   guide_title  = 'Run',
+                                   x_lab        = 'Sample ID',
+                                   y_lab        = 'Mean target coverage',
+                                   title        = '[InPreD core DNA metric] Mean target coverage',
+                                   fig_size     = (15, 6),
+                                   alpha_value  = 0.8,
+                                   hline_y      = 350,
+                                   hline_alpha  = 0.3,
+                                   hline_color  = 'red',
+                                   hline_label  = 'Internal Guideline: 350',
+                                   ann_y_offset = 0,
+                                   y_tick_step  = 100
+        )
+
+        fig = plot.draw()
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close(fig)
+
     # ---------------------------------------- #
     # Close PDF file after all plots are saved #
     # ---------------------------------------- # 
+
+        # -------------------------------------------------------------- #
+        # Plot 21: Mean family size (DNA)                                 #
+        # -------------------------------------------------------------- #
+
+        plot_data21 = (dna_data_table
+                      .filter(pl.col('DNA_MEAN_FAMILY_SIZE') != 'NA')
+                      .with_columns(pl.col('DNA_MEAN_FAMILY_SIZE').cast(pl.Float64))
+                      .to_pandas())
+
+        max_family_size = plot_data21['DNA_MEAN_FAMILY_SIZE'].max()
+
+        plot = plot_tsoppy_barplot(data         = plot_data21,
+                                   x_var        = 'SAMPLE_ID',
+                                   y_var        = 'DNA_MEAN_FAMILY_SIZE',
+                                   fill_var     = 'RUN',
+                                   guide_title  = 'Run',
+                                   x_lab        = 'Sample ID',
+                                   y_lab        = 'Mean family size',
+                                   title        = '[LocalApp DNA metric] Mean family size',
+                                   fig_size     = (15, 6),
+                                   alpha_value  = 0.8,
+                                   cart_ylim    = (1, max_family_size + 10),
+                                   y_tick_step  = 2
+        )
+
+        # Add text labels for mean family size values on top of the bars
+        plot = plot + geom_text(aes(label='DNA_MEAN_FAMILY_SIZE'),
+                                angle=90, va='center', ha='right', nudge_y=0.85, size=16)
+
+        fig = plot.draw()
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close(fig)
+
+    # ---------------------------------------- #
+    # Close PDF file after all plots are saved #
+    # ---------------------------------------- #
     pdf.close()
     print("; Plots saved to PDF")
 
