@@ -941,6 +941,180 @@ def main():
         pdf.savefig(fig, bbox_inches='tight')
         plt.close(fig)
 
+
+        # ---------------------------------------------------------------------- #
+        # Plot 22: Number of reads (millions) divided by mean family size (DNA)  #
+        # ---------------------------------------------------------------------- #
+
+        # Derive the ratio column from both source columns cast to Float64
+        plot_data22 = (dna_data_table
+                      .filter(
+                          (pl.col('DNA_TOTAL_PF_READS') != 'NA') &
+                          (pl.col('DNA_MEAN_FAMILY_SIZE') != 'NA')
+                      )
+                      .with_columns(
+                          (pl.col('DNA_TOTAL_PF_READS').cast(pl.Float64) / 1000000.0 /
+                           pl.col('DNA_MEAN_FAMILY_SIZE').cast(pl.Float64))
+                          .alias('DNA_READS_MILLIONS_PER_FAMILY_SIZE')
+                      )
+                      .to_pandas())
+
+        plot = plot_tsoppy_barplot(data        = plot_data22,
+                                   x_var       = 'SAMPLE_ID',
+                                   y_var       = 'DNA_READS_MILLIONS_PER_FAMILY_SIZE',
+                                   fill_var    = 'RUN',
+                                   guide_title = 'Run',
+                                   x_lab       = 'Sample ID',
+                                   y_lab       = 'Number of reads (millions) / mean family size',
+                                   title       = '[LocalApp DNA metric] Number of reads divided by mean read family size',
+                                   fig_size    = (15, 6),
+                                   alpha_value = 0.8,
+                                   y_tick_step = 10
+        )
+
+        fig = plot.draw()
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close(fig)
+
+
+        # --------------------------------------------------------- #
+        # Plot 23: Percentage of aligned reads (DNA)               #
+        # --------------------------------------------------------- #
+
+        plot_data23 = (dna_data_table
+                      .filter(pl.col('DNA_PCT_ALIGNED_READS') != 'NA')
+                      .with_columns(pl.col('DNA_PCT_ALIGNED_READS').cast(pl.Float64))
+                      .to_pandas())
+
+        plot = plot_tsoppy_barplot(data        = plot_data23,
+                                   x_var       = 'SAMPLE_ID',
+                                   y_var       = 'DNA_PCT_ALIGNED_READS',
+                                   fill_var    = 'RUN',
+                                   guide_title = 'Run',
+                                   x_lab       = 'Sample ID',
+                                   y_lab       = 'Percentage of aligned reads',
+                                   cart_ylim   = (0, 104),
+                                   title       = '[LocalApp DNA metric] Percentage of aligned reads',
+                                   fig_size    = (15, 6),
+                                   alpha_value = 0.8,
+                                   y_tick_step = 10
+        )
+
+        fig = plot.draw()
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close(fig)
+
+
+        # --------------------------------------------------------- #
+        # Plot 24: Median target coverage (DNA)                    #
+        # --------------------------------------------------------- #
+
+        plot_data24 = (dna_data_table
+                      .filter(pl.col('DNA_MEDIAN_TARGET_COVERAGE') != 'NA')
+                      .with_columns(pl.col('DNA_MEDIAN_TARGET_COVERAGE').cast(pl.Float64))
+                      .to_pandas())
+
+        plot = plot_tsoppy_barplot(data        = plot_data24,
+                                   x_var       = 'SAMPLE_ID',
+                                   y_var       = 'DNA_MEDIAN_TARGET_COVERAGE',
+                                   fill_var    = 'RUN',
+                                   guide_title = 'Run',
+                                   x_lab       = 'Sample ID',
+                                   y_lab       = 'Median target coverage',
+                                   title       = '[LocalApp DNA metric] Median target coverage',
+                                   fig_size    = (15, 6),
+                                   alpha_value = 0.8,
+                                   y_tick_step = 100
+        )
+
+        fig = plot.draw()
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close(fig)
+
+
+        # --------------------------------------------------------- #
+        # Plot 25: Percentage of exons at 100X coverage (DNA)      #
+        # --------------------------------------------------------- #
+
+        plot_data25 = (dna_data_table
+                      .filter(pl.col('DNA_PCT_EXON_100X') != 'NA')
+                      .with_columns(pl.col('DNA_PCT_EXON_100X').cast(pl.Float64))
+                      .to_pandas())
+
+        plot = plot_tsoppy_barplot(data        = plot_data25,
+                                   x_var       = 'SAMPLE_ID',
+                                   y_var       = 'DNA_PCT_EXON_100X',
+                                   fill_var    = 'RUN',
+                                   guide_title = 'Run',
+                                   x_lab       = 'Sample ID',
+                                   y_lab       = 'Percentage of exons at 100X coverage',
+                                   cart_ylim   = (0, 104),
+                                   title       = '[LocalApp DNA metric] Percentage of exons at 100X coverage',
+                                   fig_size    = (15, 6),
+                                   alpha_value = 0.8,
+                                   y_tick_step = 10
+        )
+
+        fig = plot.draw()
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close(fig)
+
+
+        # --------------------------------------------------------- #
+        # Plot 26: Percentage of target at 100X coverage (DNA)     #
+        # --------------------------------------------------------- #
+
+        plot_data26 = (dna_data_table
+                      .filter(pl.col('DNA_PCT_TARGET_100X') != 'NA')
+                      .with_columns(pl.col('DNA_PCT_TARGET_100X').cast(pl.Float64))
+                      .to_pandas())
+
+        plot = plot_tsoppy_barplot(data        = plot_data26,
+                                   x_var       = 'SAMPLE_ID',
+                                   y_var       = 'DNA_PCT_TARGET_100X',
+                                   fill_var    = 'RUN',
+                                   guide_title = 'Run',
+                                   x_lab       = 'Sample ID',
+                                   y_lab       = 'Percentage of target at 100X coverage',
+                                   cart_ylim   = (0, 104),
+                                   title       = '[LocalApp DNA metric] Percentage of target at 100X coverage',
+                                   fig_size    = (15, 6),
+                                   alpha_value = 0.8,
+                                   y_tick_step = 10
+        )
+
+        fig = plot.draw()
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close(fig)
+
+
+        # --------------------------------------------------------- #
+        # Plot 27: Percentage of target at 250X coverage (DNA)     #
+        # --------------------------------------------------------- #
+
+        plot_data27 = (dna_data_table
+                      .filter(pl.col('DNA_PCT_TARGET_250X') != 'NA')
+                      .with_columns(pl.col('DNA_PCT_TARGET_250X').cast(pl.Float64))
+                      .to_pandas())
+
+        plot = plot_tsoppy_barplot(data        = plot_data27,
+                                   x_var       = 'SAMPLE_ID',
+                                   y_var       = 'DNA_PCT_TARGET_250X',
+                                   fill_var    = 'RUN',
+                                   guide_title = 'Run',
+                                   x_lab       = 'Sample ID',
+                                   y_lab       = 'Percentage of target at 250X coverage',
+                                   cart_ylim   = (0, 104),
+                                   title       = '[LocalApp DNA metric] Percentage of target at 250X coverage',
+                                   fig_size    = (15, 6),
+                                   alpha_value = 0.8,
+                                   y_tick_step = 10
+        )
+
+        fig = plot.draw()
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close(fig)
+
     # ---------------------------------------- #
     # Close PDF file after all plots are saved #
     # ---------------------------------------- #
