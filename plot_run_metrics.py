@@ -1115,6 +1115,169 @@ def main():
         pdf.savefig(fig, bbox_inches='tight')
         plt.close(fig)
 
+        # ---------------------------------------------------------------- #
+        # Plot 28: Percentage of target at 0.4X mean coverage (DNA)       #
+        # ---------------------------------------------------------------- #
+
+        plot_data28 = (dna_data_table
+                      .filter(pl.col('DNA_PCT_TARGET_0.4X_MEAN') != 'NA')
+                      .with_columns(pl.col('DNA_PCT_TARGET_0.4X_MEAN').cast(pl.Float64))
+                      .to_pandas())
+
+        plot = plot_tsoppy_barplot(data        = plot_data28,
+                                   x_var       = 'SAMPLE_ID',
+                                   y_var       = 'DNA_PCT_TARGET_0.4X_MEAN',
+                                   fill_var    = 'RUN',
+                                   guide_title = 'Run',
+                                   x_lab       = 'Sample ID',
+                                   y_lab       = 'Percentage of target at 0.4 * mean coverage',
+                                   cart_ylim   = (0, 104),
+                                   title       = '[LocalApp DNA metric] Percentage of target at 0.4 * mean coverage',
+                                   fig_size    = (15, 6),
+                                   alpha_value = 0.8,
+                                   y_tick_step = 10
+        )
+
+        fig = plot.draw()
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close(fig)
+
+        # -------------------------------------------------------------- #
+        # Plot 29: Percentage of UQ reads passing filters (DNA)          #
+        # -------------------------------------------------------------- #
+
+        plot_data29 = (dna_data_table
+                      .filter(pl.col('DNA_PCT_PF_UQ_READS') != 'NA')
+                      .with_columns(pl.col('DNA_PCT_PF_UQ_READS').cast(pl.Float64))
+                      .to_pandas())
+
+        plot = plot_tsoppy_barplot(data        = plot_data29,
+                                   x_var       = 'SAMPLE_ID',
+                                   y_var       = 'DNA_PCT_PF_UQ_READS',
+                                   fill_var    = 'RUN',
+                                   guide_title = 'Run',
+                                   x_lab       = 'Sample ID',
+                                   y_lab       = 'Percentage of UQ reads passing filters',
+                                   cart_ylim   = (0, 104),
+                                   title       = '[LocalApp DNA metric] Percentage of UQ reads passing filters',
+                                   fig_size    = (15, 6),
+                                   alpha_value = 0.8,
+                                   y_tick_step = 10
+        )
+
+        fig = plot.draw()
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close(fig)
+
+        # -------------------------------------------------- #
+        # Plot 30: Read enrichment (DNA)                     #
+        # -------------------------------------------------- #
+
+        plot_data30 = (dna_data_table
+                      .filter(pl.col('DNA_PCT_READ_ENRICHMENT') != 'NA')
+                      .with_columns(pl.col('DNA_PCT_READ_ENRICHMENT').cast(pl.Float64))
+                      .to_pandas())
+
+        plot = plot_tsoppy_barplot(data        = plot_data30,
+                                   x_var       = 'SAMPLE_ID',
+                                   y_var       = 'DNA_PCT_READ_ENRICHMENT',
+                                   fill_var    = 'RUN',
+                                   guide_title = 'Run',
+                                   x_lab       = 'Sample ID',
+                                   y_lab       = 'Read enrichment (percent)',
+                                   cart_ylim   = (0, 104),
+                                   title       = '[LocalApp DNA metric] Read enrichment',
+                                   fig_size    = (15, 6),
+                                   alpha_value = 0.8,
+                                   y_tick_step = 10
+        )
+
+        fig = plot.draw()
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close(fig)
+
+        # -------------------------------------------------- #
+        # Plot 31: Contamination estimate (DNA)              #
+        # -------------------------------------------------- #
+
+        plot_data31 = (dna_data_table
+                      .filter(pl.col('DNA_PCT_CONTAMINATION_EST') != 'NA')
+                      .with_columns(pl.col('DNA_PCT_CONTAMINATION_EST').cast(pl.Float64))
+                      .to_pandas())
+
+        plot = plot_tsoppy_barplot(data        = plot_data31,
+                                   x_var       = 'SAMPLE_ID',
+                                   y_var       = 'DNA_PCT_CONTAMINATION_EST',
+                                   fill_var    = 'RUN',
+                                   guide_title = 'Run',
+                                   x_lab       = 'Sample ID',
+                                   y_lab       = 'Contamination estimate (percent)',
+                                   cart_ylim   = (0, 104),
+                                   title       = '[LocalApp DNA metric] Contamination estimate',
+                                   fig_size    = (15, 6),
+                                   alpha_value = 0.8,
+                                   y_tick_step = 10
+        )
+
+        plot = plot + geom_text(aes(label='DNA_PCT_CONTAMINATION_EST'),
+                                angle=90, va='center', ha='right', nudge_y=10, size=13)
+
+        fig = plot.draw()
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close(fig)
+
+        # ---------------------------------------------- #
+        # Plot 32: Usable UMI reads (DNA)               #
+        # ---------------------------------------------- #
+
+        plot_data32 = (dna_data_table
+                      .filter(pl.col('DNA_PCT_USABLE_UMI_READS') != 'NA')
+                      .with_columns(pl.col('DNA_PCT_USABLE_UMI_READS').cast(pl.Float64))
+                      .to_pandas())
+
+        plot = plot_tsoppy_barplot(data        = plot_data32,
+                                   x_var       = 'SAMPLE_ID',
+                                   y_var       = 'DNA_PCT_USABLE_UMI_READS',
+                                   fill_var    = 'RUN',
+                                   guide_title = 'Run',
+                                   x_lab       = 'Sample ID',
+                                   y_lab       = 'Usable UMI reads (percent)',
+                                   cart_ylim   = (0, 104),
+                                   title       = '[LocalApp DNA metric] Usable UMI reads',
+                                   fig_size    = (15, 6),
+                                   alpha_value = 0.8,
+                                   y_tick_step = 10
+        )
+
+        fig = plot.draw()
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close(fig)
+
+        # ------------------------------------------------------- #
+        # Plot 33: Percentage of chimeric reads (DNA)            #
+        # ------------------------------------------------------- #
+
+        plot_data33 = (dna_data_table
+                      .filter(pl.col('DNA_PCT_CHIMERIC_READS') != 'NA')
+                      .with_columns(pl.col('DNA_PCT_CHIMERIC_READS').cast(pl.Float64))
+                      .to_pandas())
+
+        plot = plot_tsoppy_barplot(data        = plot_data33,
+                                   x_var       = 'SAMPLE_ID',
+                                   y_var       = 'DNA_PCT_CHIMERIC_READS',
+                                   fill_var    = 'RUN',
+                                   guide_title = 'Run',
+                                   x_lab       = 'Sample ID',
+                                   y_lab       = 'Percentage of chimeric reads',
+                                   title       = '[LocalApp DNA metric] Percentage of chimeric reads',
+                                   fig_size    = (15, 6),
+                                   alpha_value = 0.8
+        )
+
+        fig = plot.draw()
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close(fig)
+
     # ---------------------------------------- #
     # Close PDF file after all plots are saved #
     # ---------------------------------------- #
