@@ -904,9 +904,7 @@ def main():
         pdf.savefig(fig, bbox_inches='tight')
         plt.close(fig)
 
-    # ---------------------------------------- #
-    # Close PDF file after all plots are saved #
-    # ---------------------------------------- # 
+    if dna_sample_count > 0:
 
         # -------------------------------------------------------------- #
         # Plot 21: Mean family size (DNA)                                 #
@@ -1270,6 +1268,113 @@ def main():
                                    x_lab       = 'Sample ID',
                                    y_lab       = 'Percentage of chimeric reads',
                                    title       = '[LocalApp DNA metric] Percentage of chimeric reads',
+                                   fig_size    = (15, 6),
+                                   alpha_value = 0.8
+        )
+
+        fig = plot.draw()
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close(fig)
+
+    if rna_sample_count > 0:
+
+        # ------------------------------------------------------- #
+        # Plot 34: Percentage of chimeric reads (RNA)            #
+        # ------------------------------------------------------- #
+
+        plot_data34 = (rna_data_table
+                      .filter(pl.col('RNA_PCT_CHIMERIC_READS') != 'NA')
+                      .with_columns(pl.col('RNA_PCT_CHIMERIC_READS').cast(pl.Float64))
+                      .to_pandas())
+
+        plot = plot_tsoppy_barplot(data        = plot_data34,
+                                   x_var       = 'SAMPLE_ID',
+                                   y_var       = 'RNA_PCT_CHIMERIC_READS',
+                                   fill_var    = 'RUN',
+                                   guide_title = 'Run',
+                                   x_lab       = 'Sample ID',
+                                   y_lab       = 'Percentage of chimeric reads',
+                                   title       = '[LocalApp RNA metric] Percentage of chimeric reads',
+                                   fig_size    = (15, 6),
+                                   alpha_value = 0.8,
+        )
+
+        fig = plot.draw()
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close(fig)
+
+        # -------------------------------------------------------------- #
+        # Plot 35: Total filter-passing reads in millions (RNA)         #
+        # -------------------------------------------------------------- #
+
+        plot_data35 = (rna_data_table
+                      .filter(pl.col('RNA_TOTAL_PF_READS') != 'NA')
+                      .with_columns(
+                          (pl.col('RNA_TOTAL_PF_READS').cast(pl.Float64) / 1000000.0)
+                          .alias('RNA_TOTAL_PF_READS_MILLIONS')
+                      )
+                      .to_pandas())
+
+        plot = plot_tsoppy_barplot(data        = plot_data35,
+                                   x_var       = 'SAMPLE_ID',
+                                   y_var       = 'RNA_TOTAL_PF_READS_MILLIONS',
+                                   fill_var    = 'RUN',
+                                   guide_title = 'Run',
+                                   x_lab       = 'Sample ID',
+                                   y_lab       = 'Total reads that pass quality filters (millions)',
+                                   title       = '[LocalApp RNA metric]  Total filter-passing reads in millions\n(the input is down-sampled to 30 million reads [not read pairs])',
+                                   fig_size    = (15, 6),
+                                   alpha_value = 0.8
+        )
+
+        fig = plot.draw()
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close(fig)
+
+        # ------------------------------------------------------- #
+        # Plot 36: Percentage of on-target reads (RNA)           #
+        # ------------------------------------------------------- #
+
+        plot_data36 = (rna_data_table
+                      .filter(pl.col('RNA_PCT_ON_TARGET_READS') != 'NA')
+                      .with_columns(pl.col('RNA_PCT_ON_TARGET_READS').cast(pl.Float64))
+                      .to_pandas())
+
+        plot = plot_tsoppy_barplot(data        = plot_data36,
+                                   x_var       = 'SAMPLE_ID',
+                                   y_var       = 'RNA_PCT_ON_TARGET_READS',
+                                   fill_var    = 'RUN',
+                                   guide_title = 'Run',
+                                   x_lab       = 'Sample ID',
+                                   y_lab       = 'Percentage of on-target reads',
+                                   cart_ylim   = (0, 100),
+                                   title       = '[LocalApp RNA metric] Percentage of on-target reads',
+                                   fig_size    = (15, 6),
+                                   alpha_value = 0.8,
+                                   y_tick_step = 10
+        )
+
+        fig = plot.draw()
+        pdf.savefig(fig, bbox_inches='tight')
+        plt.close(fig)
+
+        # -------------------------------------------------------------- #
+        # Plot 37: Scaled median gene coverage (RNA)                    #
+        # -------------------------------------------------------------- #
+
+        plot_data37 = (rna_data_table
+                      .filter(pl.col('RNA_SCALED_MEDIAN_GENE_COVERAGE') != 'NA')
+                      .with_columns(pl.col('RNA_SCALED_MEDIAN_GENE_COVERAGE').cast(pl.Float64))
+                      .to_pandas())
+
+        plot = plot_tsoppy_barplot(data        = plot_data37,
+                                   x_var       = 'SAMPLE_ID',
+                                   y_var       = 'RNA_SCALED_MEDIAN_GENE_COVERAGE',
+                                   fill_var    = 'RUN',
+                                   guide_title = 'Run',
+                                   x_lab       = 'Sample ID',
+                                   y_lab       = 'Scaled median gene coverage',
+                                   title       = '[LocalApp RNA metric] Scaled median gene coverage',
                                    fig_size    = (15, 6),
                                    alpha_value = 0.8
         )
