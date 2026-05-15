@@ -1,6 +1,87 @@
 import polars as pl
 
 
+# PLOT_SPECS structure
+# ====================
+#
+# Each top-level entry defines one plot and is keyed by the plotted metric name.
+# Only include fields that are actually consumed by plot_run_metrics.py.
+#
+# 1. Common entry fields
+#    plot_number
+#        Integer ordering in the output PDF.
+#    plot_kind
+#        Renderer selector: "bar", "cluster_density_scatter",
+#        or "contamination_scatter".
+#    source
+#        Key of the prepared table returned by build_tables().
+#    requires_samples
+#        Optional sample gate: "dna", "rna", or None.
+#    title
+#        Plot title.
+#    skip_if_empty
+#        Optional boolean. Skip rendering when the filtered table is empty.
+#
+# 2. Bar plot fields
+#    x_var, y_var, fill_var
+#        Column names used for plotting.
+#    x_lab, y_lab
+#        Axis labels.
+#    value_spec
+#        Defines how to build the plotted y-value column.
+#    na_filter_columns
+#        Optional list of columns that must be non-null and not "NA".
+#    filters
+#        Optional list of extra row filters.
+#    cart_ylim
+#        Optional fixed y-axis limits tuple.
+#    cart_ylim_dynamic
+#        Optional dynamic y-axis rule.
+#    y_tick_step
+#        Optional fixed y-axis tick spacing.
+#    guide_title, x_lab_angle, fig_size, alpha_value
+#        Optional plot styling overrides.
+#    overlay_labels
+#        Optional text annotations drawn on the bars.
+#    guideline
+#        Optional horizontal reference line definition.
+#
+# 3. guideline fields
+#    table
+#        Key of the guideline table returned by build_tables().
+#    sample_id
+#        Identifier value used to select the guideline row.
+#    id_column
+#        Optional row-selector column name. Defaults to SAMPLE_ID.
+#    value_spec
+#        Defines how to read or derive the guideline value.
+#    python_cast
+#        Optional Python cast applied after extraction.
+#    label_prefix
+#        Prefix used to build the annotation label.
+#    label
+#        Optional explicit label override.
+#    alpha, color, ann_y_offset
+#        Optional line and annotation styling.
+#
+# 4. value_spec fields
+#    operation = "cast"
+#        Requires: column
+#        Optional: dtype
+#    operation = "divide"
+#        Requires: column, divisor
+#        Optional: dtype
+#    operation = "ratio"
+#        Requires: numerator, denominator
+#        Optional: dtype, numerator_divisor
+#
+# 5. filters entries
+#    Each filter entry must define:
+#        column
+#    And exactly one of:
+#        contains, equals, not_equals
+
+
 PLOT_SPECS = {
 
     "CLUSTERS_PASSING_FILTER": {
@@ -43,7 +124,6 @@ PLOT_SPECS = {
         "value_spec"        : {"operation": "cast", "column": "PCT_PF_READS", "dtype": pl.Float64},
         "cart_ylim"         : (0, 104),
         "guideline"         : {
-            "mode"         : "table",
             "table"        : "joint_qc_guideline_table",
             "id_column"    : "RUN_ID",
             "sample_id"    : "LSL_Guideline",
@@ -69,7 +149,6 @@ PLOT_SPECS = {
         "value_spec"        : {"operation": "cast", "column": "PCT_Q30_R1", "dtype": pl.Float64},
         "cart_ylim"         : (0, 104),
         "guideline"         : {
-            "mode"         : "table",
             "table"        : "joint_qc_guideline_table",
             "id_column"    : "RUN_ID",
             "sample_id"    : "LSL_Guideline",
@@ -95,7 +174,6 @@ PLOT_SPECS = {
         "value_spec"        : {"operation": "cast", "column": "PCT_Q30_R2", "dtype": pl.Float64},
         "cart_ylim"         : (0, 104),
         "guideline"         : {
-            "mode"         : "table",
             "table"        : "joint_qc_guideline_table",
             "id_column"    : "RUN_ID",
             "sample_id"    : "LSL_Guideline",
@@ -145,7 +223,6 @@ PLOT_SPECS = {
         "na_filter_columns" : ["DNA_MEDIAN_EXON_COVERAGE"],
         "y_tick_step"       : 100,
         "guideline"         : {
-            "mode"         : "table",
             "table"        : "dna_guideline_table",
             "sample_id"    : "LSL_Guideline",
             "value_spec"   : {"operation": "cast", "column": "DNA_MEDIAN_EXON_COVERAGE", "dtype": pl.Int32},
@@ -171,7 +248,6 @@ PLOT_SPECS = {
         "cart_ylim"         : (0, 104),
         "y_tick_step"       : 10,
         "guideline"         : {
-            "mode"         : "table",
             "table"        : "dna_guideline_table",
             "sample_id"    : "LSL_Guideline",
             "value_spec"   : {"operation": "cast", "column": "DNA_PCT_EXON_50X", "dtype": pl.Float64},
@@ -195,7 +271,6 @@ PLOT_SPECS = {
         "value_spec"        : {"operation": "cast", "column": "DNA_MEDIAN_INSERT_SIZE", "dtype": pl.Float64},
         "na_filter_columns" : ["DNA_MEDIAN_INSERT_SIZE"],
         "guideline"         : {
-            "mode"         : "table",
             "table"        : "dna_guideline_table",
             "sample_id"    : "LSL_Guideline",
             "value_spec"   : {"operation": "cast", "column": "DNA_MEDIAN_INSERT_SIZE", "dtype": pl.Int32},
@@ -219,7 +294,6 @@ PLOT_SPECS = {
         "value_spec"        : {"operation": "cast", "column": "DNA_COVERAGE_MAD", "dtype": pl.Float64},
         "na_filter_columns" : ["DNA_COVERAGE_MAD"],
         "guideline"         : {
-            "mode"         : "table",
             "table"        : "dna_guideline_table",
             "sample_id"    : "USL_Guideline",
             "value_spec"   : {"operation": "cast", "column": "DNA_COVERAGE_MAD", "dtype": pl.Float64},
@@ -243,7 +317,6 @@ PLOT_SPECS = {
         "value_spec"        : {"operation": "cast", "column": "DNA_MEDIAN_BIN_COUNT_CNV_TARGET", "dtype": pl.Float64},
         "na_filter_columns" : ["DNA_MEDIAN_BIN_COUNT_CNV_TARGET"],
         "guideline"         : {
-            "mode"         : "table",
             "table"        : "dna_guideline_table",
             "sample_id"    : "LSL_Guideline",
             "value_spec"   : {"operation": "cast", "column": "DNA_MEDIAN_BIN_COUNT_CNV_TARGET", "dtype": pl.Int32},
@@ -267,7 +340,6 @@ PLOT_SPECS = {
         "value_spec"        : {"operation": "cast", "column": "DNA_USABLE_MSI_SITES", "dtype": pl.Float64},
         "na_filter_columns" : ["DNA_USABLE_MSI_SITES"],
         "guideline"         : {
-            "mode"         : "table",
             "table"        : "dna_guideline_table",
             "sample_id"    : "LSL_Guideline",
             "value_spec"   : {"operation": "cast", "column": "DNA_USABLE_MSI_SITES", "dtype": pl.Int32},
@@ -293,7 +365,6 @@ PLOT_SPECS = {
         "cart_ylim"         : (0, 125),
         "y_tick_step"       : 20,
         "guideline"         : {
-            "mode"         : "table",
             "table"        : "rna_guideline_table",
             "sample_id"    : "USL_Guideline",
             "value_spec"   : {"operation": "cast", "column": "RNA_MEDIAN_CV_GENE_500X", "dtype": pl.Float64},
@@ -322,7 +393,6 @@ PLOT_SPECS = {
         },
         "na_filter_columns" : ["RNA_TOTAL_ON_TARGET_READS"],
         "guideline"         : {
-            "mode"         : "table",
             "table"        : "rna_guideline_table",
             "sample_id"    : "LSL_Guideline",
             "value_spec"   : {
@@ -352,7 +422,6 @@ PLOT_SPECS = {
         "na_filter_columns" : ["RNA_MEDIAN_INSERT_SIZE"],
         "y_tick_step"       : 10,
         "guideline"         : {
-            "mode"         : "table",
             "table"        : "rna_guideline_table",
             "sample_id"    : "LSL_Guideline",
             "value_spec"   : {"operation": "cast", "column": "RNA_MEDIAN_INSERT_SIZE", "dtype": pl.Float64},
@@ -414,7 +483,6 @@ PLOT_SPECS = {
         "na_filter_columns" : ["DNA_TOTAL_PF_READS"],
         "y_tick_step"       : 10,
         "guideline"         : {
-            "mode"         : "table",
             "table"        : "internal_guideline_table",
             "sample_id"    : "Internal Guideline",
             "value_spec"   : {
@@ -446,7 +514,6 @@ PLOT_SPECS = {
         "na_filter_columns" : ["DNA_MEAN_TARGET_COVERAGE"],
         "y_tick_step"       : 100,
         "guideline"         : {
-            "mode"         : "table",
             "table"        : "internal_guideline_table",
             "sample_id"    : "Internal Guideline",
             "value_spec"   : {"operation": "cast", "column": "DNA_MEAN_TARGET_COVERAGE", "dtype": pl.Float64},
