@@ -29,7 +29,7 @@ from plot_specs import PLOT_SPECS
 
 
 VERSION_STRING = "0.3:22-03-10"
-ANGLE_X_NAMES = 35
+ANGLE_X_NAMES = 90
 
 
 
@@ -110,7 +110,7 @@ def get_guideline_value(tables, guideline_spec):
 
     expression = build_value_expression(guideline_spec["value_spec"])
     try:
-        value = filtered_table.select(expression).item()
+        value = filtered_table.select(expression).head(1).item()
     except pl.exceptions.ColumnNotFoundError:
         return None
 
@@ -144,7 +144,7 @@ def merge_metric_tables(parsed_args):
             print(f";   Iteration {index}")
         run_tables.append(run_table)
 
-    return pl.concat(run_tables).unique()
+    return pl.concat(run_tables).unique(maintain_order=True)
 
 
 def build_tables(joint_qc_table, merged_tables, highlighted_run_id):
@@ -326,7 +326,7 @@ def render_cluster_density_scatter(pdf_handle, spec, tables):
         + scale_y_continuous(breaks=[index * 10 for index in range(16)], minor_breaks=[index * 5 for index in range(31)])
         + theme_minimal()
         + theme(
-            axis_text_x=element_text(angle=spec.get("x_lab_angle", ANGLE_X_NAMES), vjust=0.5, hjust=1, size=7),
+            axis_text_x=element_text(angle=spec.get("x_lab_angle", ANGLE_X_NAMES), vjust=0.5, hjust=0.5, size=7),
             figure_size=spec.get("fig_size", (15, 6)),
             axis_line=element_line(color=AXIS_LINE_COLOR),
             plot_title=element_text(weight="bold", ha="left"),
@@ -357,12 +357,14 @@ def render_contamination_scatter(pdf_handle, spec, tables):
         tables["dna_guideline_table"]
         .filter(pl.col("SAMPLE_ID") == "USL_Guideline")
         .select(pl.col("DNA_CONTAMINATION_SCORE").cast(pl.Float64))
+        .head(1)
         .item()
     )
     usl_contamination_pval = float(
         tables["dna_guideline_table"]
         .filter(pl.col("SAMPLE_ID") == "USL_Guideline")
         .select(pl.col("DNA_CONTAMINATION_P_VALUE").cast(pl.Float64))
+        .head(1)
         .item()
     )
     max_contamination_score = max(
