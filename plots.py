@@ -99,8 +99,8 @@ def plot_tsoppy_barplot(data         : pd.DataFrame = None,
     if hline_y is not None:
         plot = (plot +
                 geom_hline(yintercept = hline_y,
-                           alpha      = hline_alpha,
-                           color      = hline_color,
+                           alpha      = HV_LINE_ALPHA if hline_alpha is None else hline_alpha,
+                           color      = HV_LINE_COLOR if hline_color is None else hline_color,
                            size       = hline_size) +
                 annotate("text", len(data) + 1.25, hline_y + ann_y_offset,
                          label = hline_label, angle = 90, size = 12)
