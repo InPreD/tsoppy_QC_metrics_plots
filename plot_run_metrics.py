@@ -287,6 +287,7 @@ def render_bar_plot(pdf_handle, spec, tables):
             angle=overlay_labels.get("angle", 0),
             va=overlay_labels.get("va"),
             ha=overlay_labels.get("ha"),
+            nudge_x=overlay_labels.get("nudge_x", 0),
             nudge_y=overlay_labels.get("nudge_y", 0),
             size=overlay_labels.get("size", 10),
         )
