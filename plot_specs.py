@@ -11,8 +11,7 @@ import polars as pl
 #    plot_number
 #        Integer ordering in the output PDF.
 #    plot_kind
-#        Renderer selector: "bar", "cluster_density_scatter",
-#        or "contamination_scatter".
+#        Renderer selector: "bar", "cluster_density_scatter", or "contamination_scatter".
 #    source
 #        Key of the prepared table returned by build_tables().
 #    requires_samples
@@ -546,7 +545,8 @@ PLOT_SPECS = {
             "va"           : "center",
             "ha"           : "right",
             "nudge_y"      : 0.85,
-            "size"         : 16,
+            "nudge_x"      : 0.5,
+            "size"         : 9,
         },
         "skip_if_empty"     : True,
     },
@@ -729,7 +729,8 @@ PLOT_SPECS = {
             "va"           : "center",
             "ha"           : "right",
             "nudge_y"      : 10,
-            "size"         : 13,
+            "nudge_x"      : 0.5,
+            "size"         : 9,
         },
     },
 
