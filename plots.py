@@ -65,7 +65,7 @@ def plot_tsoppy_barplot(data         : pd.DataFrame = None,
     plot = (
         ggplot(data, aes(x = x_var, y = y_var)) +
         geom_col(aes(fill = fill_var), alpha = alpha_value) +
-        #scale_fill_brewer(type = 'qual', palette = 'Set3') +
+        scale_fill_brewer(type = 'qual', palette = 'Set3') +
         guides(fill = guide_legend(guide_title)) +
         xlab(x_lab) +
         ylab(y_lab) +
