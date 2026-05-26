@@ -203,6 +203,7 @@ PLOT_SPECS = {
         "color_var"         : "highlighted_run",
         "label_var"         : "contamination_label",
         "guide_title"       : "Latest run",
+        "color_values"      : {"False": "#888686", "True": "#C02F2F"},
         "title"             : "[LocalApp core DNA metric] Contamination assessment by TSO 500 LocalApp\n(samples located within the red box are deemed contaminated)",
         "skip_if_empty"     : True,
     },
