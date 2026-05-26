@@ -24,7 +24,7 @@ import polars as pl
 from matplotlib.backends.backend_pdf import PdfPages
 from plotnine import *
 
-from plots import AXIS_LINE_COLOR, plot_contamination_scatter, plot_tsoppy_barplot
+from plots import AXIS_LINE_COLOR, TABLEAU_10, plot_contamination_scatter, plot_tsoppy_barplot
 from plot_specs import PLOT_SPECS
 
 
@@ -317,6 +317,7 @@ def render_cluster_density_scatter(pdf_handle, spec, tables):
     plot = (
         ggplot(plot_data, aes(x="CLUSTER_DENSITY", y="ESTIMATED_YIELD"))
         + geom_point(aes(color="RUN_LABEL"), alpha=0.8, size=4.5)
+        + scale_color_manual(values=TABLEAU_10)
         + geom_text(aes(label="RUN_NUMBER"), alpha=0.8, size=10, nudge_y=-5)
         + guides(color=guide_legend("Run"))
         + coord_cartesian(xlim=(0, 400), ylim=(0, 150))
@@ -384,6 +385,7 @@ def render_contamination_scatter(pdf_handle, spec, tables):
         max_contamination_score = max_contamination_score,
         usl_contamination_score = usl_contamination_score,
         usl_contamination_pval  = usl_contamination_pval,
+        color_values            = spec.get("color_values"),
     )
     save_plot(pdf_handle, plot)
 
