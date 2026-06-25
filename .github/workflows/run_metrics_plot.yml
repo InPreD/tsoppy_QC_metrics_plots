@@ -23,7 +23,7 @@ jobs:
         run: uv sync --locked --all-extras --dev
 
       - name: Run unit tests
-        run: uv run pytest test_plot_run_metrics.py -v
+        run: uv run pytest tests/ -v
 
       - name: Run plot_run_metrics.py with 10 Runs
         run: |
