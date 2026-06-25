@@ -22,6 +22,9 @@ jobs:
       - name: Install the project
         run: uv sync --locked --all-extras --dev
 
+      - name: Run unit tests
+        run: uv run pytest test_plot_run_metrics.py -v
+
       - name: Run plot_run_metrics.py with 10 Runs
         run: |
 
