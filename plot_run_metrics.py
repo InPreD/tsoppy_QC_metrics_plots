@@ -78,8 +78,10 @@ def build_value_expression(value_spec, alias_name=None):
         expression = pl.col(value_spec["column"])
         if value_spec.get("dtype") is not None:
             expression = expression.cast(value_spec["dtype"])
+
     elif operation == "divide":
         expression = pl.col(value_spec["column"]).cast(value_spec.get("dtype", pl.Float64)) / value_spec["divisor"]
+    
     elif operation == "ratio":
         expression = pl.col(value_spec["numerator"]).cast(value_spec.get("dtype", pl.Float64))
         numerator_divisor = value_spec.get("numerator_divisor")
@@ -128,6 +130,7 @@ def get_guideline_value(tables, guideline_spec):
         "color": guideline_spec.get("color"),
         "ann_y_offset": guideline_spec.get("ann_y_offset", 0),
     }
+
 
 def merge_metric_tables(parsed_args):
     """
@@ -181,20 +184,19 @@ def build_tables(joint_qc_table, merged_tables, highlighted_run_id):
     ])
 
     return {
-        "joint_qc_table": joint_qc_table,
-        "joint_qc_guideline_table": joint_qc_guideline_table,
-        "merged_tables": merged_tables,
-        "guideline_table": guideline_table,
-        "internal_guideline_table": internal_guideline_table,
-        "dna_guideline_table": dna_guideline_table,
-        "rna_guideline_table": rna_guideline_table,
-        "data_table": data_table,
-        "dna_data_table": dna_data_table,
-        "rna_data_table": rna_data_table,
-        "dna_sample_count": dna_data_table.height,
-        "rna_sample_count": rna_data_table.height,
+        "joint_qc_table"           : joint_qc_table,
+        "joint_qc_guideline_table" : joint_qc_guideline_table,
+        "merged_tables"            : merged_tables,
+        "guideline_table"          : guideline_table,
+        "internal_guideline_table" : internal_guideline_table,
+        "dna_guideline_table"      : dna_guideline_table,
+        "rna_guideline_table"      : rna_guideline_table,
+        "data_table"               : data_table,
+        "dna_data_table"           : dna_data_table,
+        "rna_data_table"           : rna_data_table,
+        "dna_sample_count"         : dna_data_table.height,
+        "rna_sample_count"         : rna_data_table.height,
     }
-
 
 
 def compute_cart_ylim(spec, plot_data):
@@ -204,9 +206,14 @@ def compute_cart_ylim(spec, plot_data):
      - If "cart_ylim_dynamic" is specified with mode "max_plus", calculate the maximum value of the specified column in the plot data and add the defined offset to determine the upper limit
     """
     dynamic_ylim = spec.get("cart_ylim_dynamic")
+
+    # Use static limits if no dynamic y-limit specification is provided
     if dynamic_ylim is None:
         return spec.get("cart_ylim")
 
+    # Handle dynamic y-limit calculation based on the specified mode
+    # 'max_plus' mode calculates the upper limit as the maximum value of the specified column plus an offset, 
+    # the lower limit can be set to a defined value or default to 0.
     if dynamic_ylim["mode"] == "max_plus":
         max_value = plot_data[dynamic_ylim["column"]].max()
         return (dynamic_ylim.get("lower", 0), max_value + dynamic_ylim.get("offset", 0))
@@ -215,13 +222,23 @@ def compute_cart_ylim(spec, plot_data):
 
 
 def prepare_bar_plot_data(table, spec):
-    """Apply per-plot filtering and column derivation before converting to pandas."""
+    """
+    Apply per-plot NULL/NA filtering and column derivation before converting to pandas.
+    This allows the plot specifications to define which rows and columns are relevant for each plot, and to derive new metrics for plotting without modifying the original data tables.
+    """
+
     filters = []
+    
+    # Remove rows with null or NA values in the specified columns for this plot
     for column_name in spec.get("na_filter_columns", []):
         filters.append(valid_metric_expr(column_name))
+    
+    # Apply additional filters defined in the plot specification, which can include conditions like "contains", "equals", or "not_equals" for specific columns.
     for filter_spec in spec.get("filters", []):
         filters.append(build_filter_expression(filter_spec))
 
+    # Apply all filters to the table, combining them with logical AND.
+    # If no filters are specified, the original table is returned unchanged.
     if filters:
         combined_filter = filters[0]
         for filter_expression in filters[1:]:
