@@ -25,7 +25,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from plotnine import *
 
 from plots import AXIS_LINE_COLOR, TABLEAU_10, plot_contamination_scatter, plot_tsoppy_barplot
-from plot_specs import PLOT_SPECS
+from plot_specs_LocalApp import PLOT_SPECS
 
 
 VERSION_STRING = "0.3:22-03-10"
