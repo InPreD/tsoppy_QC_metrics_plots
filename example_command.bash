@@ -16,8 +16,8 @@
 RUN_ID=251211_NB552811_0117_AHTJM2BGYX
 TSOPPI_DIR=data/TSO500_postprocessing
 METRIC_PLOTS_DIR=${TSOPPI_DIR}/${RUN_ID}/${RUN_ID}_metrics_plots
-RESULTS_DIR_R=results_R/${RUN_ID}
-RESULTS_DIR_python=results_python/${RUN_ID}
+RESULTS_DIR_R=results_R/LocalApp/${RUN_ID}
+RESULTS_DIR_python=results_python/LocalApp/${RUN_ID}
 METRICS=${METRIC_PLOTS_DIR}/intermediate_metrics_files/${RUN_ID}_metrics.tsv
 
 
@@ -69,23 +69,46 @@ RUNIDS="${RUN_ID} ${RUN_ID_PREV1} ${RUN_ID_PREV2} ${RUN_ID_PREV3} ${RUN_ID_PREV4
 # RUNIDS="${RUN_ID} ${RUN_ID_PREV1}"
 
 
-# ------------------------------------ #
-# R script to create the metrics plots #
-# ------------------------------------ #
-echo "; Running R script to create the metrics plots"
+# --------------------------------------------- #
+# R script to create the LocalApp metrics plots #
+# --------------------------------------------- #
+echo "; Running R script to create the LocalApp metrics plots"
 mkdir -p ${RESULTS_DIR_R}
 
 Rscript plot_run_metrics.R 10 ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joint_sequencing_QC_file.tsv ${RESULTS_DIR_R}/TSO500_run_metrics.pdf ${METRIC_PLOTS_DIR}/intermediate_metrics_files/master_metrics_table.tsv ${RUN_ID} False ${TSVs} ${RUNIDS}
 Rscript plot_run_metrics.R 10 ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joint_sequencing_QC_file.tsv ${RESULTS_DIR_R}/TSO500_run_metrics.pdf ${METRIC_PLOTS_DIR}/intermediate_metrics_files/master_metrics_table.tsv ${RUN_ID} True ${TSVs} ${RUNIDS}
 
 
-# ----------------------------------------- #
-# python script to create the metrics plots #
-# ----------------------------------------- #
-echo "; Running python script to create the metrics plots"
+# -------------------------------------------------- #
+# python script to create the LocalApp metrics plots #
+# -------------------------------------------------- #
+echo "; Running python script to create the LocalApp metrics plots"
 mkdir -p ${RESULTS_DIR_python}
 
+# The first time the script is run, it will create the joint_sequencing_QC_file.tsv file, which will be used in subsequent runs
+# The second time it will use the joint_sequencing_QC_file.tsv file to create the plots
 uv run plot_run_metrics.py 10 ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joint_sequencing_QC_file.tsv ${RESULTS_DIR_python}/TSO500_run_metrics.pdf ${METRIC_PLOTS_DIR}/intermediate_metrics_files/master_metrics_table.tsv ${RUN_ID} False ${TSVs} ${RUNIDS}
 uv run plot_run_metrics.py 10 ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joint_sequencing_QC_file.tsv ${RESULTS_DIR_python}/TSO500_run_metrics.pdf ${METRIC_PLOTS_DIR}/intermediate_metrics_files/master_metrics_table.tsv ${RUN_ID} True ${TSVs} ${RUNIDS}
 
 #Rscript    /inpred/user_scripts/libs/plot_run_metrics.R    1    /inpred/data//sample_data/results/metrics_plots_HUS_latest/intermediate_metrics_files/joint_sequencing_QC_file.tsv    /inpred/data//sample_data/results/metrics_plots_HUS_latest/TSO500_run_metrics.pdf    /inpred/data//sample_data/results/metrics_plots_HUS_latest/intermediate_metrics_files/master_metrics_table.tsv    260312_NDX551102_RUO_0042_AH3HTFBGY2    True    /inpred/data//sample_data/results/metrics_plots_HUS_latest/intermediate_metrics_files/260312_NDX551102_RUO_0042_AH3HTFBGY2_metrics.tsv    260312_NDX551102_RUO_0042_AH3HTFBGY2
+
+
+
+# ------------------------------------- #
+# RUN ID to be highlighted in the plots #
+# ------------------------------------- #
+RUN_ID=251211_NB552811_0117_AHTJM2BGYX
+TSOPPI_DIR=data/TSO500_postprocessing
+METRIC_PLOTS_DIR=${TSOPPI_DIR}/${RUN_ID}/${RUN_ID}_metrics_plots
+RESULTS_DIR_python=results_python/DRAGEN/${RUN_ID}
+METRICS=${METRIC_PLOTS_DIR}/intermediate_metrics_files/${RUN_ID}_metrics.tsv
+
+
+# ------------------------------------------------ #
+# python script to create the Dragen metrics plots #
+# ------------------------------------------------ #
+echo "; Running python script to create the Dragen metrics plots"
+mkdir -p ${RESULTS_DIR_python}
+
+# In this example the joint_sequencing_QC_file.tsv file has already been created, so the script will run only to create the plots
+uv run plot_run_metrics.py 10 ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joint_sequencing_QC_file.tsv ${RESULTS_DIR_python}/TSO500_run_metrics.pdf ${METRIC_PLOTS_DIR}/intermediate_metrics_files/master_metrics_table.tsv ${RUN_ID} True ${TSVs} ${RUNIDS}
