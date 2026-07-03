@@ -30,7 +30,7 @@ def get_data_root() -> Path:
         Path to data/TSO500_postprocessing/
     """
     current_dir = Path(__file__).parent.parent  # Go up from tests/ to repo root
-    data_root = current_dir / "data" / "TSO500_postprocessing" / "251211_NB552811_0117_AHTJM2BGYX"
+    data_root = current_dir / "data" / "LocalApp" /"TSO500_postprocessing" / "251211_NB552811_0117_AHTJM2BGYX"
     metrics_dir = data_root / "251211_NB552811_0117_AHTJM2BGYX_metrics_plots" / "intermediate_metrics_files"
     return metrics_dir
 
