@@ -48,6 +48,7 @@ class TestParseArgs:
         Test parsing with one run and minimal arguments.
         """
         argv = [
+            "D",                # workflow_type (D for DRAGEN or L for LocalApp)
             "1",                # run_count
             "joint_qc.tsv",     # joint_qc_file
             "output.pdf",       # output_pdf
@@ -59,6 +60,7 @@ class TestParseArgs:
         ]
         result = parse_args(argv)
 
+        assert result["workflow_type"]       == "D"
         assert result["run_count"]           == 1
         assert result["joint_qc_file"]       == "joint_qc.tsv"
         assert result["output_pdf"]          == "output.pdf"
@@ -74,6 +76,7 @@ class TestParseArgs:
         Test parsing with multiple runs.
         """
         argv = [
+            "L",
             "3",
             "joint_qc.tsv",
             "output.pdf",
@@ -85,6 +88,7 @@ class TestParseArgs:
         ]
         result = parse_args(argv)
 
+        assert result["workflow_type"] == "L"
         assert result["run_count"]    == 3
         assert result["metric_files"] == ["metrics1.tsv", "metrics2.tsv", "metrics3.tsv"]
         assert result["run_labels"]   == ["RUN_001", "RUN_002", "RUN_003"]
@@ -97,6 +101,7 @@ class TestParseArgs:
         This ensures that Path objects are not altered during parsing.
         """
         argv = [
+            "D",
             "2",
             "path/to/joint_qc.tsv",
             "output/results.pdf",
@@ -108,6 +113,7 @@ class TestParseArgs:
         ]
         result = parse_args(argv)
 
+        assert result["workflow_type"]       == "D"
         assert result["joint_qc_file"]   == "path/to/joint_qc.tsv"
         assert result["output_pdf"]      == "output/results.pdf"
         assert result["metric_files"][0] == "path/to/metrics1.tsv"
