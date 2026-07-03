@@ -7,14 +7,15 @@ Converts metrics data from multiple runs into consolidated outputs and generates
 comprehensive QC plots.
 
 Command-line parameters:
-    1: N (number of runs)
-    2: joint run QC file
-    3: output PDF file with plotting results
-    4: output tsv file with merged metrics data
-    5: label of the run that should be highlighted in the plots
-    6: create_plots (True/False flag)
-    7 to (6+N): transposed metrics matrices for the individual runs
-    (7+N) to (6+2N): labels for the individual runs
+    1: workflow_type (D for DRAGEN or L for LocalApp) - mandatory
+    2: N (number of runs)
+    3: joint run QC file
+    4: output PDF file with plotting results
+    5: output tsv file with merged metrics data
+    6: label of the run that should be highlighted in the plots
+    7: create_plots (True/False flag)
+    8 to (7+N): transposed metrics matrices for the individual runs
+    (8+N) to (7+2N): labels for the individual runs
 """
 
 import sys
@@ -24,30 +25,58 @@ import polars as pl
 from matplotlib.backends.backend_pdf import PdfPages
 from plotnine import *
 
-from plots import AXIS_LINE_COLOR, TABLEAU_10, plot_contamination_scatter, plot_tsoppy_barplot
-from plot_specs_LocalApp import PLOT_SPECS
+from plots import AXIS_LINE_COLOR, TABLEAU_20, plot_contamination_scatter, plot_tsoppy_barplot
 
 
 VERSION_STRING = "0.3:22-03-10"
 ANGLE_X_NAMES = 90
 
 
+def load_plot_specs(workflow_type):
+    """
+    Load the appropriate plot specifications based on workflow type.
+    
+    Args:
+        workflow_type: String "D" for DRAGEN or "L" for LocalApp
+        
+    Returns:
+        PLOT_SPECS dictionary from the corresponding specs module
+        
+    Raises:
+        ValueError: If workflow_type is not "D" or "L"
+    """
+    if workflow_type == "D":
+        from plot_specs_Dragen import PLOT_SPECS
+        return PLOT_SPECS
+    elif workflow_type == "L":
+        from plot_specs_LocalApp import PLOT_SPECS
+        return PLOT_SPECS
+    else:
+        raise ValueError(f"Invalid workflow type: {workflow_type}. Must be 'D' (DRAGEN) or 'L' (LocalApp).")
+
+
 
 def parse_args(argv):
     """
-    Parse command-line arguments while preserving the existing CLI contract.
+    Parse command-line arguments.
+    
+    Workflow type is now the first mandatory argument.
     """
-
-    run_count = int(argv[0])
+    workflow_type = argv[0]
+    if workflow_type not in ("D", "L"):
+        raise ValueError(f"Invalid workflow type: {workflow_type}. Must be 'D' (DRAGEN) or 'L' (LocalApp).")
+    
+    run_count = int(argv[1])
     return {
+        "workflow_type": workflow_type,
         "run_count": run_count,
-        "joint_qc_file": argv[1],
-        "output_pdf": argv[2],
-        "merged_metrics_file": argv[3],
-        "highlighted_run_id": argv[4],
-        "create_plots": argv[5],
-        "metric_files": argv[6:6 + run_count],
-        "run_labels": argv[6 + run_count:6 + (2 * run_count)],
+        "joint_qc_file": argv[2],
+        "output_pdf": argv[3],
+        "merged_metrics_file": argv[4],
+        "highlighted_run_id": argv[5],
+        "create_plots": argv[6],
+        "metric_files": argv[7:7 + run_count],
+        "run_labels": argv[7 + run_count:7 + (2 * run_count)],
     }
 
 
@@ -334,7 +363,7 @@ def render_cluster_density_scatter(pdf_handle, spec, tables):
     plot = (
         ggplot(plot_data, aes(x="CLUSTER_DENSITY", y="ESTIMATED_YIELD"))
         + geom_point(aes(color="RUN_LABEL"), alpha=0.8, size=4.5)
-        + scale_color_manual(values=TABLEAU_10)
+        + scale_color_manual(values=TABLEAU_20)
         + geom_text(aes(label="RUN_NUMBER"), alpha=0.8, size=10, nudge_y=-5)
         + guides(color=guide_legend("Run"))
         + coord_cartesian(xlim=(0, 400), ylim=(0, 150))
@@ -435,13 +464,17 @@ def main():
     """Main execution function for metrics processing and plotting."""
     args = sys.argv[1:]
 
-    # ---------------------- #
-    # Reading inpu arguments #
-    # ---------------------- #
+    # ----------------------- #
+    # Reading input arguments #
+    # ----------------------- #
     print("; Reading input arguments")
     parsed_args = parse_args(args)
     if parsed_args["run_count"] < 1:
         sys.exit("Zero runs provided as input? Exiting.")
+    
+    # Load the appropriate plot specifications based on workflow type
+    PLOT_SPECS = load_plot_specs(parsed_args["workflow_type"])
+    print(f"; Using workflow: {parsed_args['workflow_type']} (DRAGEN if D, LocalApp if L)")
 
 
     # ------------------------- #
@@ -479,6 +512,8 @@ def main():
 
         # spec_name and spec are the key and value of each entry in the PLOT_SPECS dictionary defined in plot_specs.py
         for spec_name, spec in sorted(PLOT_SPECS.items(), key=lambda item: item[1]["plot_number"]):
+
+            print(f"; Rendering plot {spec_name} (plot number {spec['plot_number']})")
 
             # Check if the plot requires DNA or RNA samples and skip if the corresponding sample count is zero
             # This allows to automatically skip DNA-specific plots if no DNA samples are included in the runs, and similarly for RNA-specific plots, without needing to adjust the plot specifications.
