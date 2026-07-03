@@ -37,7 +37,8 @@ List of python dependencies:
 ```
 polars
 plotnine
-pyarrow 
+pyarrow
+numpy
 ```
 
 <br>
@@ -108,19 +109,19 @@ BT20-D01-C01-X06     TRUE                 ...
 ## Project structure
 
 ```
-plot_run_metrics.py   # Entry point: argument parsing, table merging, plot dispatch
-plot_specs.py         # Declarative plot definitions (no rendering logic)
-plots.py              # Reusable plotnine rendering functions
-plot_run_metrics.R    # Original R implementation (reference)
-example_command.bash  # Local run example with variable setup
-pyproject.toml        # Project metadata and dependencies
+plot_run_metrics.py        # Entry point: argument parsing, table merging, plot dispatch
+plot_specs_Dragen.py       # Plot definitions for DRAGEN workflow
+plot_specs_LocalApp.py     # Plot definitions for LocalApp workflow
+plots.py                   # Reusable plotnine rendering functions
+plot_run_metrics.R         # Original R implementation (reference)
+example_command.bash       # Local run example with variable setup
+pyproject.toml             # Project metadata and dependencies
 .github/workflows/
-    run_metrics_plot.yml  # CI workflow (uv + ubuntu-latest)
+    run_metrics_plot.yml   # CI workflow (uv + ubuntu-latest)
 ```
 
-**Design principle:** rendering logic lives in `plots.py`; what to plot and how to configure each panel is declared in `plot_specs.py`. Adding a new plot does not require touching the rendering engine.
-
-
+**Design principle:** Rendering logic lives in `plots.py`; what to plot and how to configure each panel is declared in workflow-specific `plot_specs_*.py` files. The `workflow_type` argument determines which specs file is loaded. Adding a new plot does not require touching the rendering engine.
+**Color palette:** Uses Tableau 20 (10 dark + 10 light variants) for visual distinction across multiple runs.
 <br>
 
 <br>
@@ -128,7 +129,8 @@ pyproject.toml        # Project metadata and dependencies
 ## Usage
 
 ```
-uv run plot_run_metrics.py <N>                                     \
+uv run plot_run_metrics.py <workflow_type>                         \
+    <N>                                                            \
     <joint_qc_file.tsv>                                            \
     <output.pdf>                                                   \
     <master_metrics_table.tsv>                                     \
@@ -142,14 +144,15 @@ uv run plot_run_metrics.py <N>                                     \
 
 | Position | Argument | Description |
 |----------|----------|-------------|
-| 1 | `N` | Number of runs to include |
-| 2 | `joint_qc_file` | Path to `joint_sequencing_QC_file.tsv` |
-| 3 | `output_pdf` | Output PDF path |
-| 4 | `master_metrics_table` | Output path for the merged metrics TSV |
-| 5 | `highlighted_run_id` | Run ID to highlight in all plots |
-| 6 | `create_plots` | `True` to produce the PDF; `False` to only write the merged TSV |
-| 7 to 6+N | `*_metrics.tsv` files | One per run, in order |
-| 7+N to 6+2N | run labels | One per run, matching the metrics file order |
+| 1 | `workflow_type` | `D` for DRAGEN or `L` for LocalApp - determines which plot specifications to use |
+| 2 | `N` | Number of runs to include |
+| 3 | `joint_qc_file` | Path to `joint_sequencing_QC_file.tsv` |
+| 4 | `output_pdf` | Output PDF path |
+| 5 | `master_metrics_table` | Output path for the merged metrics TSV |
+| 6 | `highlighted_run_id` | Run ID to highlight in all plots |
+| 7 | `create_plots` | `True` to produce the PDF; `False` to only write the merged TSV |
+| 8 to 7+N | `*_metrics.tsv` files | One per run, in order |
+| 8+N to 7+2N | run labels | One per run, matching the metrics file order |
 
 The script must be called **twice** in practice: once with `create_plots=False` to write the merged TSV, and once with `create_plots=True` to produce the PDF. This separation allows inspecting the merged data independently of the plot generation step.
 
@@ -179,14 +182,15 @@ RUNIDS="${RUN_ID} ${RUN_ID_PREV1}"
 mkdir -p ${RESULTS_DIR}
 
 # Step 1: merge metrics tables (no PDF)
-uv run plot_run_metrics.py 2                                                    \
+# Use L for LocalApp workflow, D for DRAGEN
+uv run plot_run_metrics.py L 2                                                  \
     ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joint_sequencing_QC_file.tsv \
     ${RESULTS_DIR}/TSO500_run_metrics.pdf                                       \
     ${METRIC_PLOTS_DIR}/intermediate_metrics_files/master_metrics_table.tsv     \
     ${RUN_ID} False ${TSVs} ${RUNIDS}                                           ;
 
 # Step 2: generate PDF
-uv run plot_run_metrics.py 2                                                    \
+uv run plot_run_metrics.py L 2                                                  \
     ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joint_sequencing_QC_file.tsv \
     ${RESULTS_DIR}/TSO500_run_metrics.pdf                                       \
     ${METRIC_PLOTS_DIR}/intermediate_metrics_files/master_metrics_table.tsv     \
@@ -249,7 +253,7 @@ Adds a horizontal reference line read directly from the guideline rows in the in
     "title"            : "[LocalApp core DNA metric] Median exon coverage",
     "value_spec"       : {"operation": "cast", "column": "DNA_MEDIAN_EXON_COVERAGE", "dtype": pl.Float64},
     "na_filter_columns": ["DNA_MEDIAN_EXON_COVERAGE"],
-    "y_tick_step"      : 100,                    # Fixed distance between y-axis ticks
+    "y_tick_step"      : 100,                    # Fixed distance between y-axis ticks (supports both int and float, e.g. 0.1, 10, 100)
     "guideline"        : {
         "table"        : "dna_guideline_table",  # Table containing LSL/USL rows
         "sample_id"    : "LSL_Guideline",        # Row to read the threshold from
