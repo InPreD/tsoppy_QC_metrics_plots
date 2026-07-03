@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 from plotnine import *
 
@@ -8,7 +9,7 @@ AXIS_LINE_COLOR = "#888686"
 HV_LINE_COLOR   = "#e00202"  # A distinct red color for horizontal lines
 HV_LINE_SIZE    = 1
 HV_LINE_ALPHA   = 0.75
-TABLEAU_10      = list(reversed(['#4E79A7', '#F28E2B', '#E15759', '#76B7B2', '#59A14F',
+TABLEAU_20      = list(reversed(['#4E79A7', '#F28E2B', '#E15759', '#76B7B2', '#59A14F',
                    '#EDC948', '#B07AA1', '#FF9DA7', '#9C755F', '#BAB0AC']))
 
 
@@ -30,7 +31,7 @@ def plot_tsoppy_barplot(data         : pd.DataFrame = None,
                         hline_label  : str          = "",
                         hline_size   : float        = HV_LINE_SIZE,
                         ann_y_offset : float        = 0.0,
-                        y_tick_step  : int          = None
+                        y_tick_step  : int | float  = None
                         ) -> ggplot:
     """
     Function to create a bar plot using plotnine (ggplot2 in Python) for TSOPPI run metrics.
@@ -67,7 +68,7 @@ def plot_tsoppy_barplot(data         : pd.DataFrame = None,
     plot = (
         ggplot(data, aes(x = x_var, y = y_var)) +
         geom_col(aes(fill = fill_var), alpha = alpha_value) +
-        scale_fill_manual(values = TABLEAU_10) +
+        scale_fill_manual(values = TABLEAU_20) +
         guides(fill = guide_legend(guide_title)) +
         xlab(x_lab) +
         ylab(y_lab) +
@@ -92,8 +93,10 @@ def plot_tsoppy_barplot(data         : pd.DataFrame = None,
         upper_lim = cart_ylim[1] if cart_ylim is not None and cart_ylim[1] is not None else data_max
 
         if pd.notna(upper_lim):
-            upper_tick = int(upper_lim) + y_tick_step
-            y_breaks = list(range(0, upper_tick + 1, y_tick_step))
+            upper_tick = upper_lim + y_tick_step
+            # Use numpy.arange to support both integer and float step sizes
+            # Round to handle floating-point precision issues
+            y_breaks = list(np.arange(0, upper_tick, y_tick_step).round(decimals=10))
             plot = plot + scale_y_continuous(breaks = y_breaks)
 
     # Add horizontal line and annotation if hline_y is provided
@@ -146,7 +149,7 @@ def plot_contamination_scatter(data                    : pd.DataFrame = None,
     # Calculate breaks for axes
     x_breaks = [i * 1000 for i in range(int(max_contamination_score / 1000) + 2)]
     y_breaks = [i * 0.1 for i in range(11)]
-    _color_values = color_values if color_values is not None else TABLEAU_10
+    _color_values = color_values if color_values is not None else TABLEAU_20
 
     plot = (
         ggplot(data, aes(x='DNA_CONTAMINATION_SCORE', y='DNA_CONTAMINATION_P_VALUE')) +
