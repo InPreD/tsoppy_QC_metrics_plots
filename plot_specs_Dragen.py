@@ -338,6 +338,7 @@ PLOT_SPECS = {
         "title"             : "[Dragen core DNA metric] Median raw bin count per CNV target",
         "value_spec"        : {"operation": "cast", "column": "DNA_MEDIAN_BIN_COUNT_CNV_TARGET", "dtype": pl.Float64},
         "na_filter_columns" : ["DNA_MEDIAN_BIN_COUNT_CNV_TARGET"],
+        "y_tick_step"       : 1,
         "guideline"         : {
             "table"        : "dna_guideline_table",
             "sample_id"    : "LSL_Guideline",
@@ -407,6 +408,7 @@ PLOT_SPECS = {
         "x_lab"             : "Sample ID",
         "y_lab"             : "On target reads (millions)",
         "title"             : "[Dragen core RNA metric] Total on-target reads in millions",
+        "y_tick_step"       : 1,
         "value_spec"        : {
             "operation" : "divide",
             "column"    : "RNA_TOTAL_ON_TARGET_READS",
@@ -569,8 +571,8 @@ PLOT_SPECS = {
             "va"           : "center",
             "ha"           : "right",
             "nudge_y"      : 0.85,
-            "nudge_x"      : 0.015,
-            "size"         : 12,
+            "nudge_x"      : 0.5, # Adapted to 10 runs, less runs would need a different nudge_x value
+            "size"         : 7.5, # Adapted to 10 runs, less runs would need a different size value
         },
         "skip_if_empty"     : True,
     },
@@ -753,8 +755,8 @@ PLOT_SPECS = {
             "va"           : "center",
             "ha"           : "right",
             "nudge_y"      : 10,
-            "nudge_x"      : 0,
-            "size"         : 9,
+            "nudge_x"      : 0.5, # Adapted to 10 runs, less runs would need a different nudge_x value  
+            "size"         : 7.5, # Adapted to 10 runs, less runs would need a different size value 
         },
     },
 
@@ -891,6 +893,15 @@ PLOT_SPECS = {
         "na_filter_columns" : ["DNA_PCT_SOFT_CLIPPED_BASES"],
         "cart_ylim"         : (0, 100),
         "y_tick_step"       : 10,
+        "overlay_labels"    : {
+            "label_column" : "DNA_PCT_SOFT_CLIPPED_BASES",
+            "angle"        : 90,
+            "va"           : "center",
+            "ha"           : "right",
+            "nudge_y"      : 5,
+            "nudge_x"      : 0.5, # Adapted to 10 runs, less runs would need a different nudge_x value
+            "size"         : 7.5, # Adapted to 10 runs, less runs would need a different size value
+        },
     },
 
     "DNA_PCT_TARGET_50X": {
@@ -958,6 +969,15 @@ PLOT_SPECS = {
         "na_filter_columns" : ["RNA_PCT_SOFT_CLIPPED_BASES"],
         "cart_ylim"         : (0, 100),
         "y_tick_step"       : 10,
+        "overlay_labels"    : {
+            "label_column" : "RNA_PCT_SOFT_CLIPPED_BASES",
+            "angle"        : 90,
+            "va"           : "center",
+            "ha"           : "right",
+            "nudge_y"      : 5,
+            "nudge_x"      : 0.5, # Adapted to 10 runs, less runs would need a different nudge_x value
+            "size"         : 7.5, # Adapted to 10 runs, less runs would need a different size value
+        },
     },
 }
 	
