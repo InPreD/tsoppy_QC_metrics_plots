@@ -2,6 +2,10 @@
 
 Python re-implementation of the TSO500 run metrics plotting from [TSOPPI](https://github.com/InPreD/TSOPPI) (`plot_run_metrics.R`). Reads per-run metrics TSV files produced by the TSOPPI post-processing pipeline, merges them across runs, and generates a multi-page QC PDF comparing runs side by side with configurable reference guidelines.
 
+Supports two TSO500 analysis workflows:
+- **LocalApp** (`L`) — metrics from the Illumina TSO500 LocalApp pipeline
+- **DRAGEN** (`D`) — metrics from the Illumina DRAGEN TSO500 pipeline
+
 <br>
 
 <br>
@@ -10,6 +14,7 @@ Python re-implementation of the TSO500 run metrics plotting from [TSOPPI](https:
 
 - [Requirements](#requirements)
 - [Input files](#input-files)
+- [Supported workflows](#supported-workflows)
 - [Project structure](#project-structure)
 - [Usage](#usage)
 - [Running locally](#running-locally)
@@ -55,10 +60,11 @@ uv sync --locked
 
 ## Input files
 
-The script expects intermediate files produced by the TSOPPI post-processing pipeline. All inputs reside under one directory per run. Using the bundled example run `251211_NB552811_0117_AHTJM2BGYX`:
+The script expects intermediate files produced by the TSOPPI post-processing pipeline. Input files are organised by workflow type. Using the bundled example runs:
 
+**LocalApp** (`data/LocalApp/TSO500_postprocessing/`):
 ```
-data/TSO500_postprocessing/
+data/LocalApp/TSO500_postprocessing/
 └── 251211_NB552811_0117_AHTJM2BGYX/
     └── 251211_NB552811_0117_AHTJM2BGYX_metrics_plots/
         └── intermediate_metrics_files/
@@ -67,6 +73,18 @@ data/TSO500_postprocessing/
             ├── 251211_NB552811_0117_AHTJM2BGYX_metrics.tsv  # Current run
             ├── 251210_NB552811_0117_AHTJM2BGYX_metrics.tsv  # Additional run 1
             └── ...                                          # Additional runs [2 .. N]
+```
+
+**DRAGEN** (`data/Dragen/TSO500_postprocessing/`):
+```
+data/Dragen/TSO500_postprocessing/
+└── 250822_A02134_0101_BHYFHLDRX5/
+    └── 250822_A02134_0101_BHYFHLDRX5_metrics_plots/
+        └── intermediate_metrics_files/
+            ├── joint_sequencing_QC_file.tsv
+            ├── master_metrics_table.tsv                    # All metrics join table (written by this script)
+            ├── 250822_A02134_0101_BHYFHLDRX5_metrics.tsv   # Current run
+            └── ...                                         # Additional runs [1 .. N]
 ```
 
 <br>
@@ -106,6 +124,21 @@ BT20-D01-C01-X06     TRUE                 ...
 
 <br>
 
+## Supported workflows
+
+The `workflow_type` argument selects which set of plot specifications to use. Both workflows share the same rendering engine (`plot_run_metrics.py` and `plots.py`), differing only in which metrics are plotted and how thresholds are defined.
+
+| Workflow | Flag | Specs file | Typical use |
+|----------|------|------------|-------------|
+| LocalApp | `L` | `plot_specs_LocalApp.py` | Illumina LocalApp pipeline output |
+| DRAGEN | `D` | `plot_specs_Dragen.py` | Illumina DRAGEN pipeline output |
+
+To add support for a new workflow, create a new `plot_specs_<Workflow>.py` file following the same `PLOT_SPECS` dictionary structure, add a branch to `load_plot_specs()` in `plot_run_metrics.py`, and pass the corresponding flag at the command line.
+
+<br>
+
+<br>
+
 ## Project structure
 
 ```
@@ -113,15 +146,16 @@ plot_run_metrics.py        # Entry point: argument parsing, table merging, plot 
 plot_specs_Dragen.py       # Plot definitions for DRAGEN workflow
 plot_specs_LocalApp.py     # Plot definitions for LocalApp workflow
 plots.py                   # Reusable plotnine rendering functions
-plot_run_metrics.R         # Original R implementation (reference)
+plot_run_metrics.R         # Original R implementation (used as reference)
 example_command.bash       # Local run example with variable setup
 pyproject.toml             # Project metadata and dependencies
 .github/workflows/
     run_metrics_plot.yml   # CI workflow (uv + ubuntu-latest)
 ```
 
-**Design principle:** Rendering logic lives in `plots.py`; what to plot and how to configure each panel is declared in workflow-specific `plot_specs_*.py` files. The `workflow_type` argument determines which specs file is loaded. Adding a new plot does not require touching the rendering engine.
-**Color palette:** Uses Tableau 20 (10 dark + 10 light variants) for visual distinction across multiple runs.
+**Design principle:** Rendering logic lives in `plots.py`; what to plot and how to configure each panel is declared in workflow-specific `plot_specs_*.py` files. The `workflow_type` argument determines which specs file is loaded at runtime. Adding a new plot requires only a new entry in the appropriate specs file.
+
+**Color palette:** Uses [Tableau 10 palette](https://www.tableau.com/blog/colors-upgrade-tableau-10-56782), for consistent visual distinction across up to 10 runs. If you forsee the case of need more colors, adapt the variable defined in `plots.py`.
 <br>
 
 <br>
@@ -162,13 +196,15 @@ The script must be called **twice** in practice: once with `create_plots=False` 
 
 ## Running locally
 
-Set up variables for the current run and any historical runs to include:
+The script must be called **twice**: once with `create_plots=False` to write the merged TSV, and once with `create_plots=True` to produce the PDF. This allows inspecting the merged data independently of the plot generation step.
+
+### LocalApp workflow
 
 ```bash
 RUN_ID=251211_NB552811_0117_AHTJM2BGYX
-TSOPPI_DIR=data/TSO500_postprocessing
+TSOPPI_DIR=data/LocalApp/TSO500_postprocessing
 METRIC_PLOTS_DIR=${TSOPPI_DIR}/${RUN_ID}/${RUN_ID}_metrics_plots
-RESULTS_DIR=results_python/${RUN_ID}
+RESULTS_DIR=results_python/LocalApp/${RUN_ID}
 METRICS=${METRIC_PLOTS_DIR}/intermediate_metrics_files/${RUN_ID}_metrics.tsv
 
 # Add one block per historical run to include
@@ -182,22 +218,61 @@ RUNIDS="${RUN_ID} ${RUN_ID_PREV1}"
 mkdir -p ${RESULTS_DIR}
 
 # Step 1: merge metrics tables (no PDF)
-# Use L for LocalApp workflow, D for DRAGEN
 uv run plot_run_metrics.py L 2                                                  \
     ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joint_sequencing_QC_file.tsv \
     ${RESULTS_DIR}/TSO500_run_metrics.pdf                                       \
     ${METRIC_PLOTS_DIR}/intermediate_metrics_files/master_metrics_table.tsv     \
-    ${RUN_ID} False ${TSVs} ${RUNIDS}                                           ;
+    ${RUN_ID} False                                                             \
+    ${METRIC_PLOTS_DIR}/intermediate_metrics_files/${RUN_ID}_metrics.tsv        \
+    ${METRIC_PLOTS_DIR}/intermediate_metrics_files/${RUN_ID_PREV1}_metrics.tsv  \
+    ${RUN_ID} ${RUN_ID_PREV1}                                                   ;
 
 # Step 2: generate PDF
 uv run plot_run_metrics.py L 2                                                  \
     ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joint_sequencing_QC_file.tsv \
     ${RESULTS_DIR}/TSO500_run_metrics.pdf                                       \
     ${METRIC_PLOTS_DIR}/intermediate_metrics_files/master_metrics_table.tsv     \
+    ${RUN_ID} True                                                              \
+    ${METRIC_PLOTS_DIR}/intermediate_metrics_files/${RUN_ID}_metrics.tsv        \
+    ${METRIC_PLOTS_DIR}/intermediate_metrics_files/${RUN_ID_PREV1}_metrics.tsv  \
+    ${RUN_ID} ${RUN_ID_PREV1}                                                   ;
+```
+
+### DRAGEN workflow
+
+```bash
+RUN_ID=250822_A02134_0101_BHYFHLDRX5
+TSOPPI_DIR=data/DRAGEN/TSO500_postprocessing
+METRIC_PLOTS_DIR=${TSOPPI_DIR}/${RUN_ID}/${RUN_ID}_metrics_plots
+RESULTS_DIR=results_python/DRAGEN/${RUN_ID}
+METRICS=${METRIC_PLOTS_DIR}/intermediate_metrics_files/${RUN_ID}_metrics.tsv
+
+# Add one block per historical run to include
+RUN_ID_PREV1=250627_A02134_0093_BHYHNYDRX5
+METRICS_PREV1=${METRIC_PLOTS_DIR}/intermediate_metrics_files/${RUN_ID_PREV1}_metrics.tsv
+
+# Aggregate all TSVs and run IDs into space-separated strings
+TSVs="${METRICS} ${METRICS_PREV1}"
+RUNIDS="${RUN_ID} ${RUN_ID_PREV1}"
+
+mkdir -p ${RESULTS_DIR}
+
+# Step 1: merge metrics tables (no PDF)
+uv run plot_run_metrics.py D 2                                                  \
+    ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joint_sequencing_QC_file.tsv \
+    ${RESULTS_DIR}/TSO500_run_metrics.pdf                                       \
+    ${METRIC_PLOTS_DIR}/intermediate_metrics_files/master_metrics_table.tsv     \
+    ${RUN_ID} False ${TSVs} ${RUNIDS}                                           ;
+
+# Step 2: generate PDF
+uv run plot_run_metrics.py D 2                                                  \
+    ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joint_sequencing_QC_file.tsv \
+    ${RESULTS_DIR}/TSO500_run_metrics.pdf                                       \
+    ${METRIC_PLOTS_DIR}/intermediate_metrics_files/master_metrics_table.tsv     \
     ${RUN_ID} True ${TSVs} ${RUNIDS}                                            ;
 ```
 
-A fully parameterised example with up to 10 historical runs is available in [example_command.bash](example_command.bash).
+A fully parameterised example with up to 10 historical runs for both workflows is available in [example_command.bash](example_command.bash).
 
 <br>
 
@@ -205,7 +280,7 @@ A fully parameterised example with up to 10 historical runs is available in [exa
 
 ## Adding new plots
 
-All plot definitions live in `plot_specs.py` as entries in the `PLOT_SPECS` dictionary. Each entry maps a metric name to a specification that controls which table to query, what columns to use, axis labels, optional guidelines, and overlay annotations. No changes to `plot_run_metrics.py` or `plots.py` are needed unless a genuinely new plot kind is required.
+All plot definitions live in workflow-specific specs files (`plot_specs_LocalApp.py` or `plot_specs_Dragen.py`) as entries in the `PLOT_SPECS` dictionary. Each entry maps a metric name to a specification that controls which table to query, what columns to use, axis labels, optional guidelines, and overlay annotations. No changes to `plot_run_metrics.py` or `plots.py` are needed unless a genuinely new plot kind is required.
 
 The three patterns in use are shown below.
 
