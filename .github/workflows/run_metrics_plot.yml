@@ -86,7 +86,7 @@ jobs:
         run: |
 
             RUN_ID=250822_A02134_0101_BHYFHLDRX5
-            TSOPPI_DIR=data/Dragen/TSO500_postprocessing
+            TSOPPI_DIR=data/DRAGEN/TSO500_postprocessing
             METRIC_PLOTS_DIR=${TSOPPI_DIR}/${RUN_ID}/${RUN_ID}_metrics_plots
             RESULTS_DIR_python=results_python/DRAGEN/${RUN_ID}
             METRICS=${METRIC_PLOTS_DIR}/intermediate_metrics_files/${RUN_ID}_metrics.tsv
