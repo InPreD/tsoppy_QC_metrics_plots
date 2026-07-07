@@ -9,8 +9,8 @@ AXIS_LINE_COLOR = "#888686"
 HV_LINE_COLOR   = "#e00202"  # A distinct red color for horizontal lines
 HV_LINE_SIZE    = 1
 HV_LINE_ALPHA   = 0.75
-TABLEAU_20      = list(reversed(['#4E79A7', '#F28E2B', '#E15759', '#76B7B2', '#59A14F',
-                   '#EDC948', '#B07AA1', '#FF9DA7', '#9C755F', '#BAB0AC']))
+TABLEAU_20      = ['#4E79A7', '#F28E2B', '#E15759', '#76B7B2', '#59A14F',
+                   '#EDC948', '#B07AA1', '#FF9DA7', '#9C755F', '#BAB0AC']
 
 
 def plot_tsoppy_barplot(data         : pd.DataFrame = None,
@@ -68,7 +68,8 @@ def plot_tsoppy_barplot(data         : pd.DataFrame = None,
     plot = (
         ggplot(data, aes(x = x_var, y = y_var)) +
         geom_col(aes(fill = fill_var), alpha = alpha_value) +
-        scale_fill_manual(values = TABLEAU_20) +
+        scale_fill_manual(values = TABLEAU_20,
+                         limits = data[fill_var].drop_duplicates().tolist()) +
         guides(fill = guide_legend(guide_title)) +
         xlab(x_lab) +
         ylab(y_lab) +
@@ -154,7 +155,8 @@ def plot_contamination_scatter(data                    : pd.DataFrame = None,
     plot = (
         ggplot(data, aes(x='DNA_CONTAMINATION_SCORE', y='DNA_CONTAMINATION_P_VALUE')) +
         geom_point(aes(color=color_var), size=3) +
-        scale_color_manual(values=_color_values) +
+        scale_color_manual(values=_color_values,
+                          limits=data[color_var].drop_duplicates().tolist()) +
         guides(color=guide_legend(guide_title)) +
         xlab('Contamination score') +
         ylab('Contamination P-value') +
