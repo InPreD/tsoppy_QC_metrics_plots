@@ -7,7 +7,7 @@ Converts metrics data from multiple runs into consolidated outputs and generates
 comprehensive QC plots.
 
 Command-line parameters:
-    1: workflow_type (D for DRAGEN or L for LocalApp) - mandatory
+    1: plot specifications file (path to a Python file that defines PLOT_SPECS)
     2: N (number of runs)
     3: joint run QC file
     4: output PDF file with plotting results
@@ -18,6 +18,7 @@ Command-line parameters:
     (8+N) to (7+2N): labels for the individual runs
 """
 
+import importlib.util
 import sys
 
 import matplotlib.pyplot as plt
@@ -32,51 +33,113 @@ VERSION_STRING = "0.3:22-03-10"
 ANGLE_X_NAMES = 90
 
 
-def load_plot_specs(workflow_type):
-    """
-    Load the appropriate plot specifications based on workflow type.
-    
-    Args:
-        workflow_type: String "D" for DRAGEN or "L" for LocalApp
-        
-    Returns:
-        PLOT_SPECS dictionary from the corresponding specs module
-        
-    Raises:
-        ValueError: If workflow_type is not "D" or "L"
-    """
-    if workflow_type == "D":
-        from plot_specs_Dragen import PLOT_SPECS
-        return PLOT_SPECS
-    elif workflow_type == "L":
-        from plot_specs_LocalApp import PLOT_SPECS
-        return PLOT_SPECS
-    else:
-        raise ValueError(f"Invalid workflow type: {workflow_type}. Must be 'D' (DRAGEN) or 'L' (LocalApp).")
+# Minimum required fields per plot_kind, used by validate_plot_specs().
+_REQUIRED_COMMON_FIELDS  = {"plot_number", "plot_kind", "source", "title"}
+_REQUIRED_FIELDS_BY_KIND = {
+    "bar"                      : {"x_var", "y_var", "fill_var", "x_lab", "y_lab", "value_spec"},
+    "cluster_density_scatter"  : set(),
+    "contamination_scatter"    : {"color_var", "label_var"},
+}
 
+
+def load_plot_specs_from_file(specs_path: str) -> dict:
+    """
+    Dynamically import PLOT_SPECS from an arbitrary Python specs file.
+
+    Args:
+        specs_path: Path to a Python file that defines a PLOT_SPECS dictionary.
+
+    Returns:
+        The PLOT_SPECS dictionary from the loaded module.
+
+    Raises:
+        ValueError: If the file cannot be loaded or does not define PLOT_SPECS.
+    """
+    try:
+        spec = importlib.util.spec_from_file_location("_plot_specs_module", specs_path)
+        if spec is None or spec.loader is None:
+            raise ValueError(f"Cannot load specs file: {specs_path!r}")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+    except FileNotFoundError as e:
+        raise ValueError(f"Cannot load specs file: {specs_path!r} (file not found)")
+    except Exception as e:
+        raise ValueError(f"Cannot load specs file: {specs_path!r} ({type(e).__name__}: {e})")
+    
+    if not hasattr(module, "PLOT_SPECS"):
+        raise ValueError(f"Specs file {specs_path!r} does not define a PLOT_SPECS dictionary.")
+    return module.PLOT_SPECS
+
+
+def validate_plot_specs(plot_specs: dict) -> None:
+    """
+    Validate that every entry in PLOT_SPECS contains the minimal required fields.
+
+    Checks:
+      - Common fields present in every spec (plot_number, plot_kind, source, title).
+      - plot_kind is one of the supported renderer keys.
+      - Kind-specific required fields are present.
+
+    Raises:
+        ValueError: Listing all offending specs and their missing fields.
+    """
+    valid_kinds = set(_REQUIRED_FIELDS_BY_KIND)
+    errors = []
+
+    for spec_name, spec in plot_specs.items():
+        missing_common = _REQUIRED_COMMON_FIELDS - set(spec)
+        if missing_common:
+            errors.append(
+                f"  '{spec_name}': missing common fields: {sorted(missing_common)}"
+            )
+            continue  # Cannot evaluate kind-specific fields without plot_kind
+
+        plot_kind = spec["plot_kind"]
+        if plot_kind not in valid_kinds:
+            errors.append(
+                f"  '{spec_name}': unknown plot_kind {plot_kind!r}. "
+                f"Valid kinds: {sorted(valid_kinds)}"
+            )
+            continue
+
+        missing_kind_fields = _REQUIRED_FIELDS_BY_KIND[plot_kind] - set(spec)
+        if missing_kind_fields:
+            errors.append(
+                f"  '{spec_name}': missing fields for plot_kind '{plot_kind}': "
+                f"{sorted(missing_kind_fields)}"
+            )
+
+    if errors:
+        raise ValueError("Plot spec validation failed:\n" + "\n".join(errors))
 
 
 def parse_args(argv):
     """
     Parse command-line arguments.
-    
-    Workflow type is now the first mandatory argument.
+
+    All arguments are positional. The first argument is the path to a Python
+    plot specifications file that defines PLOT_SPECS.
     """
-    workflow_type = argv[0]
-    if workflow_type not in ("D", "L"):
-        raise ValueError(f"Invalid workflow type: {workflow_type}. Must be 'D' (DRAGEN) or 'L' (LocalApp).")
-    
+    plot_specs_file = argv[0]
     run_count = int(argv[1])
+    expected = 7 + 2 * run_count
+
+    if len(argv) != expected:
+        sys.exit(
+            f"Expected {expected} arguments "
+            f"({run_count} metric files + {run_count} run labels), got {len(argv)}."
+        )
+
     return {
-        "workflow_type": workflow_type,
-        "run_count": run_count,
-        "joint_qc_file": argv[2],
-        "output_pdf": argv[3],
+        "plot_specs_file"    : plot_specs_file,
+        "run_count"          : run_count,
+        "joint_qc_file"      : argv[2],
+        "output_pdf"         : argv[3],
         "merged_metrics_file": argv[4],
-        "highlighted_run_id": argv[5],
-        "create_plots": argv[6],
-        "metric_files": argv[7:7 + run_count],
-        "run_labels": argv[7 + run_count:7 + (2 * run_count)],
+        "highlighted_run_id" : argv[5],
+        "create_plots"       : argv[6],
+        "metric_files"       : argv[7:7 + run_count],
+        "run_labels"         : argv[7 + run_count:7 + (2 * run_count)],
     }
 
 
@@ -472,9 +535,10 @@ def main():
     if parsed_args["run_count"] < 1:
         sys.exit("Zero runs provided as input? Exiting.")
     
-    # Load the appropriate plot specifications based on workflow type
-    PLOT_SPECS = load_plot_specs(parsed_args["workflow_type"])
-    print(f"; Using workflow: {parsed_args['workflow_type']} (DRAGEN if D, LocalApp if L)")
+    # Load and validate the plot specifications from the provided file
+    PLOT_SPECS = load_plot_specs_from_file(parsed_args["plot_specs_file"])
+    validate_plot_specs(PLOT_SPECS)
+    print(f"; Using plot specs: {parsed_args['plot_specs_file']}")
 
 
     # ------------------------- #
