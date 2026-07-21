@@ -17,6 +17,8 @@ from plotnine import ggplot
 
 from plot_run_metrics import (
     parse_args,
+    load_plot_specs_from_file,
+    validate_plot_specs,
     valid_metric_expr,
     build_filter_expression,
     build_value_expression,
@@ -39,6 +41,199 @@ import matplotlib.pyplot as plt
 # Unit tests without Data Dependencies #
 # ------------------------------------ #
 
+class TestLoadPlotSpecsFromFile:
+    """Test dynamic loading of plot specifications from Python files."""
+
+    def test_load_plot_specs_from_file_success(self):
+        """
+        Test successful loading of PLOT_SPECS from a valid specs file.
+        """
+        specs = load_plot_specs_from_file("plot_specs_LocalApp.py")
+        
+        assert isinstance(specs, dict)
+        assert len(specs) > 0
+        assert all("plot_number" in spec for spec in specs.values())
+        assert all("plot_kind" in spec for spec in specs.values())
+
+
+    def test_load_plot_specs_from_file_dragen(self):
+        """
+        Test loading PLOT_SPECS from DRAGEN specs file.
+        """
+        specs = load_plot_specs_from_file("plot_specs_Dragen.py")
+        
+        assert isinstance(specs, dict)
+        assert len(specs) > 0
+
+
+    def test_load_plot_specs_from_file_nonexistent(self):
+        """
+        Test that loading from a nonexistent file raises ValueError.
+        """
+        with pytest.raises(ValueError, match="Cannot load specs file"):
+            load_plot_specs_from_file("/nonexistent/path/to/specs.py")
+
+
+    def test_load_plot_specs_from_file_no_plot_specs_dict(self):
+        """
+        Test that a file without PLOT_SPECS raises ValueError.
+        """
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+            f.write("# This file has no PLOT_SPECS\nVALUE = 42\n")
+            temp_path = f.name
+        try:
+            with pytest.raises(ValueError, match="does not define a PLOT_SPECS dictionary"):
+                load_plot_specs_from_file(temp_path)
+        finally:
+            Path(temp_path).unlink()
+
+
+class TestValidatePlotSpecs:
+    """Test validation of plot specifications."""
+
+    def test_validate_plot_specs_valid(self):
+        """
+        Test that valid specs pass validation without raising.
+        """
+        valid_specs = {
+            "TEST_PLOT": {
+                "plot_number" : 1,
+                "plot_kind"   : "bar",
+                "source"      : "joint_qc_table",
+                "title"       : "Test Plot",
+                "x_var"       : "RUN_ID",
+                "y_var"       : "VALUE",
+                "fill_var"    : "RUN_ID",
+                "x_lab"       : "Run",
+                "y_lab"       : "Value",
+                "value_spec"  : {"operation": "cast", "column": "VALUE"},
+            }
+        }
+        # Should not raise
+        validate_plot_specs(valid_specs)
+
+
+    def test_validate_plot_specs_scatter_plot_valid(self):
+        """
+        Test that valid scatter plot specs pass validation.
+        """
+        valid_specs = {
+            "SCATTER_PLOT": {
+                "plot_number" : 2,
+                "plot_kind"   : "cluster_density_scatter",
+                "source"      : "joint_qc_table",
+                "title"       : "Scatter Test",
+            }
+        }
+        # Should not raise
+        validate_plot_specs(valid_specs)
+
+
+    def test_validate_plot_specs_contamination_scatter_valid(self):
+        """
+        Test that valid contamination scatter specs pass validation.
+        """
+        valid_specs = {
+            "CONTAMINATION": {
+                "plot_number" : 3,
+                "plot_kind"   : "contamination_scatter",
+                "source"      : "dna_data_table",
+                "title"       : "Contamination Plot",
+                "color_var"   : "RUN",
+                "label_var"   : "SAMPLE_ID",
+            }
+        }
+        # Should not raise
+        validate_plot_specs(valid_specs)
+
+
+    def test_validate_plot_specs_missing_common_field(self):
+        """
+        Test that specs missing common required fields raise ValueError.
+        """
+        invalid_specs = {
+            "BAD_PLOT": {
+                "plot_number": 1,
+                # Missing: plot_kind, source, title
+            }
+        }
+        with pytest.raises(ValueError, match="missing common fields"):
+            validate_plot_specs(invalid_specs)
+
+
+    def test_validate_plot_specs_unknown_plot_kind(self):
+        """
+        Test that specs with unknown plot_kind raise ValueError.
+        """
+        invalid_specs = {
+            "BAD_PLOT": {
+                "plot_number" : 1,
+                "plot_kind"   : "unknown_kind",
+                "source"      : "joint_qc_table",
+                "title"       : "Test",
+            }
+        }
+        with pytest.raises(ValueError, match="unknown plot_kind"):
+            validate_plot_specs(invalid_specs)
+
+
+    def test_validate_plot_specs_missing_bar_fields(self):
+        """
+        Test that bar plots missing required fields raise ValueError.
+        """
+        invalid_specs = {
+            "BAD_BAR": {
+                "plot_number" : 1,
+                "plot_kind"   : "bar",
+                "source"      : "joint_qc_table",
+                "title"       : "Test",
+                # Missing: x_var, y_var, fill_var, x_lab, y_lab, value_spec
+            }
+        }
+        with pytest.raises(ValueError, match="missing fields for plot_kind 'bar'"):
+            validate_plot_specs(invalid_specs)
+
+
+    def test_validate_plot_specs_missing_contamination_fields(self):
+        """
+        Test that contamination_scatter plots missing required fields raise ValueError.
+        """
+        invalid_specs = {
+            "BAD_CONTAMINATION": {
+                "plot_number" : 1,
+                "plot_kind"   : "contamination_scatter",
+                "source"      : "dna_data_table",
+                "title"       : "Test",
+                # Missing: color_var, label_var
+            }
+        }
+        with pytest.raises(ValueError, match="missing fields for plot_kind 'contamination_scatter'"):
+            validate_plot_specs(invalid_specs)
+
+
+    def test_validate_plot_specs_multiple_errors(self):
+        """
+        Test that validation collects multiple errors before raising.
+        """
+        invalid_specs = {
+            "SPEC_1" : {
+                # Missing plot_number
+            },
+            "SPEC_2": {
+                "plot_number" : 2,
+                "plot_kind"   : "nonexistent_kind",
+                "source"      : "table",
+                "title"       : "Test",
+            }
+        }
+        with pytest.raises(ValueError) as exc_info:
+            validate_plot_specs(invalid_specs)
+        
+        # Error message should mention both specs
+        assert "SPEC_1" in str(exc_info.value)
+        assert "SPEC_2" in str(exc_info.value)
+
+
 class TestParseArgs:
     """Test command-line argument parsing."""
 
@@ -48,7 +243,7 @@ class TestParseArgs:
         Test parsing with one run and minimal arguments.
         """
         argv = [
-            "D",                # workflow_type (D for DRAGEN or L for LocalApp)
+            "plot_specs_LocalApp.py",
             "1",                # run_count
             "joint_qc.tsv",     # joint_qc_file
             "output.pdf",       # output_pdf
@@ -60,7 +255,7 @@ class TestParseArgs:
         ]
         result = parse_args(argv)
 
-        assert result["workflow_type"]       == "D"
+        assert result["plot_specs_file"]     == "plot_specs_LocalApp.py"
         assert result["run_count"]           == 1
         assert result["joint_qc_file"]       == "joint_qc.tsv"
         assert result["output_pdf"]          == "output.pdf"
@@ -76,7 +271,7 @@ class TestParseArgs:
         Test parsing with multiple runs.
         """
         argv = [
-            "L",
+            "plot_specs_LocalApp.py",
             "3",
             "joint_qc.tsv",
             "output.pdf",
@@ -88,11 +283,11 @@ class TestParseArgs:
         ]
         result = parse_args(argv)
 
-        assert result["workflow_type"] == "L"
-        assert result["run_count"]    == 3
-        assert result["metric_files"] == ["metrics1.tsv", "metrics2.tsv", "metrics3.tsv"]
-        assert result["run_labels"]   == ["RUN_001", "RUN_002", "RUN_003"]
-        assert result["create_plots"] == "False"
+        assert result["plot_specs_file"] == "plot_specs_LocalApp.py"
+        assert result["run_count"]       == 3
+        assert result["metric_files"]    == ["metrics1.tsv", "metrics2.tsv", "metrics3.tsv"]
+        assert result["run_labels"]      == ["RUN_001", "RUN_002", "RUN_003"]
+        assert result["create_plots"]    == "False"
 
 
     def test_parse_args_file_paths_preserved(self):
@@ -101,7 +296,7 @@ class TestParseArgs:
         This ensures that Path objects are not altered during parsing.
         """
         argv = [
-            "D",
+            "plot_specs_Dragen.py",
             "2",
             "path/to/joint_qc.tsv",
             "output/results.pdf",
@@ -113,7 +308,7 @@ class TestParseArgs:
         ]
         result = parse_args(argv)
 
-        assert result["workflow_type"]       == "D"
+        assert result["plot_specs_file"] == "plot_specs_Dragen.py"
         assert result["joint_qc_file"]   == "path/to/joint_qc.tsv"
         assert result["output_pdf"]      == "output/results.pdf"
         assert result["metric_files"][0] == "path/to/metrics1.tsv"
