@@ -83,13 +83,13 @@ Rscript plot_run_metrics.R 10 ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joi
 # python script to create the LocalApp metrics plots #
 # -------------------------------------------------- #
 echo "; Running python script to create the LocalApp metrics plots"
-mkdir -p ${RESULTS_DIR_python}
+# mkdir -p ${RESULTS_DIR_python}
 
-# The first time the script is run, it will create the joint_sequencing_QC_file.tsv file, which will be used in subsequent runs
-# The second time it will use the joint_sequencing_QC_file.tsv file to create the plots
-# Note: L indicates LocalApp workflow
-uv run plot_run_metrics.py 10 ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joint_sequencing_QC_file.tsv ${RESULTS_DIR_python}/TSO500_run_metrics.pdf ${METRIC_PLOTS_DIR}/intermediate_metrics_files/master_metrics_table.tsv ${RUN_ID} False ${TSVs} ${RUNIDS}
-uv run plot_run_metrics.py 10 ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joint_sequencing_QC_file.tsv ${RESULTS_DIR_python}/TSO500_run_metrics.pdf ${METRIC_PLOTS_DIR}/intermediate_metrics_files/master_metrics_table.tsv ${RUN_ID} True ${TSVs} ${RUNIDS}
+# # The first time the script is run, it will create the joint_sequencing_QC_file.tsv file, which will be used in subsequent runs
+# # The second time it will use the joint_sequencing_QC_file.tsv file to create the plots
+# # Note: L indicates LocalApp workflow
+# uv run plot_run_metrics.py 10 ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joint_sequencing_QC_file.tsv ${RESULTS_DIR_python}/TSO500_run_metrics.pdf ${METRIC_PLOTS_DIR}/intermediate_metrics_files/master_metrics_table.tsv ${RUN_ID} False ${TSVs} ${RUNIDS}
+# uv run plot_run_metrics.py 10 ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joint_sequencing_QC_file.tsv ${RESULTS_DIR_python}/TSO500_run_metrics.pdf ${METRIC_PLOTS_DIR}/intermediate_metrics_files/master_metrics_table.tsv ${RUN_ID} True ${TSVs} ${RUNIDS}
 
 #Rscript    /inpred/user_scripts/libs/plot_run_metrics.R    1    /inpred/data//sample_data/results/metrics_plots_HUS_latest/intermediate_metrics_files/joint_sequencing_QC_file.tsv    /inpred/data//sample_data/results/metrics_plots_HUS_latest/TSO500_run_metrics.pdf    /inpred/data//sample_data/results/metrics_plots_HUS_latest/intermediate_metrics_files/master_metrics_table.tsv    260312_NDX551102_RUO_0042_AH3HTFBGY2    True    /inpred/data//sample_data/results/metrics_plots_HUS_latest/intermediate_metrics_files/260312_NDX551102_RUO_0042_AH3HTFBGY2_metrics.tsv    260312_NDX551102_RUO_0042_AH3HTFBGY2
 
