@@ -17,7 +17,6 @@ from plotnine import ggplot
 
 from plot_run_metrics import (
     parse_args,
-    load_plot_specs_from_file,
     validate_plot_specs,
     valid_metric_expr,
     build_filter_expression,
@@ -40,53 +39,6 @@ import matplotlib.pyplot as plt
 # ------------------------------------ #
 # Unit tests without Data Dependencies #
 # ------------------------------------ #
-
-class TestLoadPlotSpecsFromFile:
-    """Test dynamic loading of plot specifications from Python files."""
-
-    def test_load_plot_specs_from_file_success(self):
-        """
-        Test successful loading of PLOT_SPECS from a valid specs file.
-        """
-        specs = load_plot_specs_from_file("plot_specs_LocalApp.py")
-        
-        assert isinstance(specs, dict)
-        assert len(specs) > 0
-        assert all("plot_number" in spec for spec in specs.values())
-        assert all("plot_kind" in spec for spec in specs.values())
-
-
-    def test_load_plot_specs_from_file_dragen(self):
-        """
-        Test loading PLOT_SPECS from DRAGEN specs file.
-        """
-        specs = load_plot_specs_from_file("plot_specs_Dragen.py")
-        
-        assert isinstance(specs, dict)
-        assert len(specs) > 0
-
-
-    def test_load_plot_specs_from_file_nonexistent(self):
-        """
-        Test that loading from a nonexistent file raises ValueError.
-        """
-        with pytest.raises(ValueError, match="Cannot load specs file"):
-            load_plot_specs_from_file("/nonexistent/path/to/specs.py")
-
-
-    def test_load_plot_specs_from_file_no_plot_specs_dict(self):
-        """
-        Test that a file without PLOT_SPECS raises ValueError.
-        """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
-            f.write("# This file has no PLOT_SPECS\nVALUE = 42\n")
-            temp_path = f.name
-        try:
-            with pytest.raises(ValueError, match="does not define a PLOT_SPECS dictionary"):
-                load_plot_specs_from_file(temp_path)
-        finally:
-            Path(temp_path).unlink()
-
 
 class TestValidatePlotSpecs:
     """Test validation of plot specifications."""
@@ -241,9 +193,9 @@ class TestParseArgs:
     def test_parse_args_minimal(self):
         """
         Test parsing with one run and minimal arguments.
+        Plot specifications are no longer passed on the command line.
         """
         argv = [
-            "plot_specs_LocalApp.py",
             "1",                # run_count
             "joint_qc.tsv",     # joint_qc_file
             "output.pdf",       # output_pdf
@@ -255,7 +207,6 @@ class TestParseArgs:
         ]
         result = parse_args(argv)
 
-        assert result["plot_specs_file"]     == "plot_specs_LocalApp.py"
         assert result["run_count"]           == 1
         assert result["joint_qc_file"]       == "joint_qc.tsv"
         assert result["output_pdf"]          == "output.pdf"
@@ -271,7 +222,6 @@ class TestParseArgs:
         Test parsing with multiple runs.
         """
         argv = [
-            "plot_specs_LocalApp.py",
             "3",
             "joint_qc.tsv",
             "output.pdf",
@@ -283,11 +233,10 @@ class TestParseArgs:
         ]
         result = parse_args(argv)
 
-        assert result["plot_specs_file"] == "plot_specs_LocalApp.py"
-        assert result["run_count"]       == 3
-        assert result["metric_files"]    == ["metrics1.tsv", "metrics2.tsv", "metrics3.tsv"]
-        assert result["run_labels"]      == ["RUN_001", "RUN_002", "RUN_003"]
-        assert result["create_plots"]    == "False"
+        assert result["run_count"]    == 3
+        assert result["metric_files"] == ["metrics1.tsv", "metrics2.tsv", "metrics3.tsv"]
+        assert result["run_labels"]   == ["RUN_001", "RUN_002", "RUN_003"]
+        assert result["create_plots"] == "False"
 
 
     def test_parse_args_file_paths_preserved(self):
@@ -296,7 +245,6 @@ class TestParseArgs:
         This ensures that Path objects are not altered during parsing.
         """
         argv = [
-            "plot_specs_Dragen.py",
             "2",
             "path/to/joint_qc.tsv",
             "output/results.pdf",
@@ -308,7 +256,6 @@ class TestParseArgs:
         ]
         result = parse_args(argv)
 
-        assert result["plot_specs_file"] == "plot_specs_Dragen.py"
         assert result["joint_qc_file"]   == "path/to/joint_qc.tsv"
         assert result["output_pdf"]      == "output/results.pdf"
         assert result["metric_files"][0] == "path/to/metrics1.tsv"

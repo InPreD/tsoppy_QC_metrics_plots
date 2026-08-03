@@ -7,18 +7,16 @@ Converts metrics data from multiple runs into consolidated outputs and generates
 comprehensive QC plots.
 
 Command-line parameters:
-    1: plot specifications file (path to a Python file that defines PLOT_SPECS)
-    2: N (number of runs)
-    3: joint run QC file
-    4: output PDF file with plotting results
-    5: output tsv file with merged metrics data
-    6: label of the run that should be highlighted in the plots
-    7: create_plots (True/False flag)
-    8 to (7+N): transposed metrics matrices for the individual runs
-    (8+N) to (7+2N): labels for the individual runs
+    1: N (number of runs)
+    2: joint run QC file
+    3: output PDF file with plotting results
+    4: output tsv file with merged metrics data
+    5: label of the run that should be highlighted in the plots
+    6: create_plots (True/False flag)
+    7 to (6+N): transposed metrics matrices for the individual runs
+    (7+N) to (6+2N): labels for the individual runs
 """
 
-import importlib.util
 import sys
 
 import matplotlib.pyplot as plt
@@ -27,6 +25,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from plotnine import *
 
 from plots import AXIS_LINE_COLOR, TABLEAU_20, plot_contamination_scatter, plot_tsoppy_barplot
+from specs.plot_specs import PLOT_SPECS
 
 
 VERSION_STRING = "0.3:22-03-10"
@@ -41,34 +40,6 @@ _REQUIRED_FIELDS_BY_KIND = {
     "contamination_scatter"    : {"color_var", "label_var"},
 }
 
-
-def load_plot_specs_from_file(specs_path: str) -> dict:
-    """
-    Dynamically import PLOT_SPECS from an arbitrary Python specs file.
-
-    Args:
-        specs_path: Path to a Python file that defines a PLOT_SPECS dictionary.
-
-    Returns:
-        The PLOT_SPECS dictionary from the loaded module.
-
-    Raises:
-        ValueError: If the file cannot be loaded or does not define PLOT_SPECS.
-    """
-    try:
-        spec = importlib.util.spec_from_file_location("_plot_specs_module", specs_path)
-        if spec is None or spec.loader is None:
-            raise ValueError(f"Cannot load specs file: {specs_path!r}")
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-    except FileNotFoundError as e:
-        raise ValueError(f"Cannot load specs file: {specs_path!r} (file not found)")
-    except Exception as e:
-        raise ValueError(f"Cannot load specs file: {specs_path!r} ({type(e).__name__}: {e})")
-    
-    if not hasattr(module, "PLOT_SPECS"):
-        raise ValueError(f"Specs file {specs_path!r} does not define a PLOT_SPECS dictionary.")
-    return module.PLOT_SPECS
 
 
 def validate_plot_specs(plot_specs: dict) -> None:
@@ -117,12 +88,11 @@ def parse_args(argv):
     """
     Parse command-line arguments.
 
-    All arguments are positional. The first argument is the path to a Python
-    plot specifications file that defines PLOT_SPECS.
+    All arguments are positional. Plot specifications are loaded from
+    specs/plot_specs.py and are not passed on the command line.
     """
-    plot_specs_file = argv[0]
-    run_count = int(argv[1])
-    expected = 7 + 2 * run_count
+    run_count = int(argv[0])
+    expected = 6 + 2 * run_count
 
     if len(argv) != expected:
         sys.exit(
@@ -131,15 +101,14 @@ def parse_args(argv):
         )
 
     return {
-        "plot_specs_file"    : plot_specs_file,
         "run_count"          : run_count,
-        "joint_qc_file"      : argv[2],
-        "output_pdf"         : argv[3],
-        "merged_metrics_file": argv[4],
-        "highlighted_run_id" : argv[5],
-        "create_plots"       : argv[6],
-        "metric_files"       : argv[7:7 + run_count],
-        "run_labels"         : argv[7 + run_count:7 + (2 * run_count)],
+        "joint_qc_file"      : argv[1],
+        "output_pdf"         : argv[2],
+        "merged_metrics_file": argv[3],
+        "highlighted_run_id" : argv[4],
+        "create_plots"       : argv[5],
+        "metric_files"       : argv[6:6 + run_count],
+        "run_labels"         : argv[6 + run_count:6 + (2 * run_count)],
     }
 
 
@@ -535,10 +504,9 @@ def main():
     if parsed_args["run_count"] < 1:
         sys.exit("Zero runs provided as input? Exiting.")
     
-    # Load and validate the plot specifications from the provided file
-    PLOT_SPECS = load_plot_specs_from_file(parsed_args["plot_specs_file"])
+    # Validate the plot specifications loaded from specs/plot_specs.py
     validate_plot_specs(PLOT_SPECS)
-    print(f"; Using plot specs: {parsed_args['plot_specs_file']}")
+    print("; Using plot specs: specs/plot_specs.py")
 
 
     # ------------------------- #
