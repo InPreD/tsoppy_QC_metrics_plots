@@ -101,7 +101,7 @@ class TestValidatePlotSpecs:
 
     def test_validate_plot_specs_missing_common_field(self):
         """
-        Test that specs missing common required fields raise ValueError.
+        Test that specs missing common required fields raise KeyError.
         """
         invalid_specs = {
             "BAD_PLOT": {
@@ -109,13 +109,13 @@ class TestValidatePlotSpecs:
                 # Missing: plot_kind, source, title
             }
         }
-        with pytest.raises(ValueError, match="missing common fields"):
+        with pytest.raises(KeyError, match="missing common fields"):
             validate_plot_specs(invalid_specs)
 
 
     def test_validate_plot_specs_unknown_plot_kind(self):
         """
-        Test that specs with unknown plot_kind raise ValueError.
+        Test that specs with unknown plot_kind raise KeyError.
         """
         invalid_specs = {
             "BAD_PLOT": {
@@ -125,13 +125,13 @@ class TestValidatePlotSpecs:
                 "title"       : "Test",
             }
         }
-        with pytest.raises(ValueError, match="unknown plot_kind"):
+        with pytest.raises(KeyError, match="unknown plot_kind"):
             validate_plot_specs(invalid_specs)
 
 
     def test_validate_plot_specs_missing_bar_fields(self):
         """
-        Test that bar plots missing required fields raise ValueError.
+        Test that bar plots missing required fields raise KeyError.
         """
         invalid_specs = {
             "BAD_BAR": {
@@ -142,13 +142,13 @@ class TestValidatePlotSpecs:
                 # Missing: x_var, y_var, fill_var, x_lab, y_lab, value_spec
             }
         }
-        with pytest.raises(ValueError, match="missing fields for plot_kind 'bar'"):
+        with pytest.raises(KeyError, match="missing fields for plot_kind 'bar'"):
             validate_plot_specs(invalid_specs)
 
 
     def test_validate_plot_specs_missing_contamination_fields(self):
         """
-        Test that contamination_scatter plots missing required fields raise ValueError.
+        Test that contamination_scatter plots missing required fields raise KeyError.
         """
         invalid_specs = {
             "BAD_CONTAMINATION": {
@@ -159,7 +159,7 @@ class TestValidatePlotSpecs:
                 # Missing: color_var, label_var
             }
         }
-        with pytest.raises(ValueError, match="missing fields for plot_kind 'contamination_scatter'"):
+        with pytest.raises(KeyError, match="missing fields for plot_kind 'contamination_scatter'"):
             validate_plot_specs(invalid_specs)
 
 
@@ -178,7 +178,7 @@ class TestValidatePlotSpecs:
                 "title"       : "Test",
             }
         }
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(KeyError) as exc_info:
             validate_plot_specs(invalid_specs)
         
         # Error message should mention both specs
@@ -193,7 +193,6 @@ class TestParseArgs:
     def test_parse_args_minimal(self):
         """
         Test parsing with one run and minimal arguments.
-        Plot specifications are no longer passed on the command line.
         """
         argv = [
             "1",                # run_count
