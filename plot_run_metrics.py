@@ -24,6 +24,8 @@ import polars as pl
 from matplotlib.backends.backend_pdf import PdfPages
 from plotnine import *
 
+# PLOTS_SPECS is a dictionary containing the specifications for each plot to be generated
+# including the type of plot, the data source, and various parameters for rendering.
 from plots import AXIS_LINE_COLOR, TABLEAU_20, plot_contamination_scatter, plot_tsoppy_barplot
 from specs.plot_specs import PLOT_SPECS
 
@@ -81,7 +83,7 @@ def validate_plot_specs(plot_specs: dict) -> None:
             )
 
     if errors:
-        raise ValueError("Plot spec validation failed:\n" + "\n".join(errors))
+        raise KeyError("Plot spec validation failed:\n" + "\n".join(errors))
 
 
 def parse_args(argv):
