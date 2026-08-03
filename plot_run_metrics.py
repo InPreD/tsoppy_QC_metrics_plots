@@ -17,6 +17,7 @@ Command-line parameters:
     (7+N) to (6+2N): labels for the individual runs
 """
 
+import logging
 import sys
 
 import matplotlib.pyplot as plt
@@ -29,6 +30,8 @@ from plotnine import *
 from plots import AXIS_LINE_COLOR, TABLEAU_20, plot_contamination_scatter, plot_tsoppy_barplot
 from specs.plot_specs import PLOT_SPECS
 
+
+logger = logging.getLogger(__name__)
 
 VERSION_STRING = "0.3:22-03-10"
 ANGLE_X_NAMES = 90
@@ -54,7 +57,7 @@ def validate_plot_specs(plot_specs: dict) -> None:
       - Kind-specific required fields are present.
 
     Raises:
-        ValueError: Listing all offending specs and their missing fields.
+        KeyError: Listing all offending specs and their missing fields.
     """
     valid_kinds = set(_REQUIRED_FIELDS_BY_KIND)
     errors = []
@@ -62,28 +65,41 @@ def validate_plot_specs(plot_specs: dict) -> None:
     for spec_name, spec in plot_specs.items():
         missing_common = _REQUIRED_COMMON_FIELDS - set(spec)
         if missing_common:
-            errors.append(
-                f"  '{spec_name}': missing common fields: {sorted(missing_common)}"
+            missing_list = ", ".join(sorted(missing_common))
+            error_msg = (
+                f"Error in '{spec_name}':\n"
+                f"  Missing common fields: {missing_list}\n"
+                f"  (Cannot determine plot type, so cannot validate kind-specific fields)"
             )
+            errors.append(error_msg)
+            logger.error(error_msg)
             continue  # Cannot evaluate kind-specific fields without plot_kind
 
         plot_kind = spec["plot_kind"]
         if plot_kind not in valid_kinds:
-            errors.append(
-                f"  '{spec_name}': unknown plot_kind {plot_kind!r}. "
-                f"Valid kinds: {sorted(valid_kinds)}"
+            valid_kinds_str = ", ".join(sorted(valid_kinds))
+            error_msg = (
+                f"Error in '{spec_name}':\n"
+                f"  plot_kind '{plot_kind}' is not recognized\n"
+                f"  Valid plot types: {valid_kinds_str}"
             )
+            errors.append(error_msg)
+            logger.error(error_msg)
             continue
 
         missing_kind_fields = _REQUIRED_FIELDS_BY_KIND[plot_kind] - set(spec)
         if missing_kind_fields:
-            errors.append(
-                f"  '{spec_name}': missing fields for plot_kind '{plot_kind}': "
-                f"{sorted(missing_kind_fields)}"
+            missing_list = ", ".join(sorted(missing_kind_fields))
+            error_msg = (
+                f"Error in '{spec_name}':\n"
+                f"  Missing fields for plot_kind '{plot_kind}': {missing_list}"
             )
+            errors.append(error_msg)
+            logger.error(error_msg)
 
     if errors:
-        raise KeyError("Plot spec validation failed:\n" + "\n".join(errors))
+        error_summary = "\n\n".join(errors)
+        raise KeyError(f"Found {len(errors)} validation error(s) in specs:\n\n{error_summary}")
 
 
 def parse_args(argv):
@@ -497,6 +513,12 @@ def render_plot(pdf_handle, spec_name, spec, tables):
 def main():
     """Main execution function for metrics processing and plotting."""
     args = sys.argv[1:]
+    
+    # Configure logging to display error level in output
+    logging.basicConfig(
+        level=logging.INFO,
+        format='[%(levelname)s] %(message)s'
+    )
 
     # ----------------------- #
     # Reading input arguments #

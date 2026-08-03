@@ -109,7 +109,7 @@ class TestValidatePlotSpecs:
                 # Missing: plot_kind, source, title
             }
         }
-        with pytest.raises(KeyError, match="missing common fields"):
+        with pytest.raises(KeyError, match="Error in"):
             validate_plot_specs(invalid_specs)
 
 
@@ -125,7 +125,7 @@ class TestValidatePlotSpecs:
                 "title"       : "Test",
             }
         }
-        with pytest.raises(KeyError, match="unknown plot_kind"):
+        with pytest.raises(KeyError, match="Error in"):
             validate_plot_specs(invalid_specs)
 
 
@@ -142,7 +142,7 @@ class TestValidatePlotSpecs:
                 # Missing: x_var, y_var, fill_var, x_lab, y_lab, value_spec
             }
         }
-        with pytest.raises(KeyError, match="missing fields for plot_kind 'bar'"):
+        with pytest.raises(KeyError, match="Error in"):
             validate_plot_specs(invalid_specs)
 
 
@@ -159,7 +159,7 @@ class TestValidatePlotSpecs:
                 # Missing: color_var, label_var
             }
         }
-        with pytest.raises(KeyError, match="missing fields for plot_kind 'contamination_scatter'"):
+        with pytest.raises(KeyError, match="Error in"):
             validate_plot_specs(invalid_specs)
 
 
@@ -178,12 +178,45 @@ class TestValidatePlotSpecs:
                 "title"       : "Test",
             }
         }
-        with pytest.raises(KeyError) as exc_info:
+        with pytest.raises(KeyError, match="2 validation error"):
+            validate_plot_specs(invalid_specs)
+
+
+    @patch("plot_run_metrics.logger")
+    def test_validate_plot_specs_logs_errors(self, mock_logger):
+        """
+        Test that each validation error is logged immediately via logger.error().
+        """
+        invalid_specs = {
+            "PLOT_A": {
+                "plot_number": 1,
+                # Missing: plot_kind, source, title
+            },
+            "PLOT_B": {
+                "plot_number": 2,
+                "plot_kind": "bar",
+                "source": "joint_qc_table",
+                "title": "Test",
+                # Missing bar-specific fields
+            }
+        }
+        
+        with pytest.raises(KeyError):
             validate_plot_specs(invalid_specs)
         
-        # Error message should mention both specs
-        assert "SPEC_1" in str(exc_info.value)
-        assert "SPEC_2" in str(exc_info.value)
+        # Verify logger.error was called for each error
+        assert mock_logger.error.call_count == 2
+        
+        # Check that the first call matches the missing common fields error
+        first_call_args = mock_logger.error.call_args_list[0][0][0]
+        assert "PLOT_A" in first_call_args
+        assert "Missing common fields" in first_call_args
+        
+        # Check that the second call matches the missing bar fields error
+        second_call_args = mock_logger.error.call_args_list[1][0][0]
+        assert "PLOT_B" in second_call_args
+        assert "plot_kind 'bar'" in second_call_args
+        assert "Missing fields" in second_call_args
 
 
 class TestParseArgs:
