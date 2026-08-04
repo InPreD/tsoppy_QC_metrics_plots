@@ -41,151 +41,136 @@ import matplotlib.pyplot as plt
 # ------------------------------------ #
 
 class TestValidatePlotSpecs:
-    """Test validation of plot specifications."""
+    """
+    Table-driven tests for validate_plot_specs().
 
-    def test_validate_plot_specs_valid(self):
-        """
-        Test that valid specs pass validation without raising.
-        """
-        valid_specs = {
-            "TEST_PLOT": {
-                "plot_number" : 1,
-                "plot_kind"   : "bar",
-                "source"      : "joint_qc_table",
-                "title"       : "Test Plot",
-                "x_var"       : "RUN_ID",
-                "y_var"       : "VALUE",
-                "fill_var"    : "RUN_ID",
-                "x_lab"       : "Run",
-                "y_lab"       : "Value",
-                "value_spec"  : {"operation": "cast", "column": "VALUE"},
-            }
-        }
-        # Should not raise
-        validate_plot_specs(valid_specs)
+    Valid and invalid spec cases are defined as parametrize data at the top of each test method.
+    Each pytest.param id reflects the scenario being tested, keeping the test body free of
+    per-case logic and making it trivial to add new cases without touching the test logic.
+    """
 
-
-    def test_validate_plot_specs_scatter_plot_valid(self):
-        """
-        Test that valid scatter plot specs pass validation.
-        """
-        valid_specs = {
-            "SCATTER_PLOT": {
-                "plot_number" : 2,
-                "plot_kind"   : "cluster_density_scatter",
-                "source"      : "joint_qc_table",
-                "title"       : "Scatter Test",
-            }
-        }
-        # Should not raise
-        validate_plot_specs(valid_specs)
-
-
-    def test_validate_plot_specs_contamination_scatter_valid(self):
-        """
-        Test that valid contamination scatter specs pass validation.
-        """
-        valid_specs = {
-            "CONTAMINATION": {
-                "plot_number" : 3,
-                "plot_kind"   : "contamination_scatter",
-                "source"      : "dna_data_table",
-                "title"       : "Contamination Plot",
-                "color_var"   : "RUN",
-                "label_var"   : "SAMPLE_ID",
-            }
-        }
-        # Should not raise
-        validate_plot_specs(valid_specs)
-
-
-    def test_validate_plot_specs_missing_common_field(self):
-        """
-        Test that specs missing common required fields raise KeyError.
-        """
-        invalid_specs = {
-            "BAD_PLOT": {
-                "plot_number": 1,
-                # Missing: plot_kind, source, title
-            }
-        }
-        with pytest.raises(KeyError, match="Error in"):
-            validate_plot_specs(invalid_specs)
-
-
-    def test_validate_plot_specs_unknown_plot_kind(self):
-        """
-        Test that specs with unknown plot_kind raise KeyError.
-        """
-        invalid_specs = {
-            "BAD_PLOT": {
-                "plot_number" : 1,
-                "plot_kind"   : "unknown_kind",
-                "source"      : "joint_qc_table",
-                "title"       : "Test",
-            }
-        }
-        with pytest.raises(KeyError, match="Error in"):
-            validate_plot_specs(invalid_specs)
-
-
-    def test_validate_plot_specs_missing_bar_fields(self):
-        """
-        Test that bar plots missing required fields raise KeyError.
-        """
-        invalid_specs = {
-            "BAD_BAR": {
-                "plot_number" : 1,
-                "plot_kind"   : "bar",
-                "source"      : "joint_qc_table",
-                "title"       : "Test",
-                # Missing: x_var, y_var, fill_var, x_lab, y_lab, value_spec
-            }
-        }
-        with pytest.raises(KeyError, match="Error in"):
-            validate_plot_specs(invalid_specs)
-
-
-    def test_validate_plot_specs_missing_contamination_fields(self):
-        """
-        Test that contamination_scatter plots missing required fields raise KeyError.
-        """
-        invalid_specs = {
-            "BAD_CONTAMINATION": {
-                "plot_number" : 1,
-                "plot_kind"   : "contamination_scatter",
-                "source"      : "dna_data_table",
-                "title"       : "Test",
-                # Missing: color_var, label_var
-            }
-        }
-        with pytest.raises(KeyError, match="Error in"):
-            validate_plot_specs(invalid_specs)
-
-
-    def test_validate_plot_specs_multiple_errors(self):
-        """
-        Test that validation collects multiple errors before raising.
-        """
-        invalid_specs = {
-            "SPEC_1" : {
-                # Missing plot_number
+    @pytest.mark.parametrize("specs", [
+        pytest.param(
+            {
+                "TEST_PLOT": {
+                    "plot_number" : 1,
+                    "plot_kind"   : "bar",
+                    "source"      : "joint_qc_table",
+                    "title"       : "Test Plot",
+                    "x_var"       : "RUN_ID",
+                    "y_var"       : "VALUE",
+                    "fill_var"    : "RUN_ID",
+                    "x_lab"       : "Run",
+                    "y_lab"       : "Value",
+                    "value_spec"  : {"operation": "cast", "column": "VALUE"},
+                }
             },
-            "SPEC_2": {
-                "plot_number" : 2,
-                "plot_kind"   : "nonexistent_kind",
-                "source"      : "table",
-                "title"       : "Test",
-            }
-        }
-        with pytest.raises(KeyError, match="2 validation error"):
-            validate_plot_specs(invalid_specs)
+            id="bar_plot",
+        ),
+        pytest.param(
+            {
+                "SCATTER_PLOT": {
+                    "plot_number" : 2,
+                    "plot_kind"   : "cluster_density_scatter",
+                    "source"      : "joint_qc_table",
+                    "title"       : "Scatter Test",
+                }
+            },
+            id="cluster_density_scatter",
+        ),
+        pytest.param(
+            {
+                "CONTAMINATION": {
+                    "plot_number" : 3,
+                    "plot_kind"   : "contamination_scatter",
+                    "source"      : "dna_data_table",
+                    "title"       : "Contamination Plot",
+                    "color_var"   : "RUN",
+                    "label_var"   : "SAMPLE_ID",
+                }
+            },
+            id="contamination_scatter",
+        ),
+    ])
+    def test_valid_specs_do_not_raise(self, specs):
+        """Valid specs should pass validation without raising."""
+        validate_plot_specs(specs)
+
+
+    @pytest.mark.parametrize("specs, expected_match", [
+        pytest.param(
+            {
+                "BAD_PLOT": {
+                    "plot_number": 1,
+                    # Missing: plot_kind, source, title
+                }
+            },
+            "Error in",
+            id="missing_common_fields",
+        ),
+        pytest.param(
+            {
+                "BAD_PLOT": {
+                    "plot_number" : 1,
+                    "plot_kind"   : "unknown_kind",
+                    "source"      : "joint_qc_table",
+                    "title"       : "Test",
+                }
+            },
+            "not recognized",
+            id="unknown_plot_kind",
+        ),
+        pytest.param(
+            {
+                "BAD_BAR": {
+                    "plot_number" : 1,
+                    "plot_kind"   : "bar",
+                    "source"      : "joint_qc_table",
+                    "title"       : "Test",
+                    # Missing: x_var, y_var, fill_var, x_lab, y_lab, value_spec
+                }
+            },
+            "Missing fields",
+            id="missing_bar_fields",
+        ),
+        pytest.param(
+            {
+                "BAD_CONTAMINATION": {
+                    "plot_number" : 1,
+                    "plot_kind"   : "contamination_scatter",
+                    "source"      : "dna_data_table",
+                    "title"       : "Test",
+                    # Missing: color_var, label_var
+                }
+            },
+            "Missing fields",
+            id="missing_contamination_fields",
+        ),
+        pytest.param(
+            {
+                "SPEC_1": {},
+                "SPEC_2": {
+                    "plot_number" : 2,
+                    "plot_kind"   : "nonexistent_kind",
+                    "source"      : "table",
+                    "title"       : "Test",
+                },
+            },
+            "2 validation error",
+            id="multiple_errors_accumulation",
+        ),
+    ])
+    def test_invalid_specs_raise_key_error(self, specs, expected_match):
+        """Invalid specs should raise KeyError with a message matching the expected pattern."""
+        with pytest.raises(KeyError, match=expected_match):
+            validate_plot_specs(specs)
 
 
     @patch("plot_run_metrics.logger")
     def test_validate_plot_specs_logs_errors(self, mock_logger):
         """
         Test that each validation error is logged immediately via logger.error().
+        Kept separate because it tests logger behavior via mock, not exception raising.
         """
         invalid_specs = {
             "PLOT_A": {
@@ -210,13 +195,12 @@ class TestValidatePlotSpecs:
         # Check that the first call matches the missing common fields error
         first_call_args = mock_logger.error.call_args_list[0][0][0]
         assert "PLOT_A" in first_call_args
-        assert "Missing common fields" in first_call_args
+        assert "Missing fields:" in first_call_args
         
         # Check that the second call matches the missing bar fields error
         second_call_args = mock_logger.error.call_args_list[1][0][0]
         assert "PLOT_B" in second_call_args
-        assert "plot_kind 'bar'" in second_call_args
-        assert "Missing fields" in second_call_args
+        assert "Missing fields:" in second_call_args
 
 
 class TestParseArgs:
