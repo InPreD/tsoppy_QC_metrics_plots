@@ -79,6 +79,22 @@ Rscript plot_run_metrics.R 10 ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joi
 Rscript plot_run_metrics.R 10 ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joint_sequencing_QC_file.tsv ${RESULTS_DIR_R}/TSO500_run_metrics.pdf ${METRIC_PLOTS_DIR}/intermediate_metrics_files/master_metrics_table.tsv ${RUN_ID} True ${TSVs} ${RUNIDS}
 
 
+
+# ------------------------------------------------------------------- #
+# python script to create the plots using a minimal set of parameters #
+# ------------------------------------------------------------------- #
+RESULTS_DIR_python=results_python/Minimal/${RUN_ID}
+echo "; Running python script to create the metrics plots using minimal set of parameters"
+mkdir -p ${RESULTS_DIR_python}
+
+# The first time the script is run, it will create the joint_sequencing_QC_file.tsv file, which will be used in subsequent runs
+# The second time it will use the joint_sequencing_QC_file.tsv file to create the plots
+cp specs/plot_specs_minimal.py specs/plot_specs.py
+uv run plot_run_metrics.py 10 ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joint_sequencing_QC_file.tsv ${RESULTS_DIR_python}/TSO500_run_metrics.pdf ${METRIC_PLOTS_DIR}/intermediate_metrics_files/master_metrics_table.tsv ${RUN_ID} False ${TSVs} ${RUNIDS}
+uv run plot_run_metrics.py 10 ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joint_sequencing_QC_file.tsv ${RESULTS_DIR_python}/TSO500_run_metrics.pdf ${METRIC_PLOTS_DIR}/intermediate_metrics_files/master_metrics_table.tsv ${RUN_ID} True ${TSVs} ${RUNIDS}
+
+
+
 # -------------------------------------------------- #
 # python script to create the LocalApp metrics plots #
 # -------------------------------------------------- #
@@ -87,7 +103,7 @@ mkdir -p ${RESULTS_DIR_python}
 
 # The first time the script is run, it will create the joint_sequencing_QC_file.tsv file, which will be used in subsequent runs
 # The second time it will use the joint_sequencing_QC_file.tsv file to create the plots
-# Note: L indicates LocalApp workflow
+cp specs/plot_specs_LocalApp.py specs/plot_specs.py
 uv run plot_run_metrics.py 10 ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joint_sequencing_QC_file.tsv ${RESULTS_DIR_python}/TSO500_run_metrics.pdf ${METRIC_PLOTS_DIR}/intermediate_metrics_files/master_metrics_table.tsv ${RUN_ID} False ${TSVs} ${RUNIDS}
 uv run plot_run_metrics.py 10 ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joint_sequencing_QC_file.tsv ${RESULTS_DIR_python}/TSO500_run_metrics.pdf ${METRIC_PLOTS_DIR}/intermediate_metrics_files/master_metrics_table.tsv ${RUN_ID} True ${TSVs} ${RUNIDS}
 
@@ -140,13 +156,18 @@ RUNIDS="${RUN_ID} ${RUN_ID_PREV1} ${RUN_ID_PREV2} ${RUN_ID_PREV3} ${RUN_ID_PREV4
 # python script to create the DRAGEN metrics plots #
 # ------------------------------------------------ #
 echo "; Running python script to create the DRAGEN metrics plots"
-# mkdir -p ${RESULTS_DIR_python}
+mkdir -p ${RESULTS_DIR_python}
 
-# # In this example the joint_sequencing_QC_file.tsv file has already been created, so the script will run only to create the plots
-# # Note: D indicates DRAGEN workflow
-# uv run plot_run_metrics.py 10 ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joint_sequencing_QC_file.tsv ${RESULTS_DIR_python}/TSO500_run_metrics.pdf ${METRIC_PLOTS_DIR}/intermediate_metrics_files/master_metrics_table.tsv ${RUN_ID} False ${TSVs} ${RUNIDS}
-# uv run plot_run_metrics.py 10 ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joint_sequencing_QC_file.tsv ${RESULTS_DIR_python}/TSO500_run_metrics.pdf ${METRIC_PLOTS_DIR}/intermediate_metrics_files/master_metrics_table.tsv ${RUN_ID} True ${TSVs} ${RUNIDS}
+# In this example the joint_sequencing_QC_file.tsv file has already been created, so the script will run only to create the plots
+cp specs/plot_specs_Dragen.py specs/plot_specs.py
+uv run plot_run_metrics.py 10 ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joint_sequencing_QC_file.tsv ${RESULTS_DIR_python}/TSO500_run_metrics.pdf ${METRIC_PLOTS_DIR}/intermediate_metrics_files/master_metrics_table.tsv ${RUN_ID} False ${TSVs} ${RUNIDS}
+uv run plot_run_metrics.py 10 ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joint_sequencing_QC_file.tsv ${RESULTS_DIR_python}/TSO500_run_metrics.pdf ${METRIC_PLOTS_DIR}/intermediate_metrics_files/master_metrics_table.tsv ${RUN_ID} True ${TSVs} ${RUNIDS}
 
+
+# ======================================= #
+# Restore the original plot_specs.py file #
+# ======================================= #
+cp specs/plot_specs_minimal.py specs/plot_specs.py
 
 # TSVs="${METRICS} ${METRICS_PREV1}"
 # RUNIDS="${RUN_ID} ${RUN_ID_PREV1}"
