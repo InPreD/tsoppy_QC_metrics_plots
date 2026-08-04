@@ -54,7 +54,9 @@ def validate_plot_specs(plot_specs: dict) -> None:
     Checks:
       - Common fields present in every spec (plot_number, plot_kind, source, title).
       - plot_kind is one of the supported renderer keys.
-      - Kind-specific required fields are present.
+      - Kind-specific required fields are present for the given plot_kind.
+
+    All missing fields are collected and reported together per spec.
 
     Raises:
         KeyError: Listing all offending specs and their missing fields.
@@ -63,37 +65,38 @@ def validate_plot_specs(plot_specs: dict) -> None:
     errors = []
 
     for spec_name, spec in plot_specs.items():
-        missing_common = _REQUIRED_COMMON_FIELDS - set(spec)
-        if missing_common:
-            missing_list = ", ".join(sorted(missing_common))
-            error_msg = (
-                f"Error in '{spec_name}':\n"
-                f"  Missing common fields: {missing_list}\n"
-                f"  (Cannot determine plot type, so cannot validate kind-specific fields)"
-            )
-            errors.append(error_msg)
-            logger.error(error_msg)
-            continue  # Cannot evaluate kind-specific fields without plot_kind
-
-        plot_kind = spec["plot_kind"]
-        if plot_kind not in valid_kinds:
-            valid_kinds_str = ", ".join(sorted(valid_kinds))
-            error_msg = (
-                f"Error in '{spec_name}':\n"
-                f"  plot_kind '{plot_kind}' is not recognized\n"
-                f"  Valid plot types: {valid_kinds_str}"
-            )
-            errors.append(error_msg)
-            logger.error(error_msg)
-            continue
-
-        missing_kind_fields = _REQUIRED_FIELDS_BY_KIND[plot_kind] - set(spec)
-        if missing_kind_fields:
-            missing_list = ", ".join(sorted(missing_kind_fields))
-            error_msg = (
-                f"Error in '{spec_name}':\n"
-                f"  Missing fields for plot_kind '{plot_kind}': {missing_list}"
-            )
+        spec_keys = set(spec)
+        required_fields = _REQUIRED_COMMON_FIELDS.copy()
+        
+        # Check if plot_kind exists and is valid, then add kind-specific fields to requirements
+        plot_kind_error = None
+        if "plot_kind" in spec_keys:
+            plot_kind = spec["plot_kind"]
+            if plot_kind in valid_kinds:
+                required_fields.update(_REQUIRED_FIELDS_BY_KIND[plot_kind])
+            else:
+                # Invalid plot_kind: log it but continue to collect all missing fields
+                valid_kinds_str = ", ".join(sorted(valid_kinds))
+                plot_kind_error = (
+                    f"plot_kind '{plot_kind}' is not recognized. "
+                    f"Valid plot types: {valid_kinds_str}"
+                )
+        
+        # Collect all missing fields
+        missing_fields = required_fields - spec_keys
+        
+        # Report errors if any
+        if missing_fields or plot_kind_error:
+            error_parts = [f"Error in '{spec_name}':"]
+            
+            if plot_kind_error:
+                error_parts.append(f"  {plot_kind_error}")
+            
+            if missing_fields:
+                missing_list = ", ".join(sorted(missing_fields))
+                error_parts.append(f"  Missing fields: {missing_list}")
+            
+            error_msg = "\n".join(error_parts)
             errors.append(error_msg)
             logger.error(error_msg)
 
