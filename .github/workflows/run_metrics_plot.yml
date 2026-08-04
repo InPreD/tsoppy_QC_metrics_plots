@@ -72,6 +72,7 @@ jobs:
 
       - name: Run plot_run_metrics.py LocalApp (plot_specs_minimal.py)
         run: |
+          mkdir -p ${RESULTS_DIR_python}
           cp specs/plot_specs_minimal.py specs/plot_specs.py
           uv run plot_run_metrics.py 10 ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joint_sequencing_QC_file.tsv ${RESULTS_DIR_python}/TSO500_run_metrics.pdf ${METRIC_PLOTS_DIR}/intermediate_metrics_files/master_metrics_table.tsv ${RUN_ID} False ${TSVs} ${RUNIDS}
           uv run plot_run_metrics.py 10 ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joint_sequencing_QC_file.tsv ${RESULTS_DIR_python}/TSO500_run_metrics.pdf ${METRIC_PLOTS_DIR}/intermediate_metrics_files/master_metrics_table.tsv ${RUN_ID} True ${TSVs} ${RUNIDS}
@@ -129,7 +130,7 @@ jobs:
           echo "TSVs=${TSVs}" >> $GITHUB_ENV
           echo "RUNIDS=${RUNIDS}" >> $GITHUB_ENV
 
-          
+
       - name: Run plot_run_metrics.py DRAGEN
         run: |
           mkdir -p ${RESULTS_DIR_python}
