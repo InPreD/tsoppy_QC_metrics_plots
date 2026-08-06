@@ -4,7 +4,14 @@ PLOT_SPECS = {
 
     # Example of 'cluster_density_scatter' plot
     "ESTIMATED_YIELD": {
-        "plot_number"       : 1,
+        "localapp": {
+            "plot": True,
+            "index": 2
+        },
+        "dragen": {
+            "plot": False,
+            "index": 0
+        },
         "plot_kind"         : "cluster_density_scatter",
         "source"            : "joint_qc_table",
         "requires_samples"  : None,
@@ -16,7 +23,14 @@ PLOT_SPECS = {
     # Example 1 of 'contamination_scatter' plot
     # Each RUN_ID is colored differently, and samples within the red box are deemed contaminated
     "DNA_CONTAMINATION_P_VALUE_BY_RUN": {
-        "plot_number"       : 2,
+        "localapp": {
+            "plot": True,
+            "index": 6
+        },
+        "dragen": {
+            "plot": False,
+            "index": 0
+        },
         "plot_kind"         : "contamination_scatter",
         "source"            : "dna_data_table",
         "requires_samples"  : "dna",
@@ -30,7 +44,14 @@ PLOT_SPECS = {
     # Example 2 of 'contamination_scatter' plot
     # This is a variant of the previous plot: here samples from the latest run are highlighted in red, and all other runs are greyed out
     "DNA_CONTAMINATION_P_VALUE_HIGHLIGHTED_RUN": {
-        "plot_number"       : 3,
+        "localapp": {
+            "plot": True,
+            "index": 7
+        },
+        "dragen": {
+            "plot": False,
+            "index": 0
+        },
         "plot_kind"         : "contamination_scatter",
         "source"            : "dna_data_table",
         "requires_samples"  : "dna",
@@ -46,7 +67,14 @@ PLOT_SPECS = {
     # Example 1 of 'bar' plot
     # Barplots with labels on top
     "DNA_MEAN_FAMILY_SIZE": {
-        "plot_number"       : 4,
+        "localapp": {
+            "plot": True,
+            "index": 21
+        },
+        "dragen": {
+            "plot": True,
+            "index": 14
+        },
         "plot_kind"         : "bar",
         "source"            : "dna_data_table",
         "requires_samples"  : "dna",
@@ -67,7 +95,7 @@ PLOT_SPECS = {
             "ha"           : "right",
             "nudge_y"      : 0.85,
             "nudge_x"      : 0.5,
-            "size"         : 9,
+            "size"         : 9, # dragen has 7.5, maybe this can be programmatically handled instead of hardcoding it; not sure what it depends on but something like "if I have more samples smaller, less makes it bigger"
         },
         "skip_if_empty"     : True,
     },
@@ -76,7 +104,14 @@ PLOT_SPECS = {
     # Example 2 of 'bar' plot
     # Barplots with guidelines lines 
     "DNA_MEDIAN_EXON_COVERAGE": {
-        "plot_number"       : 5,
+        "localapp": {
+            "plot": True,
+            "index": 8
+        },
+        "dragen": {
+            "plot": True,
+            "index": 1
+        },
         "plot_kind"         : "bar",
         "source"            : "dna_data_table",
         "requires_samples"  : "dna",
@@ -96,6 +131,69 @@ PLOT_SPECS = {
             "python_cast"  : int,
             "label_prefix" : "LSL_Guideline",
             "ann_y_offset" : 200,
+        },
+    },
+
+    # Example if they differ too much
+    "DNA_MEDIAN_EXON_COVERAGE_LOCALAPP": {
+        "localapp": {
+            "plot": True,
+            "index": 9
+        },
+        "dragen": {
+            "plot": False,
+            "index": 0
+        },
+        "plot_kind"         : "bar",
+        "source"            : "dna_data_table",
+        "requires_samples"  : "dna",
+        "x_var"             : "SAMPLE_ID",
+        "y_var"             : "DNA_MEDIAN_EXON_COVERAGE",
+        "fill_var"          : "RUN",
+        "x_lab"             : "Sample ID",
+        "y_lab"             : "Median exon coverage",
+        "title"             : "[LocalApp core DNA metric] Median exon coverage",
+        "value_spec"        : {"operation": "cast", "column": "DNA_MEDIAN_EXON_COVERAGE", "dtype": pl.Float64},
+        "na_filter_columns" : ["DNA_MEDIAN_EXON_COVERAGE"],
+        "y_tick_step"       : 100,
+        "guideline"         : {
+            "table"        : "dna_guideline_table",
+            "sample_id"    : "LSL_Guideline",
+            "value_spec"   : {"operation": "cast", "column": "DNA_MEDIAN_EXON_COVERAGE", "dtype": pl.Int32},
+            "python_cast"  : int,
+            "label_prefix" : "LSL_Guideline",
+            "ann_y_offset" : 200,
+        },
+    },
+
+    "DNA_MEDIAN_EXON_COVERAGE_DRAGEN": {
+        "localapp": {
+            "plot": False,    
+            "index": 0
+        },
+        "dragen": {
+            "plot": True,
+            "index": 2
+        },
+        "plot_kind"         : "bar",
+        "source"            : "dna_data_table",
+        "requires_samples"  : "dna",
+        "x_var"             : "SAMPLE_ID",
+        "y_var"             : "DNA_MEDIAN_EXON_COVERAGE",
+        "fill_var"          : "RUN",
+        "x_lab"             : "Sample ID",
+        "y_lab"             : "Median exon coverage",
+        "title"             : "[LocalApp core DNA metric] Median exon coverage",
+        "value_spec"        : {"operation": "cast", "column": "DNA_MEDIAN_EXON_COVERAGE", "dtype": pl.Float64},
+        "na_filter_columns" : ["DNA_MEDIAN_EXON_COVERAGE"],
+        "y_tick_step"       : 200,
+        "guideline"         : {
+            "table"        : "dna_guideline_table",
+            "sample_id"    : "LSL_Guideline",
+            "value_spec"   : {"operation": "cast", "column": "DNA_MEDIAN_EXON_COVERAGE", "dtype": pl.Int32},
+            "python_cast"  : int,
+            "label_prefix" : "LSL_Guideline",
+            "ann_y_offset" : 800,
         },
     },
 
