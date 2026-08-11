@@ -94,6 +94,12 @@ uv run plot_run_metrics.py 10 ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joi
 uv run plot_run_metrics.py 10 ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joint_sequencing_QC_file.tsv ${RESULTS_DIR_python}/TSO500_run_metrics.pdf ${METRIC_PLOTS_DIR}/intermediate_metrics_files/master_metrics_table.tsv ${RUN_ID} True ${TSVs} ${RUNIDS}
 
 
+# New command : test ongoing 
+RUN_ID=250822_A02134_0101_BHYFHLDRX5
+RESULTS_DIR_python=results_python/TSO500_2R
+mkdir -p ${RESULTS_DIR_python}
+uv run plot_QC_metrics.py --joint_QC data/merged_workflow_tables/joint_sequencing_QC_file_2R.tsv --output ${RESULTS_DIR_python} --metrics_table data/merged_workflow_tables/master_metrics_table_2R.tsv --run_id ${RUN_ID}
+
 
 # -------------------------------------------------- #
 # python script to create the LocalApp metrics plots #
