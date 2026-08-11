@@ -152,7 +152,7 @@ pyproject.toml             # Project metadata and dependencies
     run_metrics_plot.yml   # CI workflow (uv + ubuntu-latest)
 ```
 
-**Design principle:** Rendering logic lives in `plots.py`; what to plot and how to configure each panel is declared in `specs/plot_specs.py`—a single, workflow-agnostic specification file. To switch workflows, replace the contents of `specs/plot_specs.py` with the appropriate specs from `plot_specs_<Workflow>.py` (reference templates maintained at the root level). This approach eliminates dynamic imports and makes the active configuration explicit and easy to audit.
+**Design principle:** Rendering logic lives in `plots.py`; what to plot and how to configure each panel is declared in `specs/plot_specs.py`—a single, workflow-agnostic specification file. To switch workflows, replace the contents of `specs/plot_specs.py` with the appropriate specs from `plot_specs_<Workflow>.py` (reference templates). This approach eliminates dynamic imports and makes the active configuration explicit and easy to audit.
 
 **Color palette:** Uses [Tableau 10 palette](https://www.tableau.com/blog/colors-upgrade-tableau-10-56782), for consistent visual distinction across up to 10 runs. If you forsee the case of need more colors, adapt the variable defined in `plots.py`.
 <br>
