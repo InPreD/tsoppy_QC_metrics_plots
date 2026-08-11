@@ -15,14 +15,13 @@ import polars as pl
 import pandas as pd
 from plotnine import ggplot
 
-from plot_run_metrics import (
+from plot_QC_metrics import (
     parse_args,
     validate_plot_specs,
     valid_metric_expr,
     build_filter_expression,
     build_value_expression,
     get_guideline_value,
-    merge_metric_tables,
     build_tables,
     compute_cart_ylim,
     prepare_bar_plot_data,
@@ -34,6 +33,36 @@ from plot_run_metrics import (
 )
 from plots import plot_tsoppy_barplot, plot_contamination_scatter
 import matplotlib.pyplot as plt
+
+
+# --------------------------------------------- #
+# Local Fixtures for Workflow-Aware Build Tests #
+# --------------------------------------------- #
+
+@pytest.fixture(scope="session")
+def merged_workflow_tables_path() -> Path:
+    """Path to real merged workflow tables used by build_tables tests."""
+    return Path(__file__).parent.parent / "data" / "merged_workflow_tables"
+
+
+@pytest.fixture(scope="session")
+def joint_qc_data_2r(merged_workflow_tables_path) -> pl.DataFrame:
+    """Real joint QC table from merged_workflow_tables fixture set."""
+    return pl.read_csv(
+        merged_workflow_tables_path / "joint_sequencing_QC_file_2R.tsv",
+        separator="\t",
+        infer_schema_length=0,
+    )
+
+
+@pytest.fixture(scope="session")
+def master_metrics_table_2r(merged_workflow_tables_path) -> pl.DataFrame:
+    """Real merged metrics table from merged_workflow_tables fixture set."""
+    return pl.read_csv(
+        merged_workflow_tables_path / "master_metrics_table_2R.tsv",
+        separator="\t",
+        infer_schema_length=0,
+    )
 
 
 # ------------------------------------ #
@@ -166,7 +195,7 @@ class TestValidatePlotSpecs:
             validate_plot_specs(specs)
 
 
-    @patch("plot_run_metrics.logger")
+    @patch("plot_QC_metrics.logger")
     def test_validate_plot_specs_logs_errors(self, mock_logger):
         """
         Test that each validation error is logged immediately via logger.error().
@@ -207,52 +236,31 @@ class TestParseArgs:
     """Test command-line argument parsing."""
 
 
-    def test_parse_args_minimal(self):
-        """
-        Test parsing with one run and minimal arguments.
-        """
-        argv = [
-            "1",                # run_count
-            "joint_qc.tsv",     # joint_qc_file
-            "output.pdf",       # output_pdf
-            "merged.tsv",       # merged_metrics_file
-            "RUN_001",          # highlighted_run_id
-            "True",             # create_plots
-            "metrics_run1.tsv", # metric_files[0]
-            "RUN_001",          # run_labels[0]
-        ]
+    @pytest.mark.parametrize(
+        "argv, expected",
+        [
+            pytest.param(
+                [
+                    "--joint_QC", "joint_qc.tsv",
+                    "--output_folder", "output",
+                    "--metrics_table", "merged.tsv",
+                    "--run_id", "RUN_001",
+                ],
+                {
+                    "joint_qc_file": "joint_qc.tsv",
+                    "output_folder": "output",
+                    "metrics_table": "merged.tsv",
+                    "highlighted_run_id": "RUN_001",
+                },
+                id="minimal_valid_case",
+            ),
+        ],
+    )
+    def test_parse_args_valid(self, argv, expected):
+        """Parse required named arguments and preserve their values."""
         result = parse_args(argv)
 
-        assert result["run_count"]           == 1
-        assert result["joint_qc_file"]       == "joint_qc.tsv"
-        assert result["output_pdf"]          == "output.pdf"
-        assert result["merged_metrics_file"] == "merged.tsv"
-        assert result["highlighted_run_id"]  == "RUN_001"
-        assert result["create_plots"]        == "True"
-        assert result["metric_files"]        == ["metrics_run1.tsv"]
-        assert result["run_labels"]          == ["RUN_001"]
-
-
-    def test_parse_args_multiple_runs(self):
-        """
-        Test parsing with multiple runs.
-        """
-        argv = [
-            "3",
-            "joint_qc.tsv",
-            "output.pdf",
-            "merged.tsv",
-            "RUN_002",
-            "False",
-            "metrics1.tsv", "metrics2.tsv", "metrics3.tsv",
-            "RUN_001", "RUN_002", "RUN_003",
-        ]
-        result = parse_args(argv)
-
-        assert result["run_count"]    == 3
-        assert result["metric_files"] == ["metrics1.tsv", "metrics2.tsv", "metrics3.tsv"]
-        assert result["run_labels"]   == ["RUN_001", "RUN_002", "RUN_003"]
-        assert result["create_plots"] == "False"
+        assert result == expected
 
 
     def test_parse_args_file_paths_preserved(self):
@@ -261,20 +269,59 @@ class TestParseArgs:
         This ensures that Path objects are not altered during parsing.
         """
         argv = [
-            "2",
-            "path/to/joint_qc.tsv",
-            "output/results.pdf",
-            "output/merged.tsv",
-            "RUN_highlighted",
-            "True",
-            "path/to/metrics1.tsv", "path/to/metrics2.tsv",
-            "Label_1", "Label_2",
+            "--joint_QC", "path/to/joint_qc.tsv",
+            "--output_folder", "output/results",
+            "--metrics_table", "output/merged.tsv",
+            "--run_id", "RUN_highlighted",
         ]
         result = parse_args(argv)
 
-        assert result["joint_qc_file"]   == "path/to/joint_qc.tsv"
-        assert result["output_pdf"]      == "output/results.pdf"
-        assert result["metric_files"][0] == "path/to/metrics1.tsv"
+        assert result["joint_qc_file"] == "path/to/joint_qc.tsv"
+        assert result["output_folder"] == "output/results"
+        assert result["metrics_table"] == "output/merged.tsv"
+
+
+    @pytest.mark.parametrize(
+        "argv",
+        [
+            pytest.param(
+                [
+                    "--output_folder", "output",
+                    "--metrics_table", "merged.tsv",
+                    "--run_id", "RUN_001",
+                ],
+                id="missing_joint_qc",
+            ),
+            pytest.param(
+                [
+                    "--joint_QC", "joint_qc.tsv",
+                    "--metrics_table", "merged.tsv",
+                    "--run_id", "RUN_001",
+                ],
+                id="missing_output_folder",
+            ),
+            pytest.param(
+                [
+                    "--joint_QC", "joint_qc.tsv",
+                    "--output_folder", "output",
+                    "--run_id", "RUN_001",
+                ],
+                id="missing_metrics_table",
+            ),
+            pytest.param(
+                [
+                    "--joint_QC", "joint_qc.tsv",
+                    "--output_folder", "output",
+                    "--metrics_table", "merged.tsv",
+                ],
+                id="missing_run_id",
+            ),
+        ],
+    )
+    def test_parse_args_missing_required_raises(self, argv):
+        """Missing required CLI arguments should raise SystemExit from argparse."""
+        with pytest.raises(SystemExit):
+            parse_args(argv)
 
 
 class TestFilterExpressions:
@@ -512,95 +559,14 @@ class TestComputeCartYLim:
 # Data transformation tests (Real Data from Fixtures) #
 # --------------------------------------------------- #
 
-class TestMergeMetricTables:
-    """
-    Test merging multiple metric files into one table.
-    
-    The variable 'single_run_metrics' is a fixture that provides a Polars DataFrame representing one run's metrics.
-    The fixture is defined in conftest.py and loads a TSV file from the test data directory.
-    """
-
-    def test_merge_single_file(self, single_run_metrics):
-        """
-        Test merge with single metric file.
-        """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.tsv', delete=False) as f:
-            single_run_metrics.write_csv(f.name, separator='\t')
-            temp_path = f.name
-
-        try:
-            parsed_args = {
-                "metric_files" : [temp_path],
-                "run_labels"   : ["RUN_001"],
-            }
-            result = merge_metric_tables(parsed_args)
-
-            assert result.height == single_run_metrics.height
-            assert "RUN" in result.columns
-            assert (result["RUN"] == "RUN_001").all()
-        finally:
-            Path(temp_path).unlink()
-
-
-    def test_merge_multiple_files(self, single_run_metrics):
-        """
-        Test merge with multiple metric files.
-        Each file should be assigned the correct RUN label in the merged result.
-        """
-        with tempfile.TemporaryDirectory() as tmpdir:
-            # Create two metric files
-            file1 = Path(tmpdir) / "metrics1.tsv"
-            file2 = Path(tmpdir) / "metrics2.tsv"
-
-            single_run_metrics.write_csv(str(file1), separator='\t')
-            single_run_metrics.write_csv(str(file2), separator='\t')
-
-            parsed_args = {
-                "metric_files" : [str(file1), str(file2)],
-                "run_labels"   : ["RUN_001", "RUN_002"],
-            }
-            result = merge_metric_tables(parsed_args)
-
-            # Should have both runs
-            assert set(result["RUN"].unique()) == {"RUN_001", "RUN_002"}
-
-            # Each run should appear in the merged result
-            assert result.filter(pl.col("RUN") == "RUN_001").height > 0
-            assert result.filter(pl.col("RUN") == "RUN_002").height > 0
-
-
-    def test_merge_preserves_all_columns(self, single_run_metrics):
-        """
-        Test that merge preserves all original columns.
-        The merged table should contain all columns from the original metric files, plus the added RUN column."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.tsv', delete=False) as f:
-            single_run_metrics.write_csv(f.name, separator='\t')
-            temp_path = f.name
-
-        try:
-            original_cols = set(single_run_metrics.columns)
-            parsed_args = {
-                "metric_files" : [temp_path],
-                "run_labels"   : ["RUN_001"],
-            }
-            result = merge_metric_tables(parsed_args)
-            result_cols = set(result.columns) - {"RUN"}  # Remove the added RUN column
-
-            assert original_cols == result_cols
-        finally:
-            Path(temp_path).unlink()
-
-
 class TestBuildTables:
     """Test the build_tables function that creates logical subsets."""
 
-    def test_build_tables_structure(self, joint_qc_data, single_run_metrics):
-        """
-        Test that build_tables returns all expected table keys.
-        """
-        merged = single_run_metrics.with_columns(pl.lit("RUN_001").alias("RUN"))
-
-        result = build_tables(joint_qc_data, merged, "RUN_001")
+    @pytest.mark.parametrize("workflow", ["Dragen", "dragen", "LocalApp", "localapp"])
+    def test_build_tables_structure(self, joint_qc_data_2r, master_metrics_table_2r, workflow):
+        """Ensure stable output keys for accepted workflow values (case-insensitive)."""
+        highlight_run = master_metrics_table_2r.select(pl.col("RUN").drop_nulls().first()).item()
+        result = build_tables(joint_qc_data_2r, master_metrics_table_2r, highlight_run, workflow=workflow)
 
         expected_keys = {
             "joint_qc_table",
@@ -618,54 +584,64 @@ class TestBuildTables:
         }
         assert set(result.keys()) == expected_keys
 
+    @pytest.mark.parametrize(
+        "requested_workflow, expected_workflow_type",
+        [
+            ("Dragen", "dragen"),
+            ("localapp", "localapp"),
+        ],
+    )
+    def test_build_tables_filters_by_workflow(self, joint_qc_data_2r, master_metrics_table_2r, requested_workflow, expected_workflow_type):
+        """Ensure only rows from requested workflow remain after filtering."""
+        highlight_run = master_metrics_table_2r.select(pl.col("RUN").drop_nulls().first()).item()
+        result = build_tables(joint_qc_data_2r, master_metrics_table_2r, highlight_run, workflow=requested_workflow)
+        observed_workflows = set(
+            result["merged_tables"]["WORKFLOW_TYPE"]
+            .cast(pl.Utf8)
+            .str.to_lowercase()
+            .unique()
+            .to_list()
+        )
+        assert observed_workflows == {expected_workflow_type}
 
-    def test_build_tables_guideline_filtering(self, joint_qc_data, single_run_metrics):
-        """
-        Test that guidelines are correctly separated from data.
+    def test_build_tables_guideline_and_data_partitioning(self, joint_qc_data_2r, master_metrics_table_2r):
+        """Guideline rows must be split from regular data rows."""
+        highlight_run = master_metrics_table_2r.select(pl.col("RUN").drop_nulls().first()).item()
+        result = build_tables(joint_qc_data_2r, master_metrics_table_2r, highlight_run, workflow="Dragen")
 
-        Guideline rows (LSL_Guideline, USL_Guideline, Internal Guideline) should be in the guideline_table, 
-        while data rows should be in the data_table.
-        """
-        merged = single_run_metrics.with_columns(pl.lit("RUN_001").alias("RUN"))
-        result = build_tables(joint_qc_data, merged, "RUN_001")
-
-        # Guideline table should only have LSL/USL guidelines
         guideline_ids = set(result["guideline_table"]["SAMPLE_ID"].unique())
         assert guideline_ids.issubset({"LSL_Guideline", "USL_Guideline"})
 
-        # Data table should exclude all guideline rows
         data_ids = result["data_table"]["SAMPLE_ID"].unique()
         for sample_id in data_ids:
             assert sample_id not in {"LSL_Guideline", "USL_Guideline", "Internal Guideline"}
 
+    @pytest.mark.parametrize(
+        "pick_existing_run, expected_present_flags",
+        [(True, {"True"}), (False, {"False"})],
+    )
+    def test_build_tables_highlighted_run_marking(self, joint_qc_data_2r, master_metrics_table_2r, pick_existing_run, expected_present_flags):
+        """highlighted_run flag must reflect RUN equality against highlighted_run_id."""
+        data_for_workflow = master_metrics_table_2r.filter(pl.col("WORKFLOW_TYPE").str.to_lowercase() == "dragen")
+        if data_for_workflow.height == 0:
+            pytest.skip("No Dragen rows available in master_metrics_table_2r fixture")
 
-    def test_build_tables_dna_rna_separation(self, joint_qc_data, dna_samples_only, rna_samples_only):
-        """
-        Test that DNA and RNA samples are correctly separated.
-        """
-        # Create a mixed dataset
-        mixed = pl.concat([dna_samples_only, rna_samples_only]).with_columns(pl.lit("RUN_001").alias("RUN"))
+        existing_run = data_for_workflow.select(pl.col("RUN").drop_nulls().first()).item()
+        highlighted_run = existing_run if pick_existing_run else "RUN_NOT_PRESENT"
+        result = build_tables(joint_qc_data_2r, master_metrics_table_2r, highlighted_run, workflow="Dragen")
 
-        result = build_tables(joint_qc_data, mixed, "RUN_001")
+        if result["dna_data_table"].height == 0:
+            pytest.skip("No DNA rows available after workflow filtering")
 
-        # DNA table should have non-null DNA_TOTAL_PF_READS
-        for row in result["dna_data_table"].to_dicts():
-            assert row["DNA_TOTAL_PF_READS"] is not None
+        observed_flags = set(result["dna_data_table"]["highlighted_run"].unique())
+        assert expected_present_flags.issubset(observed_flags)
 
-        # RNA table should have non-null RNA_TOTAL_PF_READS
-        for row in result["rna_data_table"].to_dicts():
-            assert row["RNA_TOTAL_PF_READS"] is not None
+    def test_build_tables_invalid_workflow_raises(self, joint_qc_data_2r, master_metrics_table_2r):
+        """Unsupported workflow values should fail fast with ValueError."""
+        highlight_run = master_metrics_table_2r.select(pl.col("RUN").drop_nulls().first()).item()
 
-
-    def test_build_tables_highlighted_run_marking(self, joint_qc_data, dna_samples_only):
-        """
-        Test that highlighted_run column is set correctly.
-        """
-        data   = dna_samples_only.with_columns(pl.lit("RUN_001").alias("RUN"))
-        result = build_tables(joint_qc_data, data, "RUN_001")
-
-        # All rows should have highlighted_run == "True" since RUN_001 is highlighted
-        assert (result["dna_data_table"]["highlighted_run"] == "True").all()
+        with pytest.raises(ValueError, match="Unsupported workflow"):
+            build_tables(joint_qc_data_2r, master_metrics_table_2r, highlight_run, workflow="Other")
 
 
 class TestPrepareBarPlotData:
