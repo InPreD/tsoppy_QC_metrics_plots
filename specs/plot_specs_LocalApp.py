@@ -658,19 +658,19 @@ PLOT_SPECS = {
         "y_tick_step"       : 10,
     },
 
-    "DNA_PCT_TARGET_0.4X_MEAN": {
+    "DNA_PCT_TARGET_0_4X_MEAN": {
         "plot_number"       : 28,
         "plot_kind"         : "bar",
         "source"            : "dna_data_table",
         "requires_samples"  : "dna",
         "x_var"             : "SAMPLE_ID",
-        "y_var"             : "DNA_PCT_TARGET_0.4X_MEAN",
+        "y_var"             : "DNA_PCT_TARGET_0_4X_MEAN",
         "fill_var"          : "RUN",
         "x_lab"             : "Sample ID",
         "y_lab"             : "Percentage of target at 0.4 * mean coverage",
         "title"             : "[LocalApp DNA metric] Percentage of target at 0.4 * mean coverage",
-        "value_spec"        : {"operation": "cast", "column": "DNA_PCT_TARGET_0.4X_MEAN", "dtype": pl.Float64},
-        "na_filter_columns" : ["DNA_PCT_TARGET_0.4X_MEAN"],
+        "value_spec"        : {"operation": "cast", "column": "DNA_PCT_TARGET_0_4X_MEAN", "dtype": pl.Float64},
+        "na_filter_columns" : ["DNA_PCT_TARGET_0_4X_MEAN"],
         "cart_ylim"         : (0, 104),
         "y_tick_step"       : 10,
     },

@@ -683,7 +683,7 @@ PLOT_SPECS = {
         "y_tick_step"       : 10,
     },
 
-    "DNA_PCT_TARGET_0.4X_MEAN": {
+    "DNA_PCT_TARGET_0_4X_MEAN": {
         "plot_number"       : 21,
         "plot_kind"         : "bar",
         "source"            : "dna_data_table",
