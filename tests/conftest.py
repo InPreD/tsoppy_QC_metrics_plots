@@ -27,12 +27,11 @@ def get_data_root() -> Path:
     Resolve the data directory path relative to the repository root.
     
     Returns:
-        Path to data/TSO500_postprocessing/
+        Path to data/merged_workflow_tables/
     """
     current_dir = Path(__file__).parent.parent  # Go up from tests/ to repo root
-    data_root = current_dir / "data" / "LocalApp" /"TSO500_postprocessing" / "251211_NB552811_0117_AHTJM2BGYX"
-    metrics_dir = data_root / "251211_NB552811_0117_AHTJM2BGYX_metrics_plots" / "intermediate_metrics_files"
-    return metrics_dir
+    data_root = current_dir / "data" / "merged_workflow_tables"
+    return data_root
 
 
 # ------------------------------------- #
@@ -40,36 +39,36 @@ def get_data_root() -> Path:
 # ------------------------------------- #
 
 @pytest.fixture(scope="session")
-def metric_files_path() -> Path:
+def merged_workflow_tables_path() -> Path:
     """
-    Path to the directory containing real metric TSV files.
+    Path to the directory containing merged workflow TSV files.
     
-    These are actual TSO500 metrics from the repository's data/ folder.
+    These are pre-merged TSO500 metrics from the repository's data/ folder.
     Session scope: loaded once per test session for performance.
     
     Returns:
-        Path to intermediate_metrics_files directory
+        Path to merged_workflow_tables directory
     """
     return get_data_root()
 
 
 @pytest.fixture(scope="session")
-def single_run_metrics(metric_files_path) -> pl.DataFrame:
+def single_run_metrics(merged_workflow_tables_path) -> pl.DataFrame:
     """
-    Load a single run's metrics file.
+    Load merged workflow metrics table.
     
-    Real TSO500 data containing both DNA and RNA metrics for one run.
+    Real TSO500 data containing both DNA and RNA metrics for multiple samples.
     Includes guideline rows (LSL_Guideline, USL_Guideline) and sample rows.
     
     Columns (partial list):
         DNA: CONTAMINATION_SCORE, TOTAL_PF_READS, MEDIAN_INSERT_SIZE, etc.
         RNA: MEDIAN_CV_GENE_500X, TOTAL_PF_READS, etc.
-        Meta: SAMPLE_ID, COMPLETED_ALL_STEPS
+        Meta: SAMPLE_ID, COMPLETED_ALL_STEPS, WORKFLOW_TYPE
     
     Returns:
-        Polars DataFrame with all rows and columns from a single run
+        Polars DataFrame with all rows and columns from merged metrics
     """
-    metric_file = metric_files_path / "251211_NB552811_0117_AHTJM2BGYX_metrics.tsv"
+    metric_file = merged_workflow_tables_path / "master_metrics_table_2R.tsv"
     df = pl.read_csv(metric_file, separator="\t", infer_schema_length=0)
     return df
 
@@ -134,7 +133,7 @@ def guideline_rows(single_run_metrics) -> pl.DataFrame:
 
 
 @pytest.fixture(scope="session")
-def joint_qc_data(metric_files_path) -> pl.DataFrame:
+def joint_qc_data(merged_workflow_tables_path) -> pl.DataFrame:
     """
     Load joint sequencing QC data (run-level metrics).
     
@@ -148,24 +147,24 @@ def joint_qc_data(metric_files_path) -> pl.DataFrame:
     Returns:
         Polars DataFrame with run-level metrics
     """
-    qc_file = metric_files_path / "joint_sequencing_QC_file.tsv"
+    qc_file = merged_workflow_tables_path / "joint_sequencing_QC_file_2R.tsv"
     df = pl.read_csv(qc_file, separator="\t", infer_schema_length=0)
     return df
 
 
 @pytest.fixture(scope="session")
-def master_metrics_table(metric_files_path) -> pl.DataFrame:
+def master_metrics_table(merged_workflow_tables_path) -> pl.DataFrame:
     """
     Load pre-merged metrics table (all runs combined).
     
     This is the output of merge_metric_tables(): concatenated metrics from
-    multiple runs with RUN column added for identification.
+    multiple runs with WORKFLOW_TYPE column added for identification.
     Used to test filtering, transformation, and guideline extraction.
     
     Returns:
         Polars DataFrame with merged metrics from multiple runs
     """
-    master_file = metric_files_path / "master_metrics_table.tsv"
+    master_file = merged_workflow_tables_path / "master_metrics_table_2R.tsv"
     df = pl.read_csv(master_file, separator="\t", infer_schema_length=0)
     return df
 
