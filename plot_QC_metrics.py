@@ -380,20 +380,39 @@ def render_contamination_scatter(pdf_handle, spec, tables):
     if spec.get("skip_if_empty") and plot_table.height == 0:
         return
 
-    usl_contamination_score = float(
+    # Extract USL contamination score, handling NA values
+    score_result = (
         tables["dna_guideline_table"]
         .filter(pl.col("SAMPLE_ID") == "USL_Guideline")
-        .select(pl.col("DNA_CONTAMINATION_SCORE").cast(pl.Float64))
+        .with_columns(
+            pl.when(pl.col("DNA_CONTAMINATION_SCORE") == "NA")
+            .then(None)
+            .otherwise(pl.col("DNA_CONTAMINATION_SCORE"))
+            .cast(pl.Float64)
+            .alias("DNA_CONTAMINATION_SCORE")
+        )
+        .select(pl.col("DNA_CONTAMINATION_SCORE"))
         .head(1)
         .item()
     )
-    usl_contamination_pval = float(
+    usl_contamination_score = float(score_result) if score_result is not None else 5000.0
+    
+    # Extract USL contamination p-value, handling NA values
+    pval_result = (
         tables["dna_guideline_table"]
         .filter(pl.col("SAMPLE_ID") == "USL_Guideline")
-        .select(pl.col("DNA_CONTAMINATION_P_VALUE").cast(pl.Float64))
+        .with_columns(
+            pl.when(pl.col("DNA_CONTAMINATION_P_VALUE") == "NA")
+            .then(None)
+            .otherwise(pl.col("DNA_CONTAMINATION_P_VALUE"))
+            .cast(pl.Float64)
+            .alias("DNA_CONTAMINATION_P_VALUE")
+        )
+        .select(pl.col("DNA_CONTAMINATION_P_VALUE"))
         .head(1)
         .item()
     )
+    usl_contamination_pval = float(pval_result) if pval_result is not None else 0.05
     max_contamination_score = max(
         5000,
         plot_table.select(pl.col("DNA_CONTAMINATION_SCORE").max()).item(),
