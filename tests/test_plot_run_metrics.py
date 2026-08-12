@@ -235,22 +235,21 @@ class TestValidatePlotSpecs:
 class TestParseArgs:
     """Test command-line argument parsing."""
 
-
     @pytest.mark.parametrize(
         "argv, expected",
         [
             pytest.param(
                 [
-                    "--joint_QC", "joint_qc.tsv",
+                    "--joint_QC",      "joint_qc.tsv",
                     "--output_folder", "output",
                     "--metrics_table", "merged.tsv",
-                    "--run_id", "RUN_001",
+                    "--run_id",        "RUN_001",
                 ],
                 {
-                    "joint_qc_file": "joint_qc.tsv",
-                    "output_folder": "output",
-                    "metrics_table": "merged.tsv",
-                    "highlighted_run_id": "RUN_001",
+                    "joint_qc_file"      : "joint_qc.tsv",
+                    "output_folder"      : "output",
+                    "metrics_table"      : "merged.tsv",
+                    "highlighted_run_id" : "RUN_001",
                 },
                 id="minimal_valid_case",
             ),
@@ -269,10 +268,10 @@ class TestParseArgs:
         This ensures that Path objects are not altered during parsing.
         """
         argv = [
-            "--joint_QC", "path/to/joint_qc.tsv",
+            "--joint_QC",      "path/to/joint_qc.tsv",
             "--output_folder", "output/results",
             "--metrics_table", "output/merged.tsv",
-            "--run_id", "RUN_highlighted",
+            "--run_id",        "RUN_highlighted",
         ]
         result = parse_args(argv)
 
@@ -288,29 +287,29 @@ class TestParseArgs:
                 [
                     "--output_folder", "output",
                     "--metrics_table", "merged.tsv",
-                    "--run_id", "RUN_001",
+                    "--run_id",        "RUN_001",
                 ],
                 id="missing_joint_qc",
             ),
             pytest.param(
                 [
-                    "--joint_QC", "joint_qc.tsv",
+                    "--joint_QC",      "joint_qc.tsv",
                     "--metrics_table", "merged.tsv",
-                    "--run_id", "RUN_001",
+                    "--run_id",        "RUN_001",
                 ],
                 id="missing_output_folder",
             ),
             pytest.param(
                 [
-                    "--joint_QC", "joint_qc.tsv",
+                    "--joint_QC",      "joint_qc.tsv",
                     "--output_folder", "output",
-                    "--run_id", "RUN_001",
+                    "--run_id",        "RUN_001",
                 ],
                 id="missing_metrics_table",
             ),
             pytest.param(
                 [
-                    "--joint_QC", "joint_qc.tsv",
+                    "--joint_QC",      "joint_qc.tsv",
                     "--output_folder", "output",
                     "--metrics_table", "merged.tsv",
                 ],
@@ -325,47 +324,29 @@ class TestParseArgs:
 
 
 class TestFilterExpressions:
-    """
-    Test build_filter_expression for different filter types.
-    Each filter type should produce a valid Polars expression that can be applied to a DataFrame.
-    """
+    """Table-driven tests for build_filter_expression()."""
 
-
-    def test_build_filter_contains(self):
-        """
-        Test filter with 'contains' operator.
-        """
-        filter_spec = {"column": "SAMPLE_ID", "contains": "D01"}
-        expr        = build_filter_expression(filter_spec)
-
-        # Verify it's a Polars expression and doesn't throw when applied
+    @pytest.mark.parametrize(
+        "filter_spec",
+        [
+            pytest.param({"column": "SAMPLE_ID", "contains": "D01"}, id="contains"),
+            pytest.param({"column": "SAMPLE_ID", "equals": "LSL_Guideline"}, id="equals"),
+            pytest.param({"column": "SAMPLE_ID", "not_equals": "LSL_Guideline"}, id="not_equals"),
+        ],
+    )
+    def test_build_filter_supported_types(self, filter_spec):
+        """Supported filter specs should produce a valid Polars expression."""
+        expr = build_filter_expression(filter_spec)
         assert str(type(expr)).find("Expr") != -1
 
-
-    def test_build_filter_equals(self):
-        """
-        Test filter with 'equals' operator.
-        """
-        filter_spec = {"column": "SAMPLE_ID", "equals": "LSL_Guideline"}
-        expr        = build_filter_expression(filter_spec)
-        assert str(type(expr)).find("Expr") != -1
-
-
-    def test_build_filter_not_equals(self):
-        """
-        Test filter with 'not_equals' operator.
-        """
-        filter_spec = {"column": "SAMPLE_ID", "not_equals": "LSL_Guideline"}
-        expr        = build_filter_expression(filter_spec)
-        assert str(type(expr)).find("Expr") != -1
-
-
-    def test_build_filter_unsupported_raises(self):
-        """
-        Test that unsupported filter type raises ValueError.
-        """
-        filter_spec = {"column": "SAMPLE_ID", "range": (0, 100)}
-        
+    @pytest.mark.parametrize(
+        "filter_spec",
+        [
+            pytest.param({"column": "SAMPLE_ID", "range": (0, 100)}, id="unsupported_filter"),
+        ],
+    )
+    def test_build_filter_unsupported_raises(self, filter_spec):
+        """Unsupported filter types should raise ValueError."""
         with pytest.raises(ValueError, match="Unsupported filter"):
             build_filter_expression(filter_spec)
 
@@ -861,64 +842,28 @@ class TestRenderBarPlot:
 
 
 class TestPlotTsoppyBarplot:
-    """Test the barplot function from plots.py."""
+    """Table-driven checks for plot_tsoppy_barplot() variants."""
 
-    def test_plot_tsoppy_barplot_returns_ggplot(self, dna_samples_only):
-        """
-        Test that plot_tsoppy_barplot returns a valid ggplot object.
-        Using real DNA sample data from the fixture to ensure the plot is generated correctly.
-        """
-        data = dna_samples_only.to_pandas()
-        plot = plot_tsoppy_barplot(
-            data     = data,
-            x_var    = "SAMPLE_ID",
-            y_var    = "DNA_CONTAMINATION_SCORE",
-            fill_var = "SAMPLE_ID",
-            x_lab    = "Sample",
-            y_lab    = "Contamination",
-            title    = "Test",
-        )
-
-        assert isinstance(plot, ggplot)
-
-
-    def test_plot_tsoppy_barplot_with_hline(self, dna_samples_only):
-        """
-        Test barplot with horizontal line.
-        Using real DNA sample data from the fixture to ensure the plot is generated correctly.
-        """
+    @pytest.mark.parametrize(
+        "plot_kwargs",
+        [
+            pytest.param({}, id="basic"),
+            pytest.param({"hline_y": 100.0, "hline_label": "Threshold"}, id="with_hline"),
+            pytest.param({"y_tick_step": 50, "cart_ylim": (0, 500)}, id="with_y_tick_step"),
+        ],
+    )
+    def test_plot_tsoppy_barplot_variants(self, dna_samples_only, plot_kwargs):
+        """Plot variants should return a ggplot object for real DNA data."""
         data = dna_samples_only.to_pandas()
         plot = plot_tsoppy_barplot(
             data=data,
-            x_var       = "SAMPLE_ID",
-            y_var       = "DNA_CONTAMINATION_SCORE",
-            fill_var    = "SAMPLE_ID",
-            hline_y     = 100.0,
-            hline_label = "Threshold",
-            x_lab       = "Sample",
-            y_lab       = "Contamination",
-            title       = "Test with Threshold",
-        )
-
-        assert isinstance(plot, ggplot)
-
-
-    def test_plot_tsoppy_barplot_with_y_tick_step(self, dna_samples_only):
-        """
-        Test barplot with fixed y-axis tick spacing.
-        Using real DNA sample data from the fixture to ensure the plot is generated correctly.
-        """
-        data = dna_samples_only.to_pandas()
-        plot = plot_tsoppy_barplot(
-            data        = data,
-            x_var       = "SAMPLE_ID",
-            y_var       = "DNA_CONTAMINATION_SCORE",
-            fill_var    = "SAMPLE_ID",
-            y_tick_step = 50,
-            cart_ylim   = (0, 500),
-            x_lab       = "Sample",
-            y_lab       = "Contamination",
-            title       = "Test with Ticks",
+            x_var="SAMPLE_ID",
+            y_var="DNA_CONTAMINATION_SCORE",
+            fill_var="SAMPLE_ID",
+            x_lab="Sample",
+            y_lab="Contamination",
+            title="Test",
+            **plot_kwargs,
         )
 
         assert isinstance(plot, ggplot)
@@ -1010,65 +955,24 @@ class TestRenderPlot:
 class TestSavePlot:
     """Test the save_plot function that writes plots to PDF."""
 
-    def test_save_plot_calls_savefig(self, dna_samples_only):
-        """
-        Test that save_plot correctly saves a ggplot object to PDF.
-        This verifies that the PDF handle's savefig method is called.
-        """
-        # Create a simple ggplot object
+    def test_save_plot_saves_and_closes_figure(self, dna_samples_only):
+        """save_plot should save the figure to the PDF handle and close the matplotlib figure."""
         data = dna_samples_only.to_pandas()
         plot = plot_tsoppy_barplot(
-            data     = data,
-            x_var    = "SAMPLE_ID",
-            y_var    = "DNA_CONTAMINATION_SCORE",
-            fill_var = "SAMPLE_ID",
-            x_lab    = "Sample",
-            y_lab    = "Contamination",
-            title    = "Test Plot",
+            data=data,
+            x_var="SAMPLE_ID",
+            y_var="DNA_CONTAMINATION_SCORE",
+            fill_var="SAMPLE_ID",
+            x_lab="Sample",
+            y_lab="Contamination",
+            title="Test Plot",
         )
 
-        # Mock the PDF handle
         mock_pdf = MagicMock()
-
-        # Call save_plot
         save_plot(mock_pdf, plot)
 
-        # Verify that savefig was called
         assert mock_pdf.savefig.called
-
-        # Close any remaining matplotlib figures to avoid warnings
-        plt.close('all')
-
-
-    def test_save_plot_closes_figure(self, dna_samples_only):
-        """
-        Test that save_plot closes the matplotlib figure after saving.
-        This verifies that matplotlib figure resources are properly cleaned up.
-        """
-        data = dna_samples_only.to_pandas()
-        plot = plot_tsoppy_barplot(
-            data     = data,
-            x_var    = "SAMPLE_ID",
-            y_var    = "DNA_CONTAMINATION_SCORE",
-            fill_var = "SAMPLE_ID",
-            x_lab    = "Sample",
-            y_lab    = "Contamination",
-            title    = "Test Plot",
-        )
-
-        mock_pdf = MagicMock()
-
-        # Get initial figure count
-        initial_count = len(plt.get_fignums())
-
-        # Call save_plot
-        save_plot(mock_pdf, plot)
-
-        # After save_plot, the figure should be closed
-        # We expect no figures to be open (or at least not more than before)
-        final_count = len(plt.get_fignums())
-
-        # Clean up any remaining figures
+        assert len(plt.get_fignums()) == 0
         plt.close('all')
 
 
