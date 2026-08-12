@@ -26,7 +26,6 @@ from plotnine import *
 # PLOTS_SPECS is a dictionary containing the specifications for each plot to be generated
 # including the type of plot, the data source, and various parameters for rendering.
 from plots import AXIS_LINE_COLOR, TABLEAU_20, plot_contamination_scatter, plot_tsoppy_barplot
-from specs.plot_specs import PLOT_SPECS
 
 
 logger = logging.getLogger(__name__)
@@ -462,10 +461,7 @@ def build_tables(joint_qc_table     : pl.DataFrame,
 
 
     # Select workflow rows in merged table
-    print(merged_tables.shape)
     merged_tables = merged_tables.filter(pl.col("WORKFLOW_TYPE").str.to_lowercase() == workflow)
-    print(merged_tables.shape)
-    print("___________________________________________________________________________")
 
     guideline_table = merged_tables.filter(
         (pl.col("SAMPLE_ID") == "LSL_Guideline") | (pl.col("SAMPLE_ID") == "USL_Guideline")
@@ -524,10 +520,6 @@ def main():
     output_folder.mkdir(parents=True, exist_ok=True)
     print(f"; Output folder: {output_folder}")
 
-
-    # Validate the plot specifications loaded from specs/plot_specs.py
-    validate_plot_specs(PLOT_SPECS)
-
     # ------------------------------ #
     # Read the supplied input tables #
     # ------------------------------ #
@@ -539,6 +531,14 @@ def main():
 
     # We iterate over two workflows (Dragen and LocalApp) to generate separate PDFs for each workflow, using the same joint QC and merged metrics tables.
     for workflow in SUPPORTED_WORKFLOW:
+
+        # Validate the plot specifications
+        if workflow == "Dragen":
+            from specs.plot_specs_Dragen import PLOT_SPECS
+        elif workflow == "LocalApp":
+            from specs.plot_specs_LocalApp import PLOT_SPECS
+        validate_plot_specs(PLOT_SPECS)
+
         print(f"; Generating plots for workflow: {workflow}")
         output_pdf = output_folder / f"TSO500_{workflow}_run_metrics.pdf"
 
@@ -561,38 +561,37 @@ def main():
             print("; No RNA samples included in the plotted runs")
 
 
-        # To be continue from this line ...
 
-        # # -------------------- #
-        # # Plot metrics section #
-        # # -------------------- #
-        # # The plots are created in the order of the plot specifications, which is determined by the "plot_number" field in the specifications.
-        # # This allows to control the order of the plots in the output PDF by adjusting the plot numbers in the plot_specs.py file.
-        # # The plotting functions are designed to be flexible and driven by the specifications, so that new plots can be added by simply adding new entries to the plot_specs.py file without needing to change the plotting code.
-        # with PdfPages(output_pdf) as pdf_handle:
+        # -------------------- #
+        # Plot metrics section #
+        # -------------------- #
+        # The plots are created in the order of the plot specifications, which is determined by the "plot_number" field in the specifications.
+        # This allows to control the order of the plots in the output PDF by adjusting the plot numbers in the plot_specs.py file.
+        # The plotting functions are designed to be flexible and driven by the specifications, so that new plots can be added by simply adding new entries to the plot_specs.py file without needing to change the plotting code.
+        with PdfPages(output_pdf) as pdf_handle:
 
-        #     # spec_name and spec are the key and value of each entry in the PLOT_SPECS dictionary defined in plot_specs.py
-        #     for spec_name, spec in sorted(PLOT_SPECS.items(), key=lambda item: item[1]["plot_number"]):
+            # spec_name and spec are the key and value of each entry in the PLOT_SPECS dictionary defined in plot_specs.py
+            for spec_name, spec in sorted(PLOT_SPECS.items(), key=lambda item: item[1]["plot_number"]):
 
-        #         print(f"; Rendering plot {spec_name} (plot number {spec['plot_number']})")
+                print(f"; Rendering plot {spec_name} (plot number {spec['plot_number']})")
 
-        #         # Check if the plot requires DNA or RNA samples and skip if the corresponding sample count is zero
-        #         # This allows to automatically skip DNA-specific plots if no DNA samples are included in the runs, and similarly for RNA-specific plots, without needing to adjust the plot specifications.
-        #         requires_samples = spec.get("requires_samples")
-        #         if requires_samples == "dna" and tables["dna_sample_count"] == 0:
-        #             continue
-        #         if requires_samples == "rna" and tables["rna_sample_count"] == 0:
-        #             continue
+                # Check if the plot requires DNA or RNA samples and skip if the corresponding sample count is zero
+                # This allows to automatically skip DNA-specific plots if no DNA samples are included in the runs, and similarly for RNA-specific plots, without needing to adjust the plot specifications.
+                requires_samples = spec.get("requires_samples")
+                if requires_samples == "dna" and tables["dna_sample_count"] == 0:
+                    continue
+                if requires_samples == "rna" and tables["rna_sample_count"] == 0:
+                    continue
 
-        #         # This is the main call to render each plot
-        #         # It dispatches to the appropriate rendering function based on the "plot_kind" field in the plot specification.
-        #         # Plot kinds:
-        #         #   - "bar" for bar plots
-        #         #   - "cluster_density_scatter" for the 'cluster density vs. estimated yield' scatter plot
-        #         #   - "contamination_scatter" for the 'DNA contamination score vs. p-value' scatter plot
-        #         render_plot(pdf_handle, spec_name, spec, tables)
+                # This is the main call to render each plot
+                # It dispatches to the appropriate rendering function based on the "plot_kind" field in the plot specification.
+                # Plot kinds:
+                #   - "bar" for bar plots
+                #   - "cluster_density_scatter" for the 'cluster density vs. estimated yield' scatter plot
+                #   - "contamination_scatter" for the 'DNA contamination score vs. p-value' scatter plot
+                render_plot(pdf_handle, spec_name, spec, tables)
 
-        # print("; Plots saved to PDF")
+        print("; Plots saved to PDF")
 
 
 if __name__ == "__main__":
