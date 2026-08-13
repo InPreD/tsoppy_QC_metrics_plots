@@ -19,6 +19,7 @@ uv run plot_QC_metrics.py --joint_QC data/merged_workflow_tables/joint_sequencin
 # ================== #
 # Example 2 : 2 runs #
 # ================== #
+RESULTS_DIR_python=results_python/TSO500_2R
 mkdir -p ${RESULTS_DIR_python}
 echo "; Running plot_QC_metrics: 2 runs"
 uv run plot_QC_metrics.py --joint_QC data/merged_workflow_tables/joint_sequencing_QC_file_2R.tsv  \
