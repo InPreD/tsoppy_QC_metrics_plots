@@ -83,8 +83,21 @@ import polars as pl
 
 PLOT_SPECS = {
 
+    # ========================================= #
+    # LocalApp-specific metrics (not in Dragen) #
+    # ========================================= #
+
     "CLUSTERS_PASSING_FILTER": {
-        "plot_number"       : 1,
+
+        "localapp": {
+            "plot": True,
+            "index": 1
+        },
+        "dragen": {
+            "plot": False,
+            "index": 0
+        },
+
         "plot_kind"         : "bar",
         "source"            : "joint_qc_table",
         "requires_samples"  : None,
@@ -100,8 +113,18 @@ PLOT_SPECS = {
         "skip_if_empty"     : True,
     },
 
+
     "ESTIMATED_YIELD": {
-        "plot_number"       : 2,
+
+        "localapp": {
+            "plot": True,
+            "index": 2
+        },
+        "dragen": {
+            "plot": False,
+            "index": 0
+        },
+
         "plot_kind"         : "cluster_density_scatter",
         "source"            : "joint_qc_table",
         "requires_samples"  : None,
@@ -109,8 +132,18 @@ PLOT_SPECS = {
         "skip_if_empty"     : True,
     },
 
+
     "PCT_PF_READS": {
-        "plot_number"       : 3,
+
+        "localapp": {
+            "plot": True,
+            "index": 3
+        },
+        "dragen": {
+            "plot": False,
+            "index": 0
+        },
+
         "plot_kind"         : "bar",
         "source"            : "joint_qc_table",
         "requires_samples"  : None,
@@ -134,8 +167,18 @@ PLOT_SPECS = {
         },
     },
 
+
     "PCT_Q30_R1": {
-        "plot_number"       : 4,
+
+        "localapp": {
+            "plot": True,
+            "index": 4
+        },
+        "dragen": {
+            "plot": False,
+            "index": 0
+        },
+
         "plot_kind"         : "bar",
         "source"            : "joint_qc_table",
         "requires_samples"  : None,
@@ -159,8 +202,18 @@ PLOT_SPECS = {
         },
     },
 
+
     "PCT_Q30_R2": {
-        "plot_number"       : 5,
+
+        "localapp": {
+            "plot": True,
+            "index": 5
+        },
+        "dragen": {
+            "plot": False,
+            "index": 0
+        },
+
         "plot_kind"         : "bar",
         "source"            : "joint_qc_table",
         "requires_samples"  : None,
@@ -184,8 +237,19 @@ PLOT_SPECS = {
         },
     },
 
+
     "DNA_CONTAMINATION_P_VALUE_BY_RUN": {
-        "plot_number"       : 6,
+
+
+        "localapp": {
+            "plot": True,
+            "index": 6
+        },
+        "dragen": {
+            "plot": False,
+            "index": 0
+        },
+
         "plot_kind"         : "contamination_scatter",
         "source"            : "dna_data_table",
         "requires_samples"  : "dna",
@@ -195,8 +259,18 @@ PLOT_SPECS = {
         "skip_if_empty"     : True,
     },
 
+
     "DNA_CONTAMINATION_P_VALUE_HIGHLIGHTED_RUN": {
-        "plot_number"       : 7,
+
+        "localapp": {
+            "plot": True,
+            "index": 7
+        },
+        "dragen": {
+            "plot": False,
+            "index": 0
+        },
+        
         "plot_kind"         : "contamination_scatter",
         "source"            : "dna_data_table",
         "requires_samples"  : "dna",
@@ -208,80 +282,18 @@ PLOT_SPECS = {
         "skip_if_empty"     : True,
     },
 
-    "DNA_MEDIAN_EXON_COVERAGE": {
-        "plot_number"       : 8,
-        "plot_kind"         : "bar",
-        "source"            : "dna_data_table",
-        "requires_samples"  : "dna",
-        "x_var"             : "SAMPLE_ID",
-        "y_var"             : "DNA_MEDIAN_EXON_COVERAGE",
-        "fill_var"          : "RUN",
-        "x_lab"             : "Sample ID",
-        "y_lab"             : "Median exon coverage",
-        "title"             : "[LocalApp core DNA metric] Median exon coverage",
-        "value_spec"        : {"operation": "cast", "column": "DNA_MEDIAN_EXON_COVERAGE", "dtype": pl.Float64},
-        "na_filter_columns" : ["DNA_MEDIAN_EXON_COVERAGE"],
-        "y_tick_step"       : 100,
-        "guideline"         : {
-            "table"        : "dna_guideline_table",
-            "sample_id"    : "LSL_Guideline",
-            "value_spec"   : {"operation": "cast", "column": "DNA_MEDIAN_EXON_COVERAGE", "dtype": pl.Int32},
-            "python_cast"  : int,
-            "label_prefix" : "LSL_Guideline",
-            "ann_y_offset" : 200,
-        },
-    },
-
-    "DNA_PCT_EXON_50X": {
-        "plot_number"       : 9,
-        "plot_kind"         : "bar",
-        "source"            : "dna_data_table",
-        "requires_samples"  : "dna",
-        "x_var"             : "SAMPLE_ID",
-        "y_var"             : "DNA_PCT_EXON_50X",
-        "fill_var"          : "RUN",
-        "x_lab"             : "Sample ID",
-        "y_lab"             : "Percentage of exons with coverage >= 50X",
-        "title"             : "[LocalApp core DNA metric] Percentage of exons with coverage >= 50X",
-        "value_spec"        : {"operation": "cast", "column": "DNA_PCT_EXON_50X", "dtype": pl.Float64},
-        "na_filter_columns" : ["DNA_PCT_EXON_50X"],
-        "cart_ylim"         : (0, 104),
-        "y_tick_step"       : 10,
-        "guideline"         : {
-            "table"        : "dna_guideline_table",
-            "sample_id"    : "LSL_Guideline",
-            "value_spec"   : {"operation": "cast", "column": "DNA_PCT_EXON_50X", "dtype": pl.Float64},
-            "python_cast"  : int,
-            "label_prefix" : "LSL_Guideline",
-            "ann_y_offset" : -15,
-        },
-    },
-
-    "DNA_MEDIAN_INSERT_SIZE": {
-        "plot_number"       : 10,
-        "plot_kind"         : "bar",
-        "source"            : "dna_data_table",
-        "requires_samples"  : "dna",
-        "x_var"             : "SAMPLE_ID",
-        "y_var"             : "DNA_MEDIAN_INSERT_SIZE",
-        "fill_var"          : "RUN",
-        "x_lab"             : "Sample ID",
-        "y_lab"             : "Median insert size",
-        "title"             : "[LocalApp core DNA metric] Median insert size",
-        "value_spec"        : {"operation": "cast", "column": "DNA_MEDIAN_INSERT_SIZE", "dtype": pl.Float64},
-        "na_filter_columns" : ["DNA_MEDIAN_INSERT_SIZE"],
-        "guideline"         : {
-            "table"        : "dna_guideline_table",
-            "sample_id"    : "LSL_Guideline",
-            "value_spec"   : {"operation": "cast", "column": "DNA_MEDIAN_INSERT_SIZE", "dtype": pl.Int32},
-            "python_cast"  : int,
-            "label_prefix" : "LSL_Guideline",
-            "ann_y_offset" : 10,
-        },
-    },
 
     "DNA_COVERAGE_MAD": {
-        "plot_number"       : 11,
+
+        "localapp": {
+            "plot": True,
+            "index": 8
+        },
+        "dragen": {
+            "plot": False,
+            "index": 0
+        },
+        
         "plot_kind"         : "bar",
         "source"            : "dna_data_table",
         "requires_samples"  : "dna",
@@ -303,54 +315,313 @@ PLOT_SPECS = {
         },
     },
 
-    "DNA_MEDIAN_BIN_COUNT_CNV_TARGET": {
-        "plot_number"       : 12,
+
+   "DNA_PCT_PF_UQ_READS": {
+
+        "localapp": {
+            "plot": True,
+            "index": 20
+        },
+        "dragen": {
+            "plot": False,
+            "index": 0
+        },
+        
         "plot_kind"         : "bar",
         "source"            : "dna_data_table",
         "requires_samples"  : "dna",
         "x_var"             : "SAMPLE_ID",
-        "y_var"             : "DNA_MEDIAN_BIN_COUNT_CNV_TARGET",
+        "y_var"             : "DNA_PCT_PF_UQ_READS",
         "fill_var"          : "RUN",
         "x_lab"             : "Sample ID",
-        "y_lab"             : "Median raw bin count per CNV target",
-        "title"             : "[LocalApp core DNA metric] Median raw bin count per CNV target",
-        "value_spec"        : {"operation": "cast", "column": "DNA_MEDIAN_BIN_COUNT_CNV_TARGET", "dtype": pl.Float64},
-        "na_filter_columns" : ["DNA_MEDIAN_BIN_COUNT_CNV_TARGET"],
+        "y_lab"             : "Percentage of UQ reads passing filters",
+        "title"             : "[LocalApp DNA metric] Percentage of UQ reads passing filters",
+        "value_spec"        : {"operation": "cast", "column": "DNA_PCT_PF_UQ_READS", "dtype": pl.Float64},
+        "na_filter_columns" : ["DNA_PCT_PF_UQ_READS"],
+        "cart_ylim"         : (0, 104),
+        "y_tick_step"       : 10,
+    },
+
+
+
+    # ========================================= #
+    # Dragen-specific metrics (not in LocalApp) #
+    # ========================================= #
+
+    "DNA_GENE_SCALED_MAD": {
+
+        "localapp": {
+            "plot": False,
+            "index": 0
+        },
+        "dragen": {
+            "plot": True,
+            "index": 1
+        },
+
+        "plot_kind"         : "bar",
+        "source"            : "dna_data_table",
+        "requires_samples"  : "dna",
+        "x_var"             : "SAMPLE_ID",
+        "y_var"             : "DNA_GENE_SCALED_MAD",
+        "fill_var"          : "RUN",
+        "x_lab"             : "Sample ID",
+        "y_lab"             : "Gene-scaled MAD",
+        "title"             : "[LocalApp core DNA metric] Gene-scaled MAD",
+        "value_spec"        : {"operation": "cast", "column": "DNA_GENE_SCALED_MAD", "dtype": pl.Float64},
+        "na_filter_columns" : ["DNA_GENE_SCALED_MAD"],
         "guideline"         : {
             "table"        : "dna_guideline_table",
-            "sample_id"    : "LSL_Guideline",
-            "value_spec"   : {"operation": "cast", "column": "DNA_MEDIAN_BIN_COUNT_CNV_TARGET", "dtype": pl.Int32},
-            "python_cast"  : int,
-            "label_prefix" : "LSL_Guideline",
-            "ann_y_offset" : 1,
+            "sample_id"    : "USL_Guideline",
+            "value_spec"   : {"operation": "cast", "column": "DNA_GENE_SCALED_MAD", "dtype": pl.Float64},
+            "python_cast"  : float,
+            "label_prefix" : "USL_Guideline",
+            "ann_y_offset" : -0.04,
         },
     },
 
-    "DNA_USABLE_MSI_SITES": {
-        "plot_number"       : 13,
+
+    "DNA_MEDIAN_TARGET_HRD_COVERAGE": {
+
+        "localapp": {
+            "plot": False,
+            "index": 0
+        },
+        "dragen": {
+            "plot": True,
+            "index": 8
+        },
+
         "plot_kind"         : "bar",
         "source"            : "dna_data_table",
         "requires_samples"  : "dna",
         "x_var"             : "SAMPLE_ID",
-        "y_var"             : "DNA_USABLE_MSI_SITES",
+        "y_var"             : "DNA_MEDIAN_TARGET_HRD_COVERAGE",
         "fill_var"          : "RUN",
         "x_lab"             : "Sample ID",
-        "y_lab"             : "Usable MSI sites",
-        "title"             : "[LocalApp core DNA metric] Number of usable MSI sites",
-        "value_spec"        : {"operation": "cast", "column": "DNA_USABLE_MSI_SITES", "dtype": pl.Float64},
-        "na_filter_columns" : ["DNA_USABLE_MSI_SITES"],
-        "guideline"         : {
-            "table"        : "dna_guideline_table",
-            "sample_id"    : "LSL_Guideline",
-            "value_spec"   : {"operation": "cast", "column": "DNA_USABLE_MSI_SITES", "dtype": pl.Int32},
-            "python_cast"  : int,
-            "label_prefix" : "LSL_Guideline",
-            "ann_y_offset" : 0,
+        "y_lab"             : "Median target HRD coverage",
+        "title"             : "[Dragen DNA metric] Median target HRD coverage",
+        "value_spec"        : {"operation": "cast", "column": "DNA_MEDIAN_TARGET_HRD_COVERAGE", "dtype": pl.Float64},
+        "na_filter_columns" : ["DNA_MEDIAN_TARGET_HRD_COVERAGE"],
+        "y_tick_step"       : 100,
+    },
+
+
+    "DNA_PCT_Q30_BASES": {
+
+        "localapp": {
+            "plot": False,
+            "index": 0
+        },
+        "dragen": {
+            "plot": True,
+            "index": 14
+        },
+
+        "plot_kind"         : "bar",
+        "source"            : "dna_data_table",
+        "requires_samples"  : "dna",
+        "x_var"             : "SAMPLE_ID",
+        "y_var"             : "DNA_PCT_Q30_BASES",
+        "fill_var"          : "RUN",
+        "x_lab"             : "Sample ID",
+        "y_lab"             : "Percentage of Q30 bases",
+        "title"             : "[Dragen DNA metric] Percentage of Q30 bases",
+        "value_spec"        : {"operation": "cast", "column": "DNA_PCT_Q30_BASES", "dtype": pl.Float64},
+        "na_filter_columns" : ["DNA_PCT_Q30_BASES"],
+        "cart_ylim"         : (0, 104),
+        "y_tick_step"       : 10,
+    },
+
+
+    "DNA_PCT_SOFT_CLIPPED_BASES": {
+
+        "localapp": {
+            "plot": False,
+            "index": 0
+        },
+        "dragen": {
+            "plot": True,
+            "index": 16
+        },
+
+        "plot_kind"         : "bar",
+        "source"            : "dna_data_table",
+        "requires_samples"  : "dna",
+        "x_var"             : "SAMPLE_ID",
+        "y_var"             : "DNA_PCT_SOFT_CLIPPED_BASES",
+        "fill_var"          : "RUN",
+        "x_lab"             : "Sample ID",
+        "y_lab"             : "Percentage of soft clipped bases",
+        "title"             : "[Dragen DNA metric] Percentage of soft clipped bases ",
+        "value_spec"        : {"operation": "cast", "column": "DNA_PCT_SOFT_CLIPPED_BASES", "dtype": pl.Float64},
+        "na_filter_columns" : ["DNA_PCT_SOFT_CLIPPED_BASES"],
+        "cart_ylim"         : (0, 100),
+        "y_tick_step"       : 10,
+        "overlay_labels"    : {
+            "label_column" : "DNA_PCT_SOFT_CLIPPED_BASES",
+            "angle"        : 90,
+            "va"           : "center",
+            "ha"           : "right",
+            "nudge_y"      : 5,
+            "nudge_x"      : 0.5, # Adapted to 10 runs, less runs would need a different nudge_x value
+            "size"         : 7.5, # Adapted to 10 runs, less runs would need a different size value
         },
     },
+
+
+    "DNA_PCT_TARGET_50X": {
+
+        "localapp": {
+            "plot": False,
+            "index": 0
+        },
+        "dragen": {
+            "plot": True,
+            "index": 20
+        },
+
+        "plot_kind"         : "bar",
+        "source"            : "dna_data_table",
+        "requires_samples"  : "dna",
+        "x_var"             : "SAMPLE_ID",
+        "y_var"             : "DNA_PCT_TARGET_50X",
+        "fill_var"          : "RUN",
+        "x_lab"             : "Sample ID",
+        "y_lab"             : "Percentage of target 50X",
+        "title"             : "[Dragen DNA metric] Percentage of target 50X",
+        "value_spec"        : {"operation": "cast", "column": "DNA_PCT_TARGET_50X", "dtype": pl.Float64},
+        "na_filter_columns" : ["DNA_PCT_TARGET_50X"],
+        "y_tick_step"       : 10,
+    },
+
+
+    "DNA_PCT_TARGET_HRD_50X": {
+
+        "localapp": {
+            "plot": False,
+            "index": 0
+        },
+        "dragen": {
+            "plot": True,
+            "index": 21
+        },
+
+        "plot_kind"         : "bar",
+        "source"            : "dna_data_table",
+        "requires_samples"  : "dna",
+        "x_var"             : "SAMPLE_ID",
+        "y_var"             : "DNA_PCT_TARGET_HRD_50X",
+        "fill_var"          : "RUN",
+        "x_lab"             : "Sample ID",
+        "y_lab"             : "Percentage of target HRD 50X",
+        "title"             : "[Dragen DNA metric] Percentage of target HRD 50X",
+        "value_spec"        : {"operation": "cast", "column": "DNA_PCT_TARGET_HRD_50X", "dtype": pl.Float64},
+        "na_filter_columns" : ["DNA_PCT_TARGET_HRD_50X"],
+        "y_tick_step"       : 10,
+    },
+
+
+    "RNA_GENE_ABOVE_MEDIAN_CUTOFF": {
+
+        "localapp": {
+            "plot": False,
+            "index": 0
+        },
+        "dragen": {
+            "plot": True,
+            "index": 25
+        },
+
+        "plot_kind"         : "bar",
+        "source"            : "rna_data_table",
+        "requires_samples"  : "rna",
+        "x_var"             : "SAMPLE_ID",
+        "y_var"             : "RNA_GENE_ABOVE_MEDIAN_CUTOFF",
+        "fill_var"          : "RUN",
+        "x_lab"             : "Sample ID",
+        "y_lab"             : "Percentage of genes above median cutoff",
+        "title"             : "[Dragen RNA metric] Percentage of genes above median cutoff",
+        "value_spec"        : {"operation": "cast", "column": "RNA_GENE_ABOVE_MEDIAN_CUTOFF", "dtype": pl.Float64},
+        "na_filter_columns" : ["RNA_GENE_ABOVE_MEDIAN_CUTOFF"],
+        "y_tick_step"       : 10,
+    },
+
+
+    "RNA_GENE_MEDIAN_COVERAGE": {
+
+        "localapp": {
+            "plot": False,
+            "index": 0
+        },
+        "dragen": {
+            "plot": True,
+            "index": 26
+        },
+
+        "plot_kind"         : "bar",
+        "source"            : "rna_data_table",
+        "requires_samples"  : "rna",
+        "x_var"             : "SAMPLE_ID",
+        "y_var"             : "RNA_GENE_MEDIAN_COVERAGE",
+        "fill_var"          : "RUN",
+        "x_lab"             : "Sample ID",
+        "y_lab"             : "Median gene coverage",
+        "title"             : "[Dragen RNA metric] Median gene coverage",
+        "value_spec"        : {"operation": "cast", "column": "RNA_GENE_MEDIAN_COVERAGE", "dtype": pl.Float64},
+        "na_filter_columns" : ["RNA_GENE_MEDIAN_COVERAGE"],
+        "y_tick_step"       : 100,
+    },
+
+
 
     "RNA_MEDIAN_CV_GENE_500X": {
-        "plot_number"       : 14,
+
+
+        "localapp": {
+            "plot": False,
+            "index": 0
+        },
+        "dragen": {
+            "plot": True,
+            "index": 27
+        },
+
+        "plot_kind"         : "bar",
+        "source"            : "rna_data_table",
+        "requires_samples"  : "rna",
+        "x_var"             : "SAMPLE_ID",
+        "y_var"             : "RNA_MEDIAN_CV_GENE_500X",
+        "fill_var"          : "RUN",
+        "x_lab"             : "Sample ID",
+        "y_lab"             : "Median CV for genes with median coverage >500",
+        "title"             : "[Dragen core RNA metric] Uniformity of coverage across transcripts",
+        "value_spec"        : {"operation": "cast", "column": "RNA_MEDIAN_CV_GENE_500X", "dtype": pl.Float64},
+        "na_filter_columns" : ["RNA_MEDIAN_CV_GENE_500X"],
+        "cart_ylim"         : (0, 1.04),
+        "y_tick_step"       : float(0.1),
+        "guideline"         : {
+            "table"        : "rna_guideline_table",
+            "sample_id"    : "USL_Guideline",
+            "value_spec"   : {"operation": "cast", "column": "RNA_MEDIAN_CV_GENE_500X", "dtype": pl.Float64},
+            "python_cast"  : float,
+            "label_prefix" : "USL_Guideline",
+            "ann_y_offset" : -0.25,
+        },
+    },
+
+
+    "RNA_MEDIAN_CV_GENE_500X": {
+
+        "localapp": {
+            "plot": True,
+            "index": 28
+        },
+        "dragen": {
+            "plot": False,
+            "index": 0
+        },
+
         "plot_kind"         : "bar",
         "source"            : "rna_data_table",
         "requires_samples"  : "rna",
@@ -374,97 +645,571 @@ PLOT_SPECS = {
         },
     },
 
-    "RNA_TOTAL_ON_TARGET_READS_MILLIONS": {
-        "plot_number"       : 15,
-        "plot_kind"         : "bar",
-        "source"            : "rna_data_table",
-        "requires_samples"  : "rna",
-        "x_var"             : "SAMPLE_ID",
-        "y_var"             : "RNA_TOTAL_ON_TARGET_READS_MILLIONS",
-        "fill_var"          : "RUN",
-        "x_lab"             : "Sample ID",
-        "y_lab"             : "On target reads (millions)",
-        "title"             : "[LocalApp core RNA metric] Total on-target reads in millions",
-        "value_spec"        : {
-            "operation" : "divide",
-            "column"    : "RNA_TOTAL_ON_TARGET_READS",
-            "dtype"     : pl.Float64,
-            "divisor"   : 1000000.0,
-        },
-        "na_filter_columns" : ["RNA_TOTAL_ON_TARGET_READS"],
-        "guideline"         : {
-            "table"        : "rna_guideline_table",
-            "sample_id"    : "LSL_Guideline",
-            "value_spec"   : {
-                "operation" : "divide",
-                "column"    : "RNA_TOTAL_ON_TARGET_READS",
-                "dtype"     : pl.Float64,
-                "divisor"   : 1000000.0,
-            },
-            "python_cast"  : int,
-            "label_prefix" : "LSL_Guideline",
-            "ann_y_offset" : 0,
-        },
-    },
 
-    "RNA_MEDIAN_INSERT_SIZE": {
-        "plot_number"       : 16,
+    "RNA_PCT_Q30_BASES": {
+
+       "localapp": {
+            "plot": False,
+            "index": 0
+        },
+        "dragen": {
+            "plot": True,
+            "index": 31
+        },
+
         "plot_kind"         : "bar",
         "source"            : "rna_data_table",
         "requires_samples"  : "rna",
         "x_var"             : "SAMPLE_ID",
-        "y_var"             : "RNA_MEDIAN_INSERT_SIZE",
+        "y_var"             : "RNA_PCT_Q30_BASES",
         "fill_var"          : "RUN",
         "x_lab"             : "Sample ID",
-        "y_lab"             : "Median insert size",
-        "title"             : "[LocalApp core RNA metric] Median insert size",
-        "value_spec"        : {"operation": "cast", "column": "RNA_MEDIAN_INSERT_SIZE", "dtype": pl.Float64},
-        "na_filter_columns" : ["RNA_MEDIAN_INSERT_SIZE"],
+        "y_lab"             : "Percentage of Q30 bases",
+        "title"             : "[Dragen RNA metric] Percentage of Q30 bases",
+        "value_spec"        : {"operation": "cast", "column": "RNA_PCT_Q30_BASES", "dtype": pl.Float64},
+        "na_filter_columns" : ["RNA_PCT_Q30_BASES"],
+        "cart_ylim"         : (0, 100),
         "y_tick_step"       : 10,
-        "guideline"         : {
-            "table"        : "rna_guideline_table",
-            "sample_id"    : "LSL_Guideline",
-            "value_spec"   : {"operation": "cast", "column": "RNA_MEDIAN_INSERT_SIZE", "dtype": pl.Float64},
-            "python_cast"  : int,
-            "label_prefix" : "LSL_Guideline",
-            "ann_y_offset" : 0,
+    },
+
+
+    "RNA_PCT_SOFT_CLIPPED_BASES": {
+
+
+       "localapp": {
+            "plot": False,
+            "index": 0
+        },
+        "dragen": {
+            "plot": True,
+            "index": 32
+        },
+
+        "plot_kind"         : "bar",
+        "source"            : "rna_data_table",
+        "requires_samples"  : "rna",
+        "x_var"             : "SAMPLE_ID",
+        "y_var"             : "RNA_PCT_SOFT_CLIPPED_BASES",
+        "fill_var"          : "RUN",
+        "x_lab"             : "Sample ID",
+        "y_lab"             : "Percentage of soft clipped bases",
+        "title"             : "[Dragen RNA metric] Percentage of soft clipped bases",
+        "value_spec"        : {"operation": "cast", "column": "RNA_PCT_SOFT_CLIPPED_BASES", "dtype": pl.Float64},
+        "na_filter_columns" : ["RNA_PCT_SOFT_CLIPPED_BASES"],
+        "cart_ylim"         : (0, 100),
+        "y_tick_step"       : 10,
+        "overlay_labels"    : {
+            "label_column" : "RNA_PCT_SOFT_CLIPPED_BASES",
+            "angle"        : 90,
+            "va"           : "center",
+            "ha"           : "right",
+            "nudge_y"      : 5,
+            "nudge_x"      : 0.5, # Adapted to 10 runs, less runs would need a different nudge_x value
+            "size"         : 7.5, # Adapted to 10 runs, less runs would need a different size value
         },
     },
 
-    "COMPLETED_ALL_STEPS_DNA": {
-        "plot_number"       : 17,
+
+
+    # ============================================ #
+    # Shared metrics (both in Dragen and LocalApp) #
+    # ============================================ #
+
+   "DNA_MEAN_FAMILY_SIZE": {
+
+        "localapp": {
+            "plot": True,
+            "index": 9
+        },
+        "dragen": {
+            "plot": True,
+            "index": 2
+        },
+        
         "plot_kind"         : "bar",
         "source"            : "dna_data_table",
         "requires_samples"  : "dna",
         "x_var"             : "SAMPLE_ID",
-        "y_var"             : "COMPLETED_ALL_STEPS",
+        "y_var"             : "DNA_MEAN_FAMILY_SIZE",
         "fill_var"          : "RUN",
         "x_lab"             : "Sample ID",
-        "y_lab"             : "Pipeline completion",
-        "title"             : "[InPreD core DNA metric] Pipeline completion",
-        "value_spec"        : {"operation": "cast", "column": "COMPLETED_ALL_STEPS"},
-        "na_filter_columns" : ["COMPLETED_ALL_STEPS"],
-        "filters"           : [{"column": "SAMPLE_ID", "contains": r"-D0\d-"}],
+        "y_lab"             : "Mean family size",
+        "title"             : "[LocalApp DNA metric] Mean family size",
+        "value_spec"        : {"operation": "cast", "column": "DNA_MEAN_FAMILY_SIZE", "dtype": pl.Float64},
+        "na_filter_columns" : ["DNA_MEAN_FAMILY_SIZE"],
+        "y_tick_step"       : 2,
+        "cart_ylim_dynamic" : {"mode": "max_plus", "column": "DNA_MEAN_FAMILY_SIZE", "lower": 1, "offset": 10},
+        "overlay_labels"    : {
+            "label_column" : "DNA_MEAN_FAMILY_SIZE",
+            "angle"        : 90,
+            "va"           : "center",
+            "ha"           : "center",
+            "nudge_y"      : 0.85,
+            "nudge_x"      : 0,
+            "size"         : 9,
+        },
+        "skip_if_empty"     : True,
     },
 
-    "COMPLETED_ALL_STEPS_RNA": {
-        "plot_number"       : 18,
+
+    "DNA_MEAN_TARGET_COVERAGE": {
+
+        "localapp": {
+            "plot": True,
+            "index": 10
+        },
+        "dragen": {
+            "plot": True,
+            "index": 3
+        },
+
         "plot_kind"         : "bar",
-        "source"            : "rna_data_table",
-        "requires_samples"  : "rna",
+        "source"            : "dna_data_table",
+        "requires_samples"  : "dna",
         "x_var"             : "SAMPLE_ID",
-        "y_var"             : "COMPLETED_ALL_STEPS",
+        "y_var"             : "DNA_MEAN_TARGET_COVERAGE",
         "fill_var"          : "RUN",
         "x_lab"             : "Sample ID",
-        "y_lab"             : "Pipeline completion",
-        "title"             : "[InPreD core RNA metric] Pipeline completion",
-        "value_spec"        : {"operation": "cast", "column": "COMPLETED_ALL_STEPS"},
-        "na_filter_columns" : ["COMPLETED_ALL_STEPS"],
-        "filters"           : [{"column": "SAMPLE_ID", "contains": r"-R0\d-"}],
+        "y_lab"             : "Mean target coverage",
+        "title"             : "[InPreD core DNA metric] Mean target coverage",
+        "value_spec"        : {"operation": "cast", "column": "DNA_MEAN_TARGET_COVERAGE", "dtype": pl.Float64},
+        "na_filter_columns" : ["DNA_MEAN_TARGET_COVERAGE"],
+        "y_tick_step"       : 100,
+        "guideline"         : {
+            "table"        : "internal_guideline_table",
+            "sample_id"    : "Internal Guideline",
+            "value_spec"   : {"operation": "cast", "column": "DNA_MEAN_TARGET_COVERAGE", "dtype": pl.Float64},
+            "python_cast"  : float,
+            "label_prefix" : "Internal Guideline",
+            "alpha"        : 0.3,
+            "color"        : "red",
+            "ann_y_offset" : 0,
+        },
     },
 
-    "DNA_TOTAL_PF_READS_MILLIONS": {
-        "plot_number"       : 19,
+
+   "DNA_MEDIAN_BIN_COUNT_CNV_TARGET": {
+
+        "localapp": {
+            "plot": True,
+            "index": 11
+        },
+        "dragen": {
+            "plot": True,
+            "index": 4
+        },
+        
+        "plot_kind"         : "bar",
+        "source"            : "dna_data_table",
+        "requires_samples"  : "dna",
+        "x_var"             : "SAMPLE_ID",
+        "y_var"             : "DNA_MEDIAN_BIN_COUNT_CNV_TARGET",
+        "fill_var"          : "RUN",
+        "x_lab"             : "Sample ID",
+        "y_lab"             : "Median raw bin count per CNV target",
+        "title"             : "[LocalApp core DNA metric] Median raw bin count per CNV target",
+        "value_spec"        : {"operation": "cast", "column": "DNA_MEDIAN_BIN_COUNT_CNV_TARGET", "dtype": pl.Float64},
+        "na_filter_columns" : ["DNA_MEDIAN_BIN_COUNT_CNV_TARGET"],
+        "guideline"         : {
+            "table"        : "dna_guideline_table",
+            "sample_id"    : "LSL_Guideline",
+            "value_spec"   : {"operation": "cast", "column": "DNA_MEDIAN_BIN_COUNT_CNV_TARGET", "dtype": pl.Int32},
+            "python_cast"  : int,
+            "label_prefix" : "LSL_Guideline",
+            "ann_y_offset" : 1,
+        },
+    },
+
+
+    "DNA_MEDIAN_EXON_COVERAGE": {
+
+        "localapp": {
+            "plot": True,
+            "index": 12
+        },
+        "dragen": {
+            "plot": True,
+            "index": 5
+        },
+        
+        "plot_kind"         : "bar",
+        "source"            : "dna_data_table",
+        "requires_samples"  : "dna",
+        "x_var"             : "SAMPLE_ID",
+        "y_var"             : "DNA_MEDIAN_EXON_COVERAGE",
+        "fill_var"          : "RUN",
+        "x_lab"             : "Sample ID",
+        "y_lab"             : "Median exon coverage",
+        "title"             : "[LocalApp core DNA metric] Median exon coverage",
+        "value_spec"        : {"operation": "cast", "column": "DNA_MEDIAN_EXON_COVERAGE", "dtype": pl.Float64},
+        "na_filter_columns" : ["DNA_MEDIAN_EXON_COVERAGE"],
+        "y_tick_step"       : 100,
+        "guideline"         : {
+            "table"        : "dna_guideline_table",
+            "sample_id"    : "LSL_Guideline",
+            "value_spec"   : {"operation": "cast", "column": "DNA_MEDIAN_EXON_COVERAGE", "dtype": pl.Int32},
+            "python_cast"  : int,
+            "label_prefix" : "LSL_Guideline",
+            "ann_y_offset" : 200,
+        },
+    },
+
+
+    "DNA_MEDIAN_INSERT_SIZE": {
+
+        "localapp": {
+            "plot": True,
+            "index": 13
+        },
+        "dragen": {
+            "plot": True,
+            "index": 6
+        },
+        
+        "plot_kind"         : "bar",
+        "source"            : "dna_data_table",
+        "requires_samples"  : "dna",
+        "x_var"             : "SAMPLE_ID",
+        "y_var"             : "DNA_MEDIAN_INSERT_SIZE",
+        "fill_var"          : "RUN",
+        "x_lab"             : "Sample ID",
+        "y_lab"             : "Median insert size",
+        "title"             : "[LocalApp core DNA metric] Median insert size",
+        "value_spec"        : {"operation": "cast", "column": "DNA_MEDIAN_INSERT_SIZE", "dtype": pl.Float64},
+        "na_filter_columns" : ["DNA_MEDIAN_INSERT_SIZE"],
+        "guideline"         : {
+            "table"        : "dna_guideline_table",
+            "sample_id"    : "LSL_Guideline",
+            "value_spec"   : {"operation": "cast", "column": "DNA_MEDIAN_INSERT_SIZE", "dtype": pl.Int32},
+            "python_cast"  : int,
+            "label_prefix" : "LSL_Guideline",
+            "ann_y_offset" : 10,
+        },
+    },
+
+
+    "DNA_MEDIAN_TARGET_COVERAGE": {
+
+        "localapp": {
+            "plot": True,
+            "index": 14
+        },
+        "dragen": {
+            "plot": True,
+            "index": 7
+        },
+
+        "plot_kind"         : "bar",
+        "source"            : "dna_data_table",
+        "requires_samples"  : "dna",
+        "x_var"             : "SAMPLE_ID",
+        "y_var"             : "DNA_MEDIAN_TARGET_COVERAGE",
+        "fill_var"          : "RUN",
+        "x_lab"             : "Sample ID",
+        "y_lab"             : "Median target coverage",
+        "title"             : "[LocalApp DNA metric] Median target coverage",
+        "value_spec"        : {"operation": "cast", "column": "DNA_MEDIAN_TARGET_COVERAGE", "dtype": pl.Float64},
+        "na_filter_columns" : ["DNA_MEDIAN_TARGET_COVERAGE"],
+        "y_tick_step"       : 100,
+    },
+
+
+    "DNA_PCT_ALIGNED_READS": {
+        
+        "localapp": {
+            "plot": True,
+            "index": 15
+        },
+        "dragen": {
+            "plot": True,
+            "index": 9
+        },
+
+        "plot_kind"         : "bar",
+        "source"            : "dna_data_table",
+        "requires_samples"  : "dna",
+        "x_var"             : "SAMPLE_ID",
+        "y_var"             : "DNA_PCT_ALIGNED_READS",
+        "fill_var"          : "RUN",
+        "x_lab"             : "Sample ID",
+        "y_lab"             : "Percentage of aligned reads",
+        "title"             : "[LocalApp DNA metric] Percentage of aligned reads",
+        "value_spec"        : {"operation": "cast", "column": "DNA_PCT_ALIGNED_READS", "dtype": pl.Float64},
+        "na_filter_columns" : ["DNA_PCT_ALIGNED_READS"],
+        "cart_ylim"         : (0, 104),
+        "y_tick_step"       : 10,
+    },
+
+
+   "DNA_PCT_CHIMERIC_READS": {
+
+        "localapp": {
+            "plot": True,
+            "index": 16
+        },
+        "dragen": {
+            "plot": True,
+            "index": 10
+        },
+
+        "plot_kind"         : "bar",
+        "source"            : "dna_data_table",
+        "requires_samples"  : "dna",
+        "x_var"             : "SAMPLE_ID",
+        "y_var"             : "DNA_PCT_CHIMERIC_READS",
+        "fill_var"          : "RUN",
+        "x_lab"             : "Sample ID",
+        "y_lab"             : "Percentage of chimeric reads",
+        "title"             : "[LocalApp DNA metric] Percentage of chimeric reads",
+        "value_spec"        : {"operation": "cast", "column": "DNA_PCT_CHIMERIC_READS", "dtype": pl.Float64},
+        "na_filter_columns" : ["DNA_PCT_CHIMERIC_READS"],
+    },
+
+
+    "DNA_PCT_CONTAMINATION_EST": {
+
+        "localapp": {
+            "plot": True,
+            "index": 17
+        },
+        "dragen": {
+            "plot": True,
+            "index": 11
+        },
+        
+        "plot_kind"         : "bar",
+        "source"            : "dna_data_table",
+        "requires_samples"  : "dna",
+        "x_var"             : "SAMPLE_ID",
+        "y_var"             : "DNA_PCT_CONTAMINATION_EST",
+        "fill_var"          : "RUN",
+        "x_lab"             : "Sample ID",
+        "y_lab"             : "Contamination estimate (percent)",
+        "title"             : "[LocalApp DNA metric] Contamination estimate",
+        "value_spec"        : {"operation": "cast", "column": "DNA_PCT_CONTAMINATION_EST", "dtype": pl.Float64},
+        "na_filter_columns" : ["DNA_PCT_CONTAMINATION_EST"],
+        "cart_ylim"         : (0, 104),
+        "y_tick_step"       : 10,
+        "overlay_labels"    : {
+            "label_column" : "DNA_PCT_CONTAMINATION_EST",
+            "angle"        : 90,
+            "va"           : "center",
+            "ha"           : "right",
+            "nudge_y"      : 10,
+            "nudge_x"      : 0.5,
+            "size"         : 9,
+        },
+    },
+
+
+    "DNA_PCT_EXON_100X": {
+
+        "localapp": {
+            "plot": True,
+            "index": 18
+        },
+        "dragen": {
+            "plot": True,
+            "index": 12
+        },
+        
+        "plot_kind"         : "bar",
+        "source"            : "dna_data_table",
+        "requires_samples"  : "dna",
+        "x_var"             : "SAMPLE_ID",
+        "y_var"             : "DNA_PCT_EXON_100X",
+        "fill_var"          : "RUN",
+        "x_lab"             : "Sample ID",
+        "y_lab"             : "Percentage of exons at 100X coverage",
+        "title"             : "[LocalApp DNA metric] Percentage of exons at 100X coverage",
+        "value_spec"        : {"operation": "cast", "column": "DNA_PCT_EXON_100X", "dtype": pl.Float64},
+        "na_filter_columns" : ["DNA_PCT_EXON_100X"],
+        "cart_ylim"         : (0, 104),
+        "y_tick_step"       : 10,
+    },
+
+
+   "DNA_PCT_EXON_50X": {
+
+        "localapp": {
+            "plot": True,
+            "index": 19
+        },
+        "dragen": {
+            "plot": True,
+            "index": 13
+        },
+        
+        "plot_kind"         : "bar",
+        "source"            : "dna_data_table",
+        "requires_samples"  : "dna",
+        "x_var"             : "SAMPLE_ID",
+        "y_var"             : "DNA_PCT_EXON_50X",
+        "fill_var"          : "RUN",
+        "x_lab"             : "Sample ID",
+        "y_lab"             : "Percentage of exons with coverage >= 50X",
+        "title"             : "[LocalApp core DNA metric] Percentage of exons with coverage >= 50X",
+        "value_spec"        : {"operation": "cast", "column": "DNA_PCT_EXON_50X", "dtype": pl.Float64},
+        "na_filter_columns" : ["DNA_PCT_EXON_50X"],
+        "cart_ylim"         : (0, 104),
+        "y_tick_step"       : 10,
+        "guideline"         : {
+            "table"        : "dna_guideline_table",
+            "sample_id"    : "LSL_Guideline",
+            "value_spec"   : {"operation": "cast", "column": "DNA_PCT_EXON_50X", "dtype": pl.Float64},
+            "python_cast"  : int,
+            "label_prefix" : "LSL_Guideline",
+            "ann_y_offset" : -15,
+        },
+    },
+
+
+    "DNA_PCT_READ_ENRICHMENT": {
+
+        "localapp": {
+            "plot": True,
+            "index": 21
+        },
+        "dragen": {
+            "plot": True,
+            "index": 15
+        },
+
+        "plot_kind"         : "bar",
+        "source"            : "dna_data_table",
+        "requires_samples"  : "dna",
+        "x_var"             : "SAMPLE_ID",
+        "y_var"             : "DNA_PCT_READ_ENRICHMENT",
+        "fill_var"          : "RUN",
+        "x_lab"             : "Sample ID",
+        "y_lab"             : "Read enrichment (percent)",
+        "title"             : "[LocalApp DNA metric] Read enrichment",
+        "value_spec"        : {"operation": "cast", "column": "DNA_PCT_READ_ENRICHMENT", "dtype": pl.Float64},
+        "na_filter_columns" : ["DNA_PCT_READ_ENRICHMENT"],
+        "cart_ylim"         : (0, 104),
+        "y_tick_step"       : 10,
+    },
+
+
+    "DNA_PCT_TARGET_0_4X_MEAN": {
+
+        "localapp": {
+            "plot": True,
+            "index": 22
+        },
+        "dragen": {
+            "plot": True,
+            "index": 17
+        },
+
+        "plot_kind"         : "bar",
+        "source"            : "dna_data_table",
+        "requires_samples"  : "dna",
+        "x_var"             : "SAMPLE_ID",
+        "y_var"             : "DNA_PCT_TARGET_0_4X_MEAN",
+        "fill_var"          : "RUN",
+        "x_lab"             : "Sample ID",
+        "y_lab"             : "Percentage of target at 0.4 * mean coverage",
+        "title"             : "[LocalApp DNA metric] Percentage of target at 0.4 * mean coverage",
+        "value_spec"        : {"operation": "cast", "column": "DNA_PCT_TARGET_0_4X_MEAN", "dtype": pl.Float64},
+        "na_filter_columns" : ["DNA_PCT_TARGET_0_4X_MEAN"],
+        "cart_ylim"         : (0, 104),
+        "y_tick_step"       : 10,
+    },
+
+
+   "DNA_PCT_TARGET_100X": {
+
+        "localapp": {
+            "plot": True,
+            "index": 23
+        },
+        "dragen": {
+            "plot": True,
+            "index": 18
+        },
+        
+        "plot_kind"         : "bar",
+        "source"            : "dna_data_table",
+        "requires_samples"  : "dna",
+        "x_var"             : "SAMPLE_ID",
+        "y_var"             : "DNA_PCT_TARGET_100X",
+        "fill_var"          : "RUN",
+        "x_lab"             : "Sample ID",
+        "y_lab"             : "Percentage of target at 100X coverage",
+        "title"             : "[LocalApp DNA metric] Percentage of target at 100X coverage",
+        "value_spec"        : {"operation": "cast", "column": "DNA_PCT_TARGET_100X", "dtype": pl.Float64},
+        "na_filter_columns" : ["DNA_PCT_TARGET_100X"],
+        "cart_ylim"         : (0, 104),
+        "y_tick_step"       : 10,
+    },
+
+
+    "DNA_PCT_TARGET_250X": {
+
+        "localapp": {
+            "plot": True,
+            "index": 24
+        },
+        "dragen": {
+            "plot": True,
+            "index": 19
+        },
+        
+        "plot_kind"         : "bar",
+        "source"            : "dna_data_table",
+        "requires_samples"  : "dna",
+        "x_var"             : "SAMPLE_ID",
+        "y_var"             : "DNA_PCT_TARGET_250X",
+        "fill_var"          : "RUN",
+        "x_lab"             : "Sample ID",
+        "y_lab"             : "Percentage of target at 250X coverage",
+        "title"             : "[LocalApp DNA metric] Percentage of target at 250X coverage",
+        "value_spec"        : {"operation": "cast", "column": "DNA_PCT_TARGET_250X", "dtype": pl.Float64},
+        "na_filter_columns" : ["DNA_PCT_TARGET_250X"],
+        "cart_ylim"         : (0, 104),
+        "y_tick_step"       : 10,
+    },
+
+
+    "DNA_PCT_USABLE_UMI_READS": {
+
+        "localapp": {
+            "plot": True,
+            "index": 25
+        },
+        "dragen": {
+            "plot": True,
+            "index": 22
+        },
+
+        "plot_kind"         : "bar",
+        "source"            : "dna_data_table",
+        "requires_samples"  : "dna",
+        "x_var"             : "SAMPLE_ID",
+        "y_var"             : "DNA_PCT_USABLE_UMI_READS",
+        "fill_var"          : "RUN",
+        "x_lab"             : "Sample ID",
+        "y_lab"             : "Usable UMI reads (percent)",
+        "title"             : "[Dragen DNA metric] Usable UMI reads",
+        "value_spec"        : {"operation": "cast", "column": "DNA_PCT_USABLE_UMI_READS", "dtype": pl.Float64},
+        "na_filter_columns" : ["DNA_PCT_USABLE_UMI_READS"],
+        "cart_ylim"         : (0, 104),
+        "y_tick_step"       : 10,
+    },
+
+
+   "DNA_TOTAL_PF_READS_MILLIONS": {
+
+        "localapp": {
+            "plot": True,
+            "index": 26
+        },
+        "dragen": {
+            "plot": True,
+            "index": 23
+        },
+
         "plot_kind"         : "bar",
         "source"            : "dna_data_table",
         "requires_samples"  : "dna",
@@ -499,61 +1244,235 @@ PLOT_SPECS = {
         },
     },
 
-    "DNA_MEAN_TARGET_COVERAGE": {
-        "plot_number"       : 20,
+
+    "DNA_USABLE_MSI_SITES": {
+
+        "localapp": {
+            "plot": True,
+            "index": 27
+        },
+        "dragen": {
+            "plot": True,
+            "index": 24
+        },
+        
         "plot_kind"         : "bar",
         "source"            : "dna_data_table",
         "requires_samples"  : "dna",
         "x_var"             : "SAMPLE_ID",
-        "y_var"             : "DNA_MEAN_TARGET_COVERAGE",
+        "y_var"             : "DNA_USABLE_MSI_SITES",
         "fill_var"          : "RUN",
         "x_lab"             : "Sample ID",
-        "y_lab"             : "Mean target coverage",
-        "title"             : "[InPreD core DNA metric] Mean target coverage",
-        "value_spec"        : {"operation": "cast", "column": "DNA_MEAN_TARGET_COVERAGE", "dtype": pl.Float64},
-        "na_filter_columns" : ["DNA_MEAN_TARGET_COVERAGE"],
-        "y_tick_step"       : 100,
+        "y_lab"             : "Usable MSI sites",
+        "title"             : "[LocalApp core DNA metric] Number of usable MSI sites",
+        "value_spec"        : {"operation": "cast", "column": "DNA_USABLE_MSI_SITES", "dtype": pl.Float64},
+        "na_filter_columns" : ["DNA_USABLE_MSI_SITES"],
         "guideline"         : {
-            "table"        : "internal_guideline_table",
-            "sample_id"    : "Internal Guideline",
-            "value_spec"   : {"operation": "cast", "column": "DNA_MEAN_TARGET_COVERAGE", "dtype": pl.Float64},
-            "python_cast"  : float,
-            "label_prefix" : "Internal Guideline",
-            "alpha"        : 0.3,
-            "color"        : "red",
+            "table"        : "dna_guideline_table",
+            "sample_id"    : "LSL_Guideline",
+            "value_spec"   : {"operation": "cast", "column": "DNA_USABLE_MSI_SITES", "dtype": pl.Int32},
+            "python_cast"  : int,
+            "label_prefix" : "LSL_Guideline",
             "ann_y_offset" : 0,
         },
     },
 
-    "DNA_MEAN_FAMILY_SIZE": {
-        "plot_number"       : 21,
+
+    "RNA_MEDIAN_INSERT_SIZE": {
+
+        "localapp": {
+            "plot": True,
+            "index": 29
+        },
+        "dragen": {
+            "plot": True,
+            "index": 28
+        },
+        
         "plot_kind"         : "bar",
-        "source"            : "dna_data_table",
-        "requires_samples"  : "dna",
+        "source"            : "rna_data_table",
+        "requires_samples"  : "rna",
         "x_var"             : "SAMPLE_ID",
-        "y_var"             : "DNA_MEAN_FAMILY_SIZE",
+        "y_var"             : "RNA_MEDIAN_INSERT_SIZE",
         "fill_var"          : "RUN",
         "x_lab"             : "Sample ID",
-        "y_lab"             : "Mean family size",
-        "title"             : "[LocalApp DNA metric] Mean family size",
-        "value_spec"        : {"operation": "cast", "column": "DNA_MEAN_FAMILY_SIZE", "dtype": pl.Float64},
-        "na_filter_columns" : ["DNA_MEAN_FAMILY_SIZE"],
-        "y_tick_step"       : 2,
-        "cart_ylim_dynamic" : {"mode": "max_plus", "column": "DNA_MEAN_FAMILY_SIZE", "lower": 1, "offset": 10},
-        "overlay_labels"    : {
-            "label_column" : "DNA_MEAN_FAMILY_SIZE",
-            "angle"        : 90,
-            "va"           : "center",
-            "ha"           : "right",
-            "nudge_y"      : 0.85,
-            "nudge_x"      : 0.5,
-            "size"         : 9,
+        "y_lab"             : "Median insert size",
+        "title"             : "[LocalApp core RNA metric] Median insert size",
+        "value_spec"        : {"operation": "cast", "column": "RNA_MEDIAN_INSERT_SIZE", "dtype": pl.Float64},
+        "na_filter_columns" : ["RNA_MEDIAN_INSERT_SIZE"],
+        "y_tick_step"       : 10,
+        "guideline"         : {
+            "table"        : "rna_guideline_table",
+            "sample_id"    : "LSL_Guideline",
+            "value_spec"   : {"operation": "cast", "column": "RNA_MEDIAN_INSERT_SIZE", "dtype": pl.Float64},
+            "python_cast"  : int,
+            "label_prefix" : "LSL_Guideline",
+            "ann_y_offset" : 0,
         },
-        "skip_if_empty"     : True,
     },
 
+
+    "RNA_PCT_CHIMERIC_READS": {
+
+        "localapp": {
+            "plot": True,
+            "index": 30
+        },
+        "dragen": {
+            "plot": True,
+            "index": 29
+        },
+
+        "plot_kind"         : "bar",
+        "source"            : "rna_data_table",
+        "requires_samples"  : "rna",
+        "x_var"             : "SAMPLE_ID",
+        "y_var"             : "RNA_PCT_CHIMERIC_READS",
+        "fill_var"          : "RUN",
+        "x_lab"             : "Sample ID",
+        "y_lab"             : "Percentage of chimeric reads",
+        "title"             : "[LocalApp RNA metric] Percentage of chimeric reads",
+        "value_spec"        : {"operation": "cast", "column": "RNA_PCT_CHIMERIC_READS", "dtype": pl.Float64},
+        "na_filter_columns" : ["RNA_PCT_CHIMERIC_READS"],
+    },
+
+
+    "RNA_PCT_ON_TARGET_READS": {
+
+        "localapp": {
+            "plot": True,
+            "index": 31
+        },
+        "dragen": {
+            "plot": True,
+            "index": 30
+        },
+
+        "plot_kind"         : "bar",
+        "source"            : "rna_data_table",
+        "requires_samples"  : "rna",
+        "x_var"             : "SAMPLE_ID",
+        "y_var"             : "RNA_PCT_ON_TARGET_READS",
+        "fill_var"          : "RUN",
+        "x_lab"             : "Sample ID",
+        "y_lab"             : "Percentage of on-target reads",
+        "title"             : "[LocalApp RNA metric] Percentage of on-target reads",
+        "value_spec"        : {"operation": "cast", "column": "RNA_PCT_ON_TARGET_READS", "dtype": pl.Float64},
+        "na_filter_columns" : ["RNA_PCT_ON_TARGET_READS"],
+        "cart_ylim"         : (0, 100),
+        "y_tick_step"       : 10,
+    },
+
+
+    "RNA_SCALED_MEDIAN_GENE_COVERAGE": {
+
+        "localapp": {
+            "plot": True,
+            "index": 32
+        },
+        "dragen": {
+            "plot": True,
+            "index": 33
+        },
+        
+        "plot_kind"         : "bar",
+        "source"            : "rna_data_table",
+        "requires_samples"  : "rna",
+        "x_var"             : "SAMPLE_ID",
+        "y_var"             : "RNA_SCALED_MEDIAN_GENE_COVERAGE",
+        "fill_var"          : "RUN",
+        "x_lab"             : "Sample ID",
+        "y_lab"             : "Scaled median gene coverage",
+        "title"             : "[LocalApp RNA metric] Scaled median gene coverage",
+        "value_spec"        : {"operation": "cast", "column": "RNA_SCALED_MEDIAN_GENE_COVERAGE", "dtype": pl.Float64},
+        "na_filter_columns" : ["RNA_SCALED_MEDIAN_GENE_COVERAGE"],
+    },
+
+
+    "RNA_TOTAL_ON_TARGET_READS_MILLIONS": {
+        
+        "localapp": {
+            "plot": True,
+            "index": 33
+        },
+        "dragen": {
+            "plot": True,
+            "index": 34
+        },
+
+        "plot_kind"         : "bar",
+        "source"            : "rna_data_table",
+        "requires_samples"  : "rna",
+        "x_var"             : "SAMPLE_ID",
+        "y_var"             : "RNA_TOTAL_ON_TARGET_READS_MILLIONS",
+        "fill_var"          : "RUN",
+        "x_lab"             : "Sample ID",
+        "y_lab"             : "On target reads (millions)",
+        "title"             : "[LocalApp core RNA metric] Total on-target reads in millions",
+        "value_spec"        : {
+            "operation" : "divide",
+            "column"    : "RNA_TOTAL_ON_TARGET_READS",
+            "dtype"     : pl.Float64,
+            "divisor"   : 1000000.0,
+        },
+        "na_filter_columns" : ["RNA_TOTAL_ON_TARGET_READS"],
+        "guideline"         : {
+            "table"        : "rna_guideline_table",
+            "sample_id"    : "LSL_Guideline",
+            "value_spec"   : {
+                "operation" : "divide",
+                "column"    : "RNA_TOTAL_ON_TARGET_READS",
+                "dtype"     : pl.Float64,
+                "divisor"   : 1000000.0,
+            },
+            "python_cast"  : int,
+            "label_prefix" : "LSL_Guideline",
+            "ann_y_offset" : 0,
+        },
+    },
+
+
+    "RNA_TOTAL_PF_READS_MILLIONS": {
+
+        "localapp": {
+            "plot": True,
+            "index": 34
+        },
+        "dragen": {
+            "plot": True,
+            "index": 35
+        },
+        
+        "plot_kind"         : "bar",
+        "source"            : "rna_data_table",
+        "requires_samples"  : "rna",
+        "x_var"             : "SAMPLE_ID",
+        "y_var"             : "RNA_TOTAL_PF_READS_MILLIONS",
+        "fill_var"          : "RUN",
+        "x_lab"             : "Sample ID",
+        "y_lab"             : "Total reads that pass quality filters (millions)",
+        "title"             : "[LocalApp RNA metric]  Total filter-passing reads in millions\n(the input is down-sampled to 30 million reads [not read pairs])",
+        "value_spec"        : {
+            "operation" : "divide",
+            "column"    : "RNA_TOTAL_PF_READS",
+            "dtype"     : pl.Float64,
+            "divisor"   : 1000000.0,
+        },
+        "na_filter_columns" : ["RNA_TOTAL_PF_READS"],
+    },
+
+
     "DNA_READS_MILLIONS_PER_FAMILY_SIZE": {
-        "plot_number"       : 22,
+
+       "localapp": {
+            "plot": True,
+            "index": 35
+        },
+        "dragen": {
+            "plot": True,
+            "index": 36
+        },
+
         "plot_kind"         : "bar",
         "source"            : "dna_data_table",
         "requires_samples"  : "dna",
@@ -574,263 +1493,62 @@ PLOT_SPECS = {
         "y_tick_step"       : 10,
     },
 
-    "DNA_PCT_ALIGNED_READS": {
-        "plot_number"       : 23,
-        "plot_kind"         : "bar",
-        "source"            : "dna_data_table",
-        "requires_samples"  : "dna",
-        "x_var"             : "SAMPLE_ID",
-        "y_var"             : "DNA_PCT_ALIGNED_READS",
-        "fill_var"          : "RUN",
-        "x_lab"             : "Sample ID",
-        "y_lab"             : "Percentage of aligned reads",
-        "title"             : "[LocalApp DNA metric] Percentage of aligned reads",
-        "value_spec"        : {"operation": "cast", "column": "DNA_PCT_ALIGNED_READS", "dtype": pl.Float64},
-        "na_filter_columns" : ["DNA_PCT_ALIGNED_READS"],
-        "cart_ylim"         : (0, 104),
-        "y_tick_step"       : 10,
-    },
 
-    "DNA_MEDIAN_TARGET_COVERAGE": {
-        "plot_number"       : 24,
-        "plot_kind"         : "bar",
-        "source"            : "dna_data_table",
-        "requires_samples"  : "dna",
-        "x_var"             : "SAMPLE_ID",
-        "y_var"             : "DNA_MEDIAN_TARGET_COVERAGE",
-        "fill_var"          : "RUN",
-        "x_lab"             : "Sample ID",
-        "y_lab"             : "Median target coverage",
-        "title"             : "[LocalApp DNA metric] Median target coverage",
-        "value_spec"        : {"operation": "cast", "column": "DNA_MEDIAN_TARGET_COVERAGE", "dtype": pl.Float64},
-        "na_filter_columns" : ["DNA_MEDIAN_TARGET_COVERAGE"],
-        "y_tick_step"       : 100,
-    },
+    "COMPLETED_ALL_STEPS_DNA": {
 
-    "DNA_PCT_EXON_100X": {
-        "plot_number"       : 25,
-        "plot_kind"         : "bar",
-        "source"            : "dna_data_table",
-        "requires_samples"  : "dna",
-        "x_var"             : "SAMPLE_ID",
-        "y_var"             : "DNA_PCT_EXON_100X",
-        "fill_var"          : "RUN",
-        "x_lab"             : "Sample ID",
-        "y_lab"             : "Percentage of exons at 100X coverage",
-        "title"             : "[LocalApp DNA metric] Percentage of exons at 100X coverage",
-        "value_spec"        : {"operation": "cast", "column": "DNA_PCT_EXON_100X", "dtype": pl.Float64},
-        "na_filter_columns" : ["DNA_PCT_EXON_100X"],
-        "cart_ylim"         : (0, 104),
-        "y_tick_step"       : 10,
-    },
-
-    "DNA_PCT_TARGET_100X": {
-        "plot_number"       : 26,
-        "plot_kind"         : "bar",
-        "source"            : "dna_data_table",
-        "requires_samples"  : "dna",
-        "x_var"             : "SAMPLE_ID",
-        "y_var"             : "DNA_PCT_TARGET_100X",
-        "fill_var"          : "RUN",
-        "x_lab"             : "Sample ID",
-        "y_lab"             : "Percentage of target at 100X coverage",
-        "title"             : "[LocalApp DNA metric] Percentage of target at 100X coverage",
-        "value_spec"        : {"operation": "cast", "column": "DNA_PCT_TARGET_100X", "dtype": pl.Float64},
-        "na_filter_columns" : ["DNA_PCT_TARGET_100X"],
-        "cart_ylim"         : (0, 104),
-        "y_tick_step"       : 10,
-    },
-
-    "DNA_PCT_TARGET_250X": {
-        "plot_number"       : 27,
-        "plot_kind"         : "bar",
-        "source"            : "dna_data_table",
-        "requires_samples"  : "dna",
-        "x_var"             : "SAMPLE_ID",
-        "y_var"             : "DNA_PCT_TARGET_250X",
-        "fill_var"          : "RUN",
-        "x_lab"             : "Sample ID",
-        "y_lab"             : "Percentage of target at 250X coverage",
-        "title"             : "[LocalApp DNA metric] Percentage of target at 250X coverage",
-        "value_spec"        : {"operation": "cast", "column": "DNA_PCT_TARGET_250X", "dtype": pl.Float64},
-        "na_filter_columns" : ["DNA_PCT_TARGET_250X"],
-        "cart_ylim"         : (0, 104),
-        "y_tick_step"       : 10,
-    },
-
-    "DNA_PCT_TARGET_0_4X_MEAN": {
-        "plot_number"       : 28,
-        "plot_kind"         : "bar",
-        "source"            : "dna_data_table",
-        "requires_samples"  : "dna",
-        "x_var"             : "SAMPLE_ID",
-        "y_var"             : "DNA_PCT_TARGET_0_4X_MEAN",
-        "fill_var"          : "RUN",
-        "x_lab"             : "Sample ID",
-        "y_lab"             : "Percentage of target at 0.4 * mean coverage",
-        "title"             : "[LocalApp DNA metric] Percentage of target at 0.4 * mean coverage",
-        "value_spec"        : {"operation": "cast", "column": "DNA_PCT_TARGET_0_4X_MEAN", "dtype": pl.Float64},
-        "na_filter_columns" : ["DNA_PCT_TARGET_0_4X_MEAN"],
-        "cart_ylim"         : (0, 104),
-        "y_tick_step"       : 10,
-    },
-
-    "DNA_PCT_PF_UQ_READS": {
-        "plot_number"       : 29,
-        "plot_kind"         : "bar",
-        "source"            : "dna_data_table",
-        "requires_samples"  : "dna",
-        "x_var"             : "SAMPLE_ID",
-        "y_var"             : "DNA_PCT_PF_UQ_READS",
-        "fill_var"          : "RUN",
-        "x_lab"             : "Sample ID",
-        "y_lab"             : "Percentage of UQ reads passing filters",
-        "title"             : "[LocalApp DNA metric] Percentage of UQ reads passing filters",
-        "value_spec"        : {"operation": "cast", "column": "DNA_PCT_PF_UQ_READS", "dtype": pl.Float64},
-        "na_filter_columns" : ["DNA_PCT_PF_UQ_READS"],
-        "cart_ylim"         : (0, 104),
-        "y_tick_step"       : 10,
-    },
-
-    "DNA_PCT_READ_ENRICHMENT": {
-        "plot_number"       : 30,
-        "plot_kind"         : "bar",
-        "source"            : "dna_data_table",
-        "requires_samples"  : "dna",
-        "x_var"             : "SAMPLE_ID",
-        "y_var"             : "DNA_PCT_READ_ENRICHMENT",
-        "fill_var"          : "RUN",
-        "x_lab"             : "Sample ID",
-        "y_lab"             : "Read enrichment (percent)",
-        "title"             : "[LocalApp DNA metric] Read enrichment",
-        "value_spec"        : {"operation": "cast", "column": "DNA_PCT_READ_ENRICHMENT", "dtype": pl.Float64},
-        "na_filter_columns" : ["DNA_PCT_READ_ENRICHMENT"],
-        "cart_ylim"         : (0, 104),
-        "y_tick_step"       : 10,
-    },
-
-    "DNA_PCT_CONTAMINATION_EST": {
-        "plot_number"       : 31,
-        "plot_kind"         : "bar",
-        "source"            : "dna_data_table",
-        "requires_samples"  : "dna",
-        "x_var"             : "SAMPLE_ID",
-        "y_var"             : "DNA_PCT_CONTAMINATION_EST",
-        "fill_var"          : "RUN",
-        "x_lab"             : "Sample ID",
-        "y_lab"             : "Contamination estimate (percent)",
-        "title"             : "[LocalApp DNA metric] Contamination estimate",
-        "value_spec"        : {"operation": "cast", "column": "DNA_PCT_CONTAMINATION_EST", "dtype": pl.Float64},
-        "na_filter_columns" : ["DNA_PCT_CONTAMINATION_EST"],
-        "cart_ylim"         : (0, 104),
-        "y_tick_step"       : 10,
-        "overlay_labels"    : {
-            "label_column" : "DNA_PCT_CONTAMINATION_EST",
-            "angle"        : 90,
-            "va"           : "center",
-            "ha"           : "right",
-            "nudge_y"      : 10,
-            "nudge_x"      : 0.5,
-            "size"         : 9,
+       "localapp": {
+            "plot": True,
+            "index": 36
         },
-    },
-
-    "DNA_PCT_USABLE_UMI_READS": {
-        "plot_number"       : 32,
-        "plot_kind"         : "bar",
-        "source"            : "dna_data_table",
-        "requires_samples"  : "dna",
-        "x_var"             : "SAMPLE_ID",
-        "y_var"             : "DNA_PCT_USABLE_UMI_READS",
-        "fill_var"          : "RUN",
-        "x_lab"             : "Sample ID",
-        "y_lab"             : "Usable UMI reads (percent)",
-        "title"             : "[LocalApp DNA metric] Usable UMI reads",
-        "value_spec"        : {"operation": "cast", "column": "DNA_PCT_USABLE_UMI_READS", "dtype": pl.Float64},
-        "na_filter_columns" : ["DNA_PCT_USABLE_UMI_READS"],
-        "cart_ylim"         : (0, 104),
-        "y_tick_step"       : 10,
-    },
-
-    "DNA_PCT_CHIMERIC_READS": {
-        "plot_number"       : 33,
-        "plot_kind"         : "bar",
-        "source"            : "dna_data_table",
-        "requires_samples"  : "dna",
-        "x_var"             : "SAMPLE_ID",
-        "y_var"             : "DNA_PCT_CHIMERIC_READS",
-        "fill_var"          : "RUN",
-        "x_lab"             : "Sample ID",
-        "y_lab"             : "Percentage of chimeric reads",
-        "title"             : "[LocalApp DNA metric] Percentage of chimeric reads",
-        "value_spec"        : {"operation": "cast", "column": "DNA_PCT_CHIMERIC_READS", "dtype": pl.Float64},
-        "na_filter_columns" : ["DNA_PCT_CHIMERIC_READS"],
-    },
-
-    "RNA_PCT_CHIMERIC_READS": {
-        "plot_number"       : 34,
-        "plot_kind"         : "bar",
-        "source"            : "rna_data_table",
-        "requires_samples"  : "rna",
-        "x_var"             : "SAMPLE_ID",
-        "y_var"             : "RNA_PCT_CHIMERIC_READS",
-        "fill_var"          : "RUN",
-        "x_lab"             : "Sample ID",
-        "y_lab"             : "Percentage of chimeric reads",
-        "title"             : "[LocalApp RNA metric] Percentage of chimeric reads",
-        "value_spec"        : {"operation": "cast", "column": "RNA_PCT_CHIMERIC_READS", "dtype": pl.Float64},
-        "na_filter_columns" : ["RNA_PCT_CHIMERIC_READS"],
-    },
-
-    "RNA_TOTAL_PF_READS_MILLIONS": {
-        "plot_number"       : 35,
-        "plot_kind"         : "bar",
-        "source"            : "rna_data_table",
-        "requires_samples"  : "rna",
-        "x_var"             : "SAMPLE_ID",
-        "y_var"             : "RNA_TOTAL_PF_READS_MILLIONS",
-        "fill_var"          : "RUN",
-        "x_lab"             : "Sample ID",
-        "y_lab"             : "Total reads that pass quality filters (millions)",
-        "title"             : "[LocalApp RNA metric]  Total filter-passing reads in millions\n(the input is down-sampled to 30 million reads [not read pairs])",
-        "value_spec"        : {
-            "operation" : "divide",
-            "column"    : "RNA_TOTAL_PF_READS",
-            "dtype"     : pl.Float64,
-            "divisor"   : 1000000.0,
+        "dragen": {
+            "plot": True,
+            "index": 37
         },
-        "na_filter_columns" : ["RNA_TOTAL_PF_READS"],
+
+        "plot_kind"         : "bar",
+        "source"            : "dna_data_table",
+        "requires_samples"  : "dna",
+        "x_var"             : "SAMPLE_ID",
+        "y_var"             : "COMPLETED_ALL_STEPS",
+        "fill_var"          : "RUN",
+        "x_lab"             : "Sample ID",
+        "y_lab"             : "Pipeline completion",
+        "title"             : "[InPreD core DNA metric] Pipeline completion",
+        "value_spec"        : {"operation": "cast", "column": "COMPLETED_ALL_STEPS"},
+        "na_filter_columns" : ["COMPLETED_ALL_STEPS"],
+        "filters"           : [{"column": "SAMPLE_ID", "contains": r"-D0\d-"}],
     },
 
-    "RNA_PCT_ON_TARGET_READS": {
-        "plot_number"       : 36,
+    "COMPLETED_ALL_STEPS_RNA": {
+       "localapp": {
+            "plot": True,
+            "index": 37
+        },
+        "dragen": {
+            "plot": True,
+            "index": 38
+        },
+
         "plot_kind"         : "bar",
         "source"            : "rna_data_table",
         "requires_samples"  : "rna",
         "x_var"             : "SAMPLE_ID",
-        "y_var"             : "RNA_PCT_ON_TARGET_READS",
+        "y_var"             : "COMPLETED_ALL_STEPS",
         "fill_var"          : "RUN",
         "x_lab"             : "Sample ID",
-        "y_lab"             : "Percentage of on-target reads",
-        "title"             : "[LocalApp RNA metric] Percentage of on-target reads",
-        "value_spec"        : {"operation": "cast", "column": "RNA_PCT_ON_TARGET_READS", "dtype": pl.Float64},
-        "na_filter_columns" : ["RNA_PCT_ON_TARGET_READS"],
-        "cart_ylim"         : (0, 100),
-        "y_tick_step"       : 10,
+        "y_lab"             : "Pipeline completion",
+        "title"             : "[InPreD core RNA metric] Pipeline completion",
+        "value_spec"        : {"operation": "cast", "column": "COMPLETED_ALL_STEPS"},
+        "na_filter_columns" : ["COMPLETED_ALL_STEPS"],
+        "filters"           : [{"column": "SAMPLE_ID", "contains": r"-R0\d-"}],
     },
 
-    "RNA_SCALED_MEDIAN_GENE_COVERAGE": {
-        "plot_number"       : 37,
-        "plot_kind"         : "bar",
-        "source"            : "rna_data_table",
-        "requires_samples"  : "rna",
-        "x_var"             : "SAMPLE_ID",
-        "y_var"             : "RNA_SCALED_MEDIAN_GENE_COVERAGE",
-        "fill_var"          : "RUN",
-        "x_lab"             : "Sample ID",
-        "y_lab"             : "Scaled median gene coverage",
-        "title"             : "[LocalApp RNA metric] Scaled median gene coverage",
-        "value_spec"        : {"operation": "cast", "column": "RNA_SCALED_MEDIAN_GENE_COVERAGE", "dtype": pl.Float64},
-        "na_filter_columns" : ["RNA_SCALED_MEDIAN_GENE_COVERAGE"],
-    },
 }
+
+
+
+
+
+
+
+
