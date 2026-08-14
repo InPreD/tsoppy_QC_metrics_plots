@@ -3,63 +3,27 @@
 # ========================================================= #
 RUN_ID=250822_A02134_0101_BHYFHLDRX5
 
+# Configuration variables
+RUN_COUNTS="1R 2R 5R 10R"
+WORKFLOWS="LocalApp Dragen"
 
-# ================= #
-# Example 1 : 1 run #
-# ================= #
-RESULTS_DIR_python=results_python/TSO500_1R
-mkdir -p ${RESULTS_DIR_python}
-echo "; Running plot_QC_metrics: 1 run"
-uv run plot_QC_metrics.py --joint_QC data/merged_workflow_tables/joint_sequencing_QC_file_1R.tsv  \
-                          --output ${RESULTS_DIR_python}                                          \
-                          --metrics_table data/merged_workflow_tables/master_metrics_table_1R.tsv \
-                          --run_id ${RUN_ID}     
-
-
-# ================== #
-# Example 2 : 2 runs #
-# ================== #
-RESULTS_DIR_python=results_python/TSO500_2R
-mkdir -p ${RESULTS_DIR_python}
-echo "; Running plot_QC_metrics: 2 runs"
-uv run plot_QC_metrics.py --joint_QC data/merged_workflow_tables/joint_sequencing_QC_file_2R.tsv  \
-                          --output ${RESULTS_DIR_python}                                          \
-                          --metrics_table data/merged_workflow_tables/master_metrics_table_2R.tsv \
-                          --run_id ${RUN_ID}                                                      ;
-
-
-# ================== #
-# Example 3 : 5 runs #
-# ================== #
-RESULTS_DIR_python=results_python/TSO500_5R
-mkdir -p ${RESULTS_DIR_python}
-echo "; Running plot_QC_metrics: 5 runs"
-uv run plot_QC_metrics.py --joint_QC data/merged_workflow_tables/joint_sequencing_QC_file_5R.tsv  \
-                          --output ${RESULTS_DIR_python}                                          \
-                          --metrics_table data/merged_workflow_tables/master_metrics_table_5R.tsv \
-                          --run_id ${RUN_ID}                                                      ;
+# ======================================== #
+# Process all run counts: 1R, 2R, 5R, 10R #
+# ======================================== #
+for RUN_COUNT in ${RUN_COUNTS}; do
+    RESULTS_DIR=results_python/TSO500_${RUN_COUNT}
+    mkdir -p ${RESULTS_DIR}
+    
+    for WORKFLOW in ${WORKFLOWS}; do
+        RESULTS_FILE=${RESULTS_DIR}/TSO500_${RUN_COUNT}_${WORKFLOW}_metric_plots.pdf
+        
+        echo "; Running plot_QC_metrics: ${RUN_COUNT} run(s) (${WORKFLOW})"
+        uv run plot_QC_metrics.py --joint_QC      data/merged_workflow_tables/joint_sequencing_QC_file_${RUN_COUNT}.tsv \
+                                  --output_pdf    ${RESULTS_FILE}                                                       \
+                                  --metrics_table data/merged_workflow_tables/master_metrics_table_${RUN_COUNT}.tsv     \
+                                  --run_id        ${RUN_ID}                                                             \
+                                  --workflow_type ${WORKFLOW}                                                           ;
+    done
+done
 
 
-# =================== #
-# Example 4 : 10 runs #
-# =================== #
-RESULTS_DIR_python=results_python/TSO500_10R
-mkdir -p ${RESULTS_DIR_python}
-echo "; Running plot_QC_metrics: 10 runs"
-uv run plot_QC_metrics.py --joint_QC data/merged_workflow_tables/joint_sequencing_QC_file_10R.tsv  \
-                          --output ${RESULTS_DIR_python}                                          \
-                          --metrics_table data/merged_workflow_tables/master_metrics_table_10R.tsv \
-                          --run_id ${RUN_ID}       
-
-
-
-# ======================================= #
-# Restore the original plot_specs.py file #
-# ======================================= #
-cp specs/plot_specs_minimal.py specs/plot_specs.py
-
-# TSVs="${METRICS} ${METRICS_PREV1}"
-# RUNIDS="${RUN_ID} ${RUN_ID_PREV1}"
-
-# uv run plot_run_metrics.py D 2 ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joint_sequencing_QC_file.tsv ${RESULTS_DIR_python}/TSO500_run_metrics.pdf ${METRIC_PLOTS_DIR}/intermediate_metrics_files/master_metrics_table.tsv ${RUN_ID} False ${TSVs} ${RUNIDS}
-# uv run plot_run_metrics.py D 2 ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joint_sequencing_QC_file.tsv ${RESULTS_DIR_python}/TSO500_run_metrics.pdf ${METRIC_PLOTS_DIR}/intermediate_metrics_files/master_metrics_table.tsv ${RUN_ID} True ${TSVs} ${RUNIDS}
