@@ -26,6 +26,7 @@ from plotnine import *
 # PLOTS_SPECS is a dictionary containing the specifications for each plot to be generated
 # including the type of plot, the data source, and various parameters for rendering.
 from plots import AXIS_LINE_COLOR, TABLEAU_20, plot_contamination_scatter, plot_tsoppy_barplot
+from specs.plot_specs_workflows import PLOT_SPECS
 
 
 logger = logging.getLogger(__name__)
@@ -35,7 +36,7 @@ ANGLE_X_NAMES = 90
 
 
 # Minimum required fields per plot_kind, used by validate_plot_specs().
-_REQUIRED_COMMON_FIELDS  = {"plot_number", "plot_kind", "source", "title"}
+_REQUIRED_COMMON_FIELDS  = {"plot_kind", "source", "title"}
 _REQUIRED_FIELDS_BY_KIND = {
     "bar"                      : {"x_var", "y_var", "fill_var", "x_lab", "y_lab", "value_spec"},
     "cluster_density_scatter"  : set(),
@@ -45,27 +46,89 @@ _REQUIRED_FIELDS_BY_KIND = {
 SUPPORTED_WORKFLOW = ["Dragen", "LocalApp"]
 
 
+_REQUIRED_WORKFLOW_KEYS = {"plot", "index"}
+_SUPPORTED_WORKFLOW_KEYS = {w.lower() for w in SUPPORTED_WORKFLOW}
+
+
 def validate_plot_specs(plot_specs: dict) -> None:
     """
     Validate that every entry in PLOT_SPECS contains the minimal required fields.
 
     Checks:
-      - Common fields present in every spec (plot_number, plot_kind, source, title).
+      - Workflow routing sub-dicts ("localapp", "dragen") are present and well-formed:
+          - Both keys must be present.
+          - "plot" must be a bool.
+          - "index" must be a non-negative integer.
+      - Common fields present in every spec (plot_kind, source, title).
       - plot_kind is one of the supported renderer keys.
       - Kind-specific required fields are present for the given plot_kind.
+      - No duplicate indexes within each workflow.
 
-    All missing fields are collected and reported together per spec.
+    All structural errors are collected and reported together per spec.
 
     Raises:
-        KeyError: Listing all offending specs and their missing fields.
+        KeyError: For duplicate indexes or other structural validation errors.
     """
     valid_kinds = set(_REQUIRED_FIELDS_BY_KIND)
-    errors = []
+    structural_errors = []
 
+    # === Phase 1: Check for duplicate indexes per workflow ===
+    for wf_key in _SUPPORTED_WORKFLOW_KEYS:
+        seen_indexes = {}
+        for spec_name, spec in plot_specs.items():
+            if wf_key in spec:
+                wf_entry = spec[wf_key]
+                if isinstance(wf_entry, dict) and "index" in wf_entry:
+                    idx = wf_entry["index"]
+                    # Only check for duplicates among indexes >= 1 (0 means plot is not relevant)
+                    if idx >= 1:
+                        if idx in seen_indexes:
+                            error_msg = (
+                                f"Workflow '{wf_key}': Duplicate index {idx} found in specs "
+                                f"'{seen_indexes[idx]}' and '{spec_name}'"
+                            )
+                            structural_errors.append(error_msg)
+                            logger.error(error_msg)
+                        else:
+                            seen_indexes[idx] = spec_name
+
+    # Raise early if duplicate indexes found
+    if structural_errors:
+        raise KeyError(f"Found {len(structural_errors)} duplicate index error(s):\n\n" + "\n\n".join(structural_errors))
+
+    # === Phase 2: Existing structural validation ===
     for spec_name, spec in plot_specs.items():
+        spec_errors = []
+
+        # --- Validate workflow routing sub-dicts ---
+        for wf_key in _SUPPORTED_WORKFLOW_KEYS:
+            if wf_key not in spec:
+                spec_errors.append(f"  Missing workflow routing key: '{wf_key}'")
+                continue
+
+            wf_entry = spec[wf_key]
+            missing_wf_fields = _REQUIRED_WORKFLOW_KEYS - set(wf_entry)
+            if missing_wf_fields:
+                spec_errors.append(
+                    f"  Workflow '{wf_key}' is missing fields: {', '.join(sorted(missing_wf_fields))}"
+                )
+                continue
+
+            if not isinstance(wf_entry["plot"], bool):
+                spec_errors.append(
+                    f"  Workflow '{wf_key}': 'plot' must be a bool, "
+                    f"got {type(wf_entry['plot']).__name__!r}"
+                )
+            if not isinstance(wf_entry["index"], int) or wf_entry["index"] < 0:
+                spec_errors.append(
+                    f"  Workflow '{wf_key}': 'index' must be a non-negative integer, "
+                    f"got {wf_entry['index']!r}"
+                )
+
+        # --- Validate common plot fields ---
         spec_keys = set(spec)
         required_fields = _REQUIRED_COMMON_FIELDS.copy()
-        
+
         # Check if plot_kind exists and is valid, then add kind-specific fields to requirements
         plot_kind_error = None
         if "plot_kind" in spec_keys:
@@ -76,31 +139,24 @@ def validate_plot_specs(plot_specs: dict) -> None:
                 # Invalid plot_kind: log it but continue to collect all missing fields
                 valid_kinds_str = ", ".join(sorted(valid_kinds))
                 plot_kind_error = (
-                    f"plot_kind '{plot_kind}' is not recognized. "
+                    f"  plot_kind '{plot_kind}' is not recognized. "
                     f"Valid plot types: {valid_kinds_str}"
                 )
-        
-        # Collect all missing fields
+
         missing_fields = required_fields - spec_keys
-        
-        # Report errors if any
-        if missing_fields or plot_kind_error:
-            error_parts = [f"Error in '{spec_name}':"]
-            
-            if plot_kind_error:
-                error_parts.append(f"  {plot_kind_error}")
-            
-            if missing_fields:
-                missing_list = ", ".join(sorted(missing_fields))
-                error_parts.append(f"  Missing fields: {missing_list}")
-            
-            error_msg = "\n".join(error_parts)
-            errors.append(error_msg)
+        if plot_kind_error:
+            spec_errors.append(plot_kind_error)
+        if missing_fields:
+            spec_errors.append(f"  Missing fields: {', '.join(sorted(missing_fields))}")
+
+        if spec_errors:
+            error_msg = f"Error in '{spec_name}':\n" + "\n".join(spec_errors)
+            structural_errors.append(error_msg)
             logger.error(error_msg)
 
-    if errors:
-        error_summary = "\n\n".join(errors)
-        raise KeyError(f"Found {len(errors)} validation error(s) in specs:\n\n{error_summary}")
+    if structural_errors:
+        error_summary = "\n\n".join(structural_errors)
+        raise KeyError(f"Found {len(structural_errors)} validation error(s) in specs:\n\n{error_summary}")
 
 
 def parse_args(argv):
@@ -109,20 +165,22 @@ def parse_args(argv):
 
     The script expects a precomputed joint QC table and a precomputed
     merged metrics table, both supplied explicitly on the command line.
-    The output_folder is created if it does not exist.
+    The parent directory of output_pdf is created if it does not exist.
     """
     parser = argparse.ArgumentParser(description="Generate TSO500 QC plots from precomputed metrics tables")
-    parser.add_argument("--joint_QC", required=True, dest="joint_qc_file")
+    parser.add_argument("--joint_QC",      required=True, dest="joint_qc_file")
     parser.add_argument("--metrics_table", required=True, dest="metrics_table")
-    parser.add_argument("--run_id", required=True, dest="highlighted_run_id")
-    parser.add_argument("--output_folder", required=True, dest="output_folder")
+    parser.add_argument("--run_id",        required=True, dest="highlighted_run_id")
+    parser.add_argument("--output_pdf",    required=True, dest="output_pdf")
+    parser.add_argument("--workflow_type", required=True, dest="workflow_type", choices=[w.lower() for w in SUPPORTED_WORKFLOW], type=str.lower, help=f"Workflow type to plot. Supported values: {', '.join(SUPPORTED_WORKFLOW)}",)
     args = parser.parse_args(argv)
 
     return {
         "joint_qc_file"      : args.joint_qc_file,
-        "output_folder"      : args.output_folder,
+        "output_pdf"         : args.output_pdf,
         "metrics_table"      : args.metrics_table,
         "highlighted_run_id" : args.highlighted_run_id,
+        "workflow_type"      : args.workflow_type,
     }
 
 
@@ -534,10 +592,10 @@ def main():
     print("; Reading input arguments")
     parsed_args = parse_args(args)
 
-    # Create output folder if it doesn't exist
-    output_folder = Path(parsed_args["output_folder"])
-    output_folder.mkdir(parents=True, exist_ok=True)
-    print(f"; Output folder: {output_folder}")
+    workflow     = parsed_args["workflow_type"]   # already lowercased by argparse
+    output_pdf   = Path(parsed_args["output_pdf"])
+    output_pdf.parent.mkdir(parents=True, exist_ok=True)
+
 
     # ------------------------------ #
     # Read the supplied input tables #
@@ -548,69 +606,66 @@ def main():
     print("; Reading master metrics table")
     merged_tables  = pl.read_csv(parsed_args["metrics_table"], separator="\t")
 
-    # We iterate over two workflows (Dragen and LocalApp) to generate separate PDFs for each workflow, using the same joint QC and merged metrics tables.
-    for workflow in SUPPORTED_WORKFLOW:
+    # Validate the plot specifications to ensure that all required fields are present for each plot kind.
+    validate_plot_specs(PLOT_SPECS)
 
-        # Validate the plot specifications
-        if workflow == "Dragen":
-            from specs.plot_specs_Dragen import PLOT_SPECS
-        elif workflow == "LocalApp":
-            from specs.plot_specs_LocalApp import PLOT_SPECS
-        validate_plot_specs(PLOT_SPECS)
+    print(f"; Generating plots for workflow: {workflow}")
 
-        print(f"; Generating plots for workflow: {workflow}")
-        output_pdf = output_folder / f"TSO500_{workflow}_run_metrics.pdf"
+    # Prepare the tables in a format used for plotting:
+    #   - Filtering for the specified workflow
+    #   - Separating DNA and RNA samples
+    #   - Adding columns for highlighted runs and labels.
+    tables = build_tables(
+        joint_qc_table     = joint_qc_table,
+        merged_tables      = merged_tables,
+        highlighted_run_id = parsed_args["highlighted_run_id"],
+        workflow           = workflow,
+    )
 
+    print("; Creating the metrics plots")
+    if tables["dna_sample_count"] == 0:
+        print("; No DNA samples included in the plotted runs")
+    if tables["rna_sample_count"] == 0:
+        print("; No RNA samples included in the plotted runs")
 
-        # Prepare the tables in a format using for plotting
-        # This includes:
-        #   - Filtering for the specified workflow
-        #   - Separating DNA and RNA samples
-        #   - Adding columns for highlighted runs and labels.
-        tables = build_tables(joint_qc_table     = joint_qc_table,
-                              merged_tables      = merged_tables,
-                              highlighted_run_id = parsed_args["highlighted_run_id"],
-                              workflow           = workflow,
-        )
-
-        print("; Creating the metrics plots")
-        if tables["dna_sample_count"] == 0:
-            print("; No DNA samples included in the plotted runs")
-        if tables["rna_sample_count"] == 0:
-            print("; No RNA samples included in the plotted runs")
+    # -------------------- #
+    # Plot metrics section #
+    # -------------------- #
+    # Plots are sorted by the workflow-specific index, which replaces the old plot_number field.
+    # Only specs where spec[workflow]["plot"] is True are rendered for the requested workflow.
+    with PdfPages(output_pdf) as pdf_handle:
 
 
+        # Select only the plot specifications that are relevant for the requested workflow and have plotting enabled.
+        eligible_specs = [
+            (spec_name, spec)
+            for spec_name, spec in PLOT_SPECS.items()
+            if spec.get(workflow, {}).get("plot", False)
+        ]
 
-        # -------------------- #
-        # Plot metrics section #
-        # -------------------- #
-        # The plots are created in the order of the plot specifications, which is determined by the "plot_number" field in the specifications.
-        # This allows to control the order of the plots in the output PDF by adjusting the plot numbers in the plot_specs.py file.
-        # The plotting functions are designed to be flexible and driven by the specifications, so that new plots can be added by simply adding new entries to the plot_specs.py file without needing to change the plotting code.
-        with PdfPages(output_pdf) as pdf_handle:
 
-            # spec_name and spec are the key and value of each entry in the PLOT_SPECS dictionary defined in plot_specs.py
-            for spec_name, spec in sorted(PLOT_SPECS.items(), key=lambda item: item[1]["plot_number"]):
+        # Sort the eligible plots by their workflow-specific index
+        # Dtermine the order in which they will be rendered in the PDF.
+        for spec_name, spec in sorted(eligible_specs, key=lambda item: item[1][workflow]["index"]):
 
-                print(f"; Rendering plot {spec_name} (plot number {spec['plot_number']})")
+            print(f"; Rendering plot {spec_name} (index {spec[workflow]['index']})")
 
-                # Check if the plot requires DNA or RNA samples and skip if the corresponding sample count is zero
-                # This allows to automatically skip DNA-specific plots if no DNA samples are included in the runs, and similarly for RNA-specific plots, without needing to adjust the plot specifications.
-                requires_samples = spec.get("requires_samples")
-                if requires_samples == "dna" and tables["dna_sample_count"] == 0:
-                    continue
-                if requires_samples == "rna" and tables["rna_sample_count"] == 0:
-                    continue
+            # Skip DNA/RNA-specific plots when no samples of that type are present.
+            requires_samples = spec.get("requires_samples")
+            if requires_samples == "dna" and tables["dna_sample_count"] == 0:
+                continue
+            if requires_samples == "rna" and tables["rna_sample_count"] == 0:
+                continue
 
-                # This is the main call to render each plot
-                # It dispatches to the appropriate rendering function based on the "plot_kind" field in the plot specification.
-                # Plot kinds:
-                #   - "bar" for bar plots
-                #   - "cluster_density_scatter" for the 'cluster density vs. estimated yield' scatter plot
-                #   - "contamination_scatter" for the 'DNA contamination score vs. p-value' scatter plot
-                render_plot(pdf_handle, spec_name, spec, tables)
+            # This is the main call to render each plot
+            # It dispatches to the appropriate rendering function based on the "plot_kind" field in the plot specification.
+            # Plot kinds:
+            #   - "bar" for bar plots
+            #   - "cluster_density_scatter" for the 'cluster density vs. estimated yield' scatter plot
+            #   - "contamination_scatter" for the 'DNA contamination score vs. p-value' scatter plot
+            render_plot(pdf_handle, spec_name, spec, tables)
 
-        print("; Plots saved to PDF")
+    print(f"; Plots saved to PDF: {output_pdf}")
 
 
 if __name__ == "__main__":
