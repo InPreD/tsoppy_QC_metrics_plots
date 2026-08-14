@@ -122,14 +122,14 @@ BT20-D01-C01-X06     TRUE                 ...
 
 ## Supported workflows
 
-Both workflows share the same rendering engine (`plot_run_metrics.py` and `plots.py`), differing only in which metrics are plotted and how thresholds are defined. The active workflow is determined by the plot specifications defined in `specs/plot_specs.py`.
+Both workflows share the same rendering engine (`plot_QC_metrics.py` and `plots.py`), differing only in which metrics are plotted and how thresholds are defined. The active workflow is selected via the `--workflow_type` CLI argument.
 
-| Workflow | Specs module | Typical use |
-|----------|--------------|-------------|
-| LocalApp | `src/plot_specs_LocalApp.py` | Illumina LocalApp pipeline output |
-| DRAGEN | `src/plot_specs_Dragen.py` | Illumina DRAGEN pipeline output |
+| Workflow | CLI value | Typical use |
+|----------|-----------|-------------|
+| LocalApp | `localapp` | Illumina LocalApp pipeline output |
+| DRAGEN | `dragen` | Illumina DRAGEN pipeline output |
 
-The active specs are stored directly in `specs/plot_specs.py` as the `PLOT_SPECS` dictionary—a single, workflow-agnostic file that contains only what needs to be plotted and how each panel is configured.
+The plot specifications are defined in `specs/plot_specs_workflows.py` as the `PLOT_SPECS` dictionary. Each plot entry contains workflow-specific routing keys (`localapp`, `dragen`) that control whether the plot is generated for each workflow and in what position.
 
 <br>
 
@@ -138,138 +138,94 @@ The active specs are stored directly in `specs/plot_specs.py` as the `PLOT_SPECS
 ## Project structure
 
 ```
-plot_run_metrics.py        # Entry point: argument parsing, table merging, plot dispatch
+plot_QC_metrics.py         # Entry point: CLI argument parsing, table loading, plot dispatch
 plots.py                   # Reusable plotnine rendering functions
 plot_run_metrics.R         # Original R implementation (used as reference)
 specs/
     __init__.py            # Marks specs/ as a Python package
-    plot_specs.py          # Active specs dictionary (single source of truth, workflow-agnostic)
+    plot_specs_workflows.py # Active specs dictionary (unified for all workflows with routing)
     plot_specs_Dragen.py   # Plot specifications template for DRAGEN workflow (reference)
     plot_specs_LocalApp.py # Plot specifications template for LocalApp workflow (reference)
-example_command.bash       # Local run example with variable setup
+example_command.bash       # Local run example with loop over all run counts
 pyproject.toml             # Project metadata and dependencies
 .github/workflows/
     run_metrics_plot.yml   # CI workflow (uv + ubuntu-latest)
 ```
 
-**Design principle:** Rendering logic lives in `plots.py`; what to plot and how to configure each panel is declared in `specs/plot_specs.py`—a single, workflow-agnostic specification file. To switch workflows, replace the contents of `specs/plot_specs.py` with the appropriate specs from `plot_specs_<Workflow>.py` (reference templates). This approach eliminates dynamic imports and makes the active configuration explicit and easy to audit.
+**Design principle:** Rendering logic lives in `plots.py`; what to plot and how to configure each panel is declared in `specs/plot_specs_workflows.py`—a unified specification file with workflow-specific routing. Each plot entry contains workflow-specific sub-dictionaries (`localapp`, `dragen`) that control whether the plot is generated for each workflow and at what position (index).
 
-**Color palette:** Uses [Tableau 10 palette](https://www.tableau.com/blog/colors-upgrade-tableau-10-56782), for consistent visual distinction across up to 10 runs. If you forsee the case of need more colors, adapt the variable defined in `plots.py`.
-<br>
+**Color palette:** Uses [Tableau 10 palette](https://www.tableau.com/blog/colors-upgrade-tableau-10-56782) for consistent visual distinction across up to 10 runs. If you foresee needing more colors, adapt the variable defined in `plots.py`.
 
 <br>
 
 ## Usage
 
-```
-uv run plot_run_metrics.py <N>                                                 \
-    <joint_qc_file.tsv>                                                        \
-    <output.pdf>                                                               \
-    <master_metrics_table.tsv>                                                 \
-    <highlighted_run_id>                                                       \
-    <create_plots>                                                             \
-    <run1_metrics.tsv> [<run2_metrics.tsv> ... <runN_metrics.tsv>]            \
-    <run1_id>          [<run2_id>          ... <runN_id>]                     ;
+```bash
+uv run plot_QC_metrics.py --joint_QC <joint_qc_file.tsv>             \
+                          --output_pdf <output.pdf>                  \
+                          --metrics_table <master_metrics_table.tsv> \
+                          --run_id <highlighted_run_id>              \
+                          --workflow_type <workflow>                 ;
 ```
 
 <br>
 
-| Position | Argument | Description |
-|----------|----------|-------------|
-| 1 | `N` | Number of runs to include |
-| 2 | `joint_qc_file` | Path to `joint_sequencing_QC_file.tsv` |
-| 3 | `output_pdf` | Output PDF path |
-| 4 | `master_metrics_table` | Output path for the merged metrics TSV |
-| 5 | `highlighted_run_id` | Run ID to highlight in all plots |
-| 6 | `create_plots` | `True` to produce the PDF; `False` to only write the merged TSV |
-| 7 to 6+N | `*_metrics.tsv` files | One per run, in order |
-| 7+N to 6+2N | run labels | One per run, matching the metrics file order |
+| Argument | Description |
+|----------|-------------|
+| `--joint_QC` | Path to `joint_sequencing_QC_file.tsv` (required) |
+| `--output_pdf` | Output PDF file path (required); parent directory is created if needed |
+| `--metrics_table` | Path to merged metrics TSV file (required) |
+| `--run_id` | Run ID to highlight in all plots (required) |
+| `--workflow_type` | Active workflow: `localapp` or `dragen` (required, case-insensitive) |
 
-The active workflow (LocalApp or DRAGEN) is controlled by the import in `specs/plot_specs.py`, not by a command-line argument.
-
-<br>
+The script reads the merged metrics table, loads the plot specifications, filters plots based on the selected workflow, and writes a multi-page PDF to the specified output path.
 
 <br>
 
 ## Running locally
 
-The script must be called **twice**: once with `create_plots=False` to write the merged TSV, and once with `create_plots=True` to produce the PDF. This allows inspecting the merged data independently of the plot generation step.
-
-### LocalApp workflow
+### Quick start: Single run count with both workflows
 
 ```bash
 RUN_ID=251211_NB552811_0117_AHTJM2BGYX
-TSOPPI_DIR=data/LocalApp/TSO500_postprocessing
-METRIC_PLOTS_DIR=${TSOPPI_DIR}/${RUN_ID}/${RUN_ID}_metrics_plots
-RESULTS_DIR=results_python/LocalApp/${RUN_ID}
-METRICS=${METRIC_PLOTS_DIR}/intermediate_metrics_files/${RUN_ID}_metrics.tsv
-
-# Add one block per historical run to include
-RUN_ID_PREV1=251210_NB552811_0117_AHTJM2BGYX
-METRICS_PREV1=${METRIC_PLOTS_DIR}/intermediate_metrics_files/${RUN_ID_PREV1}_metrics.tsv
-
-# Aggregate all TSVs and run IDs into space-separated strings
-TSVs="${METRICS} ${METRICS_PREV1}"
-RUNIDS="${RUN_ID} ${RUN_ID_PREV1}"
-
+RESULTS_DIR=results_python/LocalApp/${RUN_ID}/1R
 mkdir -p ${RESULTS_DIR}
 
-# Step 1: merge metrics tables (no PDF)
-uv run plot_run_metrics.py 2                                                     \
-    ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joint_sequencing_QC_file.tsv \
-    ${RESULTS_DIR}/TSO500_run_metrics.pdf                                       \
-    ${METRIC_PLOTS_DIR}/intermediate_metrics_files/master_metrics_table.tsv     \
-    ${RUN_ID} False                                                             \
-    ${METRIC_PLOTS_DIR}/intermediate_metrics_files/${RUN_ID}_metrics.tsv        \
-    ${METRIC_PLOTS_DIR}/intermediate_metrics_files/${RUN_ID_PREV1}_metrics.tsv  \
-    ${RUN_ID} ${RUN_ID_PREV1}                                                   ;
+# Run with LocalApp workflow
+uv run plot_QC_metrics.py --joint_QC data/merged_workflow_tables/joint_sequencing_QC_file_1R.tsv \
+                          --output_pdf ${RESULTS_DIR}/1R_LocalApp_metric_plots.pdf \
+                          --metrics_table data/merged_workflow_tables/master_metrics_table_1R.tsv \
+                          --run_id ${RUN_ID} \
+                          --workflow_type localapp ;
 
-# Step 2: generate PDF
-uv run plot_run_metrics.py 2                                                     \
-    ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joint_sequencing_QC_file.tsv \
-    ${RESULTS_DIR}/TSO500_run_metrics.pdf                                       \
-    ${METRIC_PLOTS_DIR}/intermediate_metrics_files/master_metrics_table.tsv     \
-    ${RUN_ID} True                                                              \
-    ${METRIC_PLOTS_DIR}/intermediate_metrics_files/${RUN_ID}_metrics.tsv        \
-    ${METRIC_PLOTS_DIR}/intermediate_metrics_files/${RUN_ID_PREV1}_metrics.tsv  \
-    ${RUN_ID} ${RUN_ID_PREV1}                                                   ;
+# Run with Dragen workflow
+uv run plot_QC_metrics.py --joint_QC data/merged_workflow_tables/joint_sequencing_QC_file_1R.tsv \
+                          --output_pdf ${RESULTS_DIR}/1R_Dragen_metric_plots.pdf \
+                          --metrics_table data/merged_workflow_tables/master_metrics_table_1R.tsv \
+                          --run_id ${RUN_ID} \
+                          --workflow_type dragen ;
 ```
 
-### DRAGEN workflow
+<br>
+
+### Batch run: Multiple run counts with loop
+
+A fully parameterized example that runs all combinations of run counts (1R, 2R, 5R, 10R) with both workflows is provided in [example_command.bash](example_command.bash):
 
 ```bash
-RUN_ID=250822_A02134_0101_BHYFHLDRX5
-TSOPPI_DIR=data/DRAGEN/TSO500_postprocessing
-METRIC_PLOTS_DIR=${TSOPPI_DIR}/${RUN_ID}/${RUN_ID}_metrics_plots
-RESULTS_DIR=results_python/DRAGEN/${RUN_ID}
-METRICS=${METRIC_PLOTS_DIR}/intermediate_metrics_files/${RUN_ID}_metrics.tsv
+# Review the loop structure
+cat example_command.bash
 
-# Add one block per historical run to include
-RUN_ID_PREV1=250627_A02134_0093_BHYHNYDRX5
-METRICS_PREV1=${METRIC_PLOTS_DIR}/intermediate_metrics_files/${RUN_ID_PREV1}_metrics.tsv
-
-# Aggregate all TSVs and run IDs into space-separated strings
-TSVs="${METRICS} ${METRICS_PREV1}"
-RUNIDS="${RUN_ID} ${RUN_ID_PREV1}"
-
-mkdir -p ${RESULTS_DIR}
-
-# Step 1: merge metrics tables (no PDF)
-uv run plot_run_metrics.py 2                                                     \
-    ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joint_sequencing_QC_file.tsv \
-    ${RESULTS_DIR}/TSO500_run_metrics.pdf                                       \
-    ${METRIC_PLOTS_DIR}/intermediate_metrics_files/master_metrics_table.tsv     \
-    ${RUN_ID} False ${TSVs} ${RUNIDS}                                           ;
-
-# Step 2: generate PDF
-uv run plot_run_metrics.py 2                                                     \
-    ${METRIC_PLOTS_DIR}/intermediate_metrics_files/joint_sequencing_QC_file.tsv \
-    ${RESULTS_DIR}/TSO500_run_metrics.pdf                                       \
-    ${METRIC_PLOTS_DIR}/intermediate_metrics_files/master_metrics_table.tsv     \
-    ${RUN_ID} True ${TSVs} ${RUNIDS}                                            ;
+# Execute all runs
+bash example_command.bash
 ```
 
-A fully parameterised example with up to 10 historical runs for both workflows is available in [example_command.bash](example_command.bash).
+The script uses:
+- `RUN_COUNTS="1R 2R 5R 10R"` — Run count options
+- `WORKFLOWS="LocalApp Dragen"` — Workflow options
+- Nested loops to generate all combinations
+- Organized results directory structure: `results_python/TSO500_${RUN_COUNT}/`
+- Separate PDF for each workflow: `*_LocalApp_metric_plots.pdf`, `*_Dragen_metric_plots.pdf`
 
 <br>
 
@@ -277,7 +233,11 @@ A fully parameterised example with up to 10 historical runs for both workflows i
 
 ## Adding new plots
 
-All plot definitions live in workflow-specific specs files (`plot_specs_LocalApp.py` or `plot_specs_Dragen.py`) as entries in the `PLOT_SPECS` dictionary. Each entry maps a metric name to a specification that controls which table to query, what columns to use, axis labels, optional guidelines, and overlay annotations. No changes to `plot_run_metrics.py` or `plots.py` are needed unless a genuinely new plot kind is required.
+All plot definitions live in `specs/plot_specs_workflows.py` as entries in the `PLOT_SPECS` dictionary. Each entry maps a metric name to a specification that controls:
+- Which workflows display the plot and at what position (workflow routing via `localapp` and `dragen` sub-dicts)
+- Which table to query, what columns to use, axis labels, optional guidelines, and overlay annotations
+
+No changes to `plot_QC_metrics.py` or `plots.py` are needed unless a genuinely new plot kind is required.
 
 The three patterns in use are shown below.
 
@@ -289,7 +249,15 @@ The simplest case: cast one column to float and plot it as a bar chart.
 
 ```python
 "CLUSTERS_PASSING_FILTER": {
-    "plot_number"      : 1,                  # Position in the output PDF
+    "localapp": {
+        "plot": True,   # Include this plot for LocalApp
+        "index": 1      # First plot in LocalApp PDF
+    },
+    "dragen": {
+        "plot": False,  # Skip this plot for Dragen
+        "index": 0      # Index 0 means not relevant
+    },
+    
     "plot_kind"        : "bar",              # Plot type
     "source"           : "joint_qc_table",   # table key returned by build_tables()
     "requires_samples" : None,               # Do not display DNA/RNA labels
@@ -313,7 +281,15 @@ Adds a horizontal reference line read directly from the guideline rows in the in
 
 ```python
 "DNA_MEDIAN_EXON_COVERAGE": {
-    "plot_number"      : 8,
+    "localapp": {
+        "plot": True,
+        "index": 8
+    },
+    "dragen": {
+        "plot": False,
+        "index": 0
+    },
+    
     "plot_kind"        : "bar",
     "source"           : "dna_data_table",       # Pre-filtered to DNA samples only
     "requires_samples" : "dna",                  # Panel is skipped when no DNA samples are present
@@ -345,7 +321,15 @@ Used for the DNA contamination score vs. p-value panel. The rendering function (
 
 ```python
 "DNA_CONTAMINATION_P_VALUE_BY_RUN": {
-    "plot_number"  : 6,
+    "localapp": {
+        "plot": True,
+        "index": 6
+    },
+    "dragen": {
+        "plot": False,
+        "index": 0
+    },
+    
     "plot_kind"    : "contamination_scatter",
     "source"       : "dna_data_table",
     "requires_samples": "dna",
@@ -358,30 +342,36 @@ Used for the DNA contamination score vs. p-value panel. The rendering function (
 
 <br>
 
+### Workflow routing reference
+
+The workflow routing sub-dicts control plot visibility and ordering:
+
+```python
+"localapp": {
+    "plot": bool,     # True = include in LocalApp PDF, False = skip
+    "index": int      # Plot position in PDF (1-based); 0 = not relevant for this workflow
+},
+"dragen": {
+    "plot": bool,     # True = include in Dragen PDF, False = skip
+    "index": int      # Plot position in PDF (1-based); 0 = not relevant for this workflow
+}
+```
+
+**Important:** Index 0 is treated as "not relevant for this workflow" and is ignored during duplicate checking. Multiple plots can have index 0 for the same workflow without error. Indexes >= 1 must be unique within each workflow.
+
+<br>
+
 ### Adding a new bar plot
 
 1. Choose a key name matching the metric column.
-2. Copy Pattern 1 or 2 as a starting point and adjust `source`, `value_spec`, axis labels, and `plot_number`.
+2. Copy Pattern 1 or 2 as a starting point and adjust `source`, `value_spec`, axis labels, and workflow routing `index` values.
 3. Set `requires_samples` to `"dna"` or `"rna"` if the metric only exists for one library type.
 4. Add a `guideline` block if a QC threshold should be drawn as a horizontal line.
+5. For each workflow, set `plot` to `True` or `False` and assign a unique `index` >= 1 (or 0 if not relevant).
 
 ### Adding a new plot kind
 
-If none of the three existing `plot_kind` values fits, add a `render_<kind>` function in `plot_run_metrics.py` and a corresponding dispatch branch in `render_plot()`. Register the new kind in `_REQUIRED_FIELDS_BY_KIND`. The new kind is then available to any entry in `PLOT_SPECS`.
-
-### Switching the active workflow
-
-During a temporary transition period (e.g., when moving from LocalApp to DRAGEN), replace the contents of `specs/plot_specs.py` with the appropriate specifications:
-
-```bash
-# Switch from LocalApp to DRAGEN:
-cp plot_specs_Dragen.py specs/plot_specs.py
-
-# Switch back to LocalApp:
-cp plot_specs_LocalApp.py specs/plot_specs.py
-```
-
-After the transition is complete and the active workflow is stable, keep only the finalized `specs/plot_specs.py` in use. The root-level `plot_specs_<Workflow>.py` files remain as reference templates for documentation and future migrations.
+If none of the three existing `plot_kind` values fits, add a `render_<kind>` function in `plot_QC_metrics.py` and a corresponding dispatch branch in `render_plot()`. Register the new kind in `_REQUIRED_FIELDS_BY_KIND`. The new kind is then available to any entry in `PLOT_SPECS`.
 
 <br>
 
