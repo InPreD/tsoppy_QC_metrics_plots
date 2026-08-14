@@ -82,7 +82,8 @@ class TestValidatePlotSpecs:
         pytest.param(
             {
                 "TEST_PLOT": {
-                    "plot_number" : 1,
+                    "localapp" : {"plot": True,  "index": 1},
+                    "dragen"   : {"plot": False, "index": 0},
                     "plot_kind"   : "bar",
                     "source"      : "joint_qc_table",
                     "title"       : "Test Plot",
@@ -99,7 +100,8 @@ class TestValidatePlotSpecs:
         pytest.param(
             {
                 "SCATTER_PLOT": {
-                    "plot_number" : 2,
+                    "localapp" : {"plot": True,  "index": 2},
+                    "dragen"   : {"plot": False, "index": 0},
                     "plot_kind"   : "cluster_density_scatter",
                     "source"      : "joint_qc_table",
                     "title"       : "Scatter Test",
@@ -110,7 +112,8 @@ class TestValidatePlotSpecs:
         pytest.param(
             {
                 "CONTAMINATION": {
-                    "plot_number" : 3,
+                    "localapp" : {"plot": True,  "index": 3},
+                    "dragen"   : {"plot": False, "index": 0},
                     "plot_kind"   : "contamination_scatter",
                     "source"      : "dna_data_table",
                     "title"       : "Contamination Plot",
@@ -130,7 +133,8 @@ class TestValidatePlotSpecs:
         pytest.param(
             {
                 "BAD_PLOT": {
-                    "plot_number": 1,
+                    "localapp" : {"plot": True,  "index": 1},
+                    "dragen"   : {"plot": False, "index": 0},
                     # Missing: plot_kind, source, title
                 }
             },
@@ -140,7 +144,8 @@ class TestValidatePlotSpecs:
         pytest.param(
             {
                 "BAD_PLOT": {
-                    "plot_number" : 1,
+                    "localapp" : {"plot": True,  "index": 1},
+                    "dragen"   : {"plot": False, "index": 0},
                     "plot_kind"   : "unknown_kind",
                     "source"      : "joint_qc_table",
                     "title"       : "Test",
@@ -152,7 +157,8 @@ class TestValidatePlotSpecs:
         pytest.param(
             {
                 "BAD_BAR": {
-                    "plot_number" : 1,
+                    "localapp" : {"plot": True,  "index": 1},
+                    "dragen"   : {"plot": False, "index": 0},
                     "plot_kind"   : "bar",
                     "source"      : "joint_qc_table",
                     "title"       : "Test",
@@ -165,7 +171,8 @@ class TestValidatePlotSpecs:
         pytest.param(
             {
                 "BAD_CONTAMINATION": {
-                    "plot_number" : 1,
+                    "localapp" : {"plot": True,  "index": 1},
+                    "dragen"   : {"plot": False, "index": 0},
                     "plot_kind"   : "contamination_scatter",
                     "source"      : "dna_data_table",
                     "title"       : "Test",
@@ -179,7 +186,8 @@ class TestValidatePlotSpecs:
             {
                 "SPEC_1": {},
                 "SPEC_2": {
-                    "plot_number" : 2,
+                    "localapp" : {"plot": True,  "index": 2},
+                    "dragen"   : {"plot": False, "index": 0},
                     "plot_kind"   : "nonexistent_kind",
                     "source"      : "table",
                     "title"       : "Test",
@@ -187,6 +195,70 @@ class TestValidatePlotSpecs:
             },
             "2 validation error",
             id="multiple_errors_accumulation",
+        ),
+        pytest.param(
+            {
+                "MISSING_WORKFLOW_KEY": {
+                    # Missing dragen entirely
+                    "localapp" : {"plot": True,  "index": 1},
+                    "plot_kind"   : "bar",
+                    "source"      : "joint_qc_table",
+                    "title"       : "Test",
+                    "x_var": "X", "y_var": "Y", "fill_var": "F",
+                    "x_lab": "X", "y_lab": "Y",
+                    "value_spec": {"operation": "cast", "column": "X"},
+                }
+            },
+            "Missing workflow routing key",
+            id="missing_workflow_key",
+        ),
+        pytest.param(
+            {
+                "INVALID_PLOT_TYPE": {
+                    "localapp" : {"plot": "yes", "index": 1},  # plot must be bool
+                    "dragen"   : {"plot": False, "index": 0},
+                    "plot_kind"   : "bar",
+                    "source"      : "joint_qc_table",
+                    "title"       : "Test",
+                    "x_var": "X", "y_var": "Y", "fill_var": "F",
+                    "x_lab": "X", "y_lab": "Y",
+                    "value_spec": {"operation": "cast", "column": "X"},
+                }
+            },
+            "'plot' must be a bool",
+            id="invalid_plot_type",
+        ),
+        pytest.param(
+            {
+                "NEGATIVE_INDEX": {
+                    "localapp" : {"plot": True, "index": -1},  # index must be >= 0
+                    "dragen"   : {"plot": False, "index": 0},
+                    "plot_kind"   : "bar",
+                    "source"      : "joint_qc_table",
+                    "title"       : "Test",
+                    "x_var": "X", "y_var": "Y", "fill_var": "F",
+                    "x_lab": "X", "y_lab": "Y",
+                    "value_spec": {"operation": "cast", "column": "X"},
+                }
+            },
+            "'index' must be a non-negative integer",
+            id="negative_index",
+        ),
+        pytest.param(
+            {
+                "FLOAT_INDEX": {
+                    "localapp" : {"plot": True, "index": 1.5},  # index must be int
+                    "dragen"   : {"plot": False, "index": 0},
+                    "plot_kind"   : "bar",
+                    "source"      : "joint_qc_table",
+                    "title"       : "Test",
+                    "x_var": "X", "y_var": "Y", "fill_var": "F",
+                    "x_lab": "X", "y_lab": "Y",
+                    "value_spec": {"operation": "cast", "column": "X"},
+                }
+            },
+            "'index' must be a non-negative integer",
+            id="float_index",
         ),
     ])
     def test_invalid_specs_raise_key_error(self, specs, expected_match):
@@ -203,14 +275,16 @@ class TestValidatePlotSpecs:
         """
         invalid_specs = {
             "PLOT_A": {
-                "plot_number": 1,
+                "localapp" : {"plot": True,  "index": 1},
+                "dragen"   : {"plot": False, "index": 0},
                 # Missing: plot_kind, source, title
             },
             "PLOT_B": {
-                "plot_number": 2,
-                "plot_kind": "bar",
-                "source": "joint_qc_table",
-                "title": "Test",
+                "localapp" : {"plot": True,  "index": 2},
+                "dragen"   : {"plot": False, "index": 1},  # Changed from 0 to 1 to avoid duplicate
+                "plot_kind" : "bar",
+                "source"    : "joint_qc_table",
+                "title"     : "Test",
                 # Missing bar-specific fields
             }
         }
@@ -218,18 +292,78 @@ class TestValidatePlotSpecs:
         with pytest.raises(KeyError):
             validate_plot_specs(invalid_specs)
         
-        # Verify logger.error was called for each error
         assert mock_logger.error.call_count == 2
         
-        # Check that the first call matches the missing common fields error
         first_call_args = mock_logger.error.call_args_list[0][0][0]
         assert "PLOT_A" in first_call_args
         assert "Missing fields:" in first_call_args
         
-        # Check that the second call matches the missing bar fields error
         second_call_args = mock_logger.error.call_args_list[1][0][0]
         assert "PLOT_B" in second_call_args
         assert "Missing fields:" in second_call_args
+
+
+    def test_duplicate_indexes_raise_error(self):
+        """
+        Duplicate indexes within the same workflow should raise KeyError.
+        """
+        specs = {
+            "PLOT_1": {
+                "localapp" : {"plot": True,  "index": 1},
+                "dragen"   : {"plot": False, "index": 0},
+                "plot_kind"   : "bar",
+                "source"      : "joint_qc_table",
+                "title"       : "Plot 1",
+                "x_var": "X", "y_var": "Y", "fill_var": "F",
+                "x_lab": "X", "y_lab": "Y",
+                "value_spec": {"operation": "cast", "column": "X"},
+            },
+            "PLOT_2": {
+                "localapp" : {"plot": True,  "index": 1},  # Duplicate index for localapp
+                "dragen"   : {"plot": False, "index": 0},
+                "plot_kind"   : "bar",
+                "source"      : "joint_qc_table",
+                "title"       : "Plot 2",
+                "x_var": "X", "y_var": "Y", "fill_var": "F",
+                "x_lab": "X", "y_lab": "Y",
+                "value_spec": {"operation": "cast", "column": "X"},
+            },
+        }
+
+        with pytest.raises(KeyError, match="Duplicate index"):
+            validate_plot_specs(specs)
+
+
+    def test_multiple_index_zeros_do_not_raise_error(self):
+        """
+        Multiple plots with index 0 (not relevant) should NOT raise a duplicate index error.
+        Index 0 means the plot is not relevant for that workflow and should be ignored.
+        """
+        specs = {
+            "PLOT_1": {
+                "localapp" : {"plot": False, "index": 0},  # Not relevant for localapp
+                "dragen"   : {"plot": True,  "index": 1},
+                "plot_kind"   : "bar",
+                "source"      : "joint_qc_table",
+                "title"       : "Plot 1",
+                "x_var": "X", "y_var": "Y", "fill_var": "F",
+                "x_lab": "X", "y_lab": "Y",
+                "value_spec": {"operation": "cast", "column": "X"},
+            },
+            "PLOT_2": {
+                "localapp" : {"plot": False, "index": 0},  # Also not relevant for localapp
+                "dragen"   : {"plot": True,  "index": 2},
+                "plot_kind"   : "bar",
+                "source"      : "joint_qc_table",
+                "title"       : "Plot 2",
+                "x_var": "X", "y_var": "Y", "fill_var": "F",
+                "x_lab": "X", "y_lab": "Y",
+                "value_spec": {"operation": "cast", "column": "X"},
+            },
+        }
+
+        # Should not raise an error since multiple 0s are allowed
+        validate_plot_specs(specs)  # Passes without raising
 
 
 class TestParseArgs:
@@ -240,16 +374,18 @@ class TestParseArgs:
         [
             pytest.param(
                 [
-                    "--joint_QC",      "joint_qc.tsv",
-                    "--output_folder", "output",
-                    "--metrics_table", "merged.tsv",
-                    "--run_id",        "RUN_001",
+                    "--joint_QC",       "joint_qc.tsv",
+                    "--output_pdf",     "output/run.pdf",
+                    "--metrics_table",  "merged.tsv",
+                    "--run_id",         "RUN_001",
+                    "--workflow_type",  "localapp",
                 ],
                 {
                     "joint_qc_file"      : "joint_qc.tsv",
-                    "output_folder"      : "output",
+                    "output_pdf"         : "output/run.pdf",
                     "metrics_table"      : "merged.tsv",
                     "highlighted_run_id" : "RUN_001",
+                    "workflow_type"      : "localapp",
                 },
                 id="minimal_valid_case",
             ),
@@ -268,16 +404,30 @@ class TestParseArgs:
         This ensures that Path objects are not altered during parsing.
         """
         argv = [
-            "--joint_QC",      "path/to/joint_qc.tsv",
-            "--output_folder", "output/results",
-            "--metrics_table", "output/merged.tsv",
-            "--run_id",        "RUN_highlighted",
+            "--joint_QC",       "path/to/joint_qc.tsv",
+            "--output_pdf",     "output/results/run.pdf",
+            "--metrics_table",  "output/merged.tsv",
+            "--run_id",         "RUN_highlighted",
+            "--workflow_type",  "dragen",
         ]
         result = parse_args(argv)
 
         assert result["joint_qc_file"] == "path/to/joint_qc.tsv"
-        assert result["output_folder"] == "output/results"
+        assert result["output_pdf"]    == "output/results/run.pdf"
         assert result["metrics_table"] == "output/merged.tsv"
+
+
+    def test_parse_args_workflow_type_is_case_insensitive(self):
+        """--workflow_type should accept mixed-case values and normalise to lowercase."""
+        argv = [
+            "--joint_QC",       "joint_qc.tsv",
+            "--output_pdf",     "run.pdf",
+            "--metrics_table",  "merged.tsv",
+            "--run_id",         "RUN_001",
+            "--workflow_type",  "LocalApp",
+        ]
+        result = parse_args(argv)
+        assert result["workflow_type"] == "localapp"
 
 
     @pytest.mark.parametrize(
@@ -285,40 +435,63 @@ class TestParseArgs:
         [
             pytest.param(
                 [
-                    "--output_folder", "output",
-                    "--metrics_table", "merged.tsv",
-                    "--run_id",        "RUN_001",
+                    "--output_pdf",     "run.pdf",
+                    "--metrics_table",  "merged.tsv",
+                    "--run_id",         "RUN_001",
+                    "--workflow_type",  "localapp",
                 ],
                 id="missing_joint_qc",
             ),
             pytest.param(
                 [
-                    "--joint_QC",      "joint_qc.tsv",
-                    "--metrics_table", "merged.tsv",
-                    "--run_id",        "RUN_001",
+                    "--joint_QC",       "joint_qc.tsv",
+                    "--metrics_table",  "merged.tsv",
+                    "--run_id",         "RUN_001",
+                    "--workflow_type",  "localapp",
                 ],
-                id="missing_output_folder",
+                id="missing_output_pdf",
             ),
             pytest.param(
                 [
-                    "--joint_QC",      "joint_qc.tsv",
-                    "--output_folder", "output",
-                    "--run_id",        "RUN_001",
+                    "--joint_QC",       "joint_qc.tsv",
+                    "--output_pdf",     "run.pdf",
+                    "--run_id",         "RUN_001",
+                    "--workflow_type",  "localapp",
                 ],
                 id="missing_metrics_table",
             ),
             pytest.param(
                 [
-                    "--joint_QC",      "joint_qc.tsv",
-                    "--output_folder", "output",
-                    "--metrics_table", "merged.tsv",
+                    "--joint_QC",       "joint_qc.tsv",
+                    "--output_pdf",     "run.pdf",
+                    "--metrics_table",  "merged.tsv",
+                    "--workflow_type",  "localapp",
                 ],
                 id="missing_run_id",
+            ),
+            pytest.param(
+                [
+                    "--joint_QC",       "joint_qc.tsv",
+                    "--output_pdf",     "run.pdf",
+                    "--metrics_table",  "merged.tsv",
+                    "--run_id",         "RUN_001",
+                ],
+                id="missing_workflow_type",
+            ),
+            pytest.param(
+                [
+                    "--joint_QC",       "joint_qc.tsv",
+                    "--output_pdf",     "run.pdf",
+                    "--metrics_table",  "merged.tsv",
+                    "--run_id",         "RUN_001",
+                    "--workflow_type",  "unsupported_workflow",
+                ],
+                id="invalid_workflow_type",
             ),
         ],
     )
     def test_parse_args_missing_required_raises(self, argv):
-        """Missing required CLI arguments should raise SystemExit from argparse."""
+        """Missing or invalid required CLI arguments should raise SystemExit from argparse."""
         with pytest.raises(SystemExit):
             parse_args(argv)
 
