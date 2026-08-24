@@ -813,8 +813,8 @@ PLOT_SPECS = {
         "guideline"         : {
             "table"        : "dna_guideline_table",
             "sample_id"    : "LSL_Guideline",
-            "value_spec"   : {"operation": "cast", "column": "DNA_MEDIAN_BIN_COUNT_CNV_TARGET", "dtype": pl.Int32},
-            "python_cast"  : int,
+            "value_spec"   : {"operation": "cast", "column": "DNA_MEDIAN_BIN_COUNT_CNV_TARGET", "dtype": pl.Float64},
+            "python_cast"  : float,
             "label_prefix" : "LSL_Guideline",
             "ann_y_offset" : 1,
         },
@@ -847,8 +847,8 @@ PLOT_SPECS = {
         "guideline"         : {
             "table"        : "dna_guideline_table",
             "sample_id"    : "LSL_Guideline",
-            "value_spec"   : {"operation": "cast", "column": "DNA_MEDIAN_EXON_COVERAGE", "dtype": pl.Int32},
-            "python_cast"  : int,
+            "value_spec"   : {"operation": "cast", "column": "DNA_MEDIAN_EXON_COVERAGE", "dtype": pl.Float64},
+            "python_cast"  : float,
             "label_prefix" : "LSL_Guideline",
             "ann_y_offset" : 200,
         },
