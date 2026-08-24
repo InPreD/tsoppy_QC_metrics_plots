@@ -27,10 +27,10 @@ def get_data_root() -> Path:
     Resolve the data directory path relative to the repository root.
     
     Returns:
-        Path to data/merged_workflow_tables/
+        Path to data/workflow_tables/
     """
     current_dir = Path(__file__).parent.parent  # Go up from tests/ to repo root
-    data_root = current_dir / "data" / "merged_workflow_tables"
+    data_root = current_dir / "data" / "workflow_tables"
     return data_root
 
 
@@ -41,13 +41,14 @@ def get_data_root() -> Path:
 @pytest.fixture(scope="session")
 def merged_workflow_tables_path() -> Path:
     """
-    Path to the directory containing merged workflow TSV files.
+    Path to the directory containing workflow-specific TSV files.
     
-    These are pre-merged TSO500 metrics from the repository's data/ folder.
+    These are pre-merged TSO500 metrics from the repository's data/ folder,
+    organized by workflow (LocalApp, Dragen).
     Session scope: loaded once per test session for performance.
     
     Returns:
-        Path to merged_workflow_tables directory
+        Path to workflow_tables directory
     """
     return get_data_root()
 
@@ -55,7 +56,7 @@ def merged_workflow_tables_path() -> Path:
 @pytest.fixture(scope="session")
 def single_run_metrics(merged_workflow_tables_path) -> pl.DataFrame:
     """
-    Load merged workflow metrics table.
+    Load merged workflow metrics table (LocalApp workflow).
     
     Real TSO500 data containing both DNA and RNA metrics for multiple samples.
     Includes guideline rows (LSL_Guideline, USL_Guideline) and sample rows.
@@ -68,7 +69,7 @@ def single_run_metrics(merged_workflow_tables_path) -> pl.DataFrame:
     Returns:
         Polars DataFrame with all rows and columns from merged metrics
     """
-    metric_file = merged_workflow_tables_path / "master_metrics_table_2R.tsv"
+    metric_file = merged_workflow_tables_path / "localapp_plot_metrics_table.tsv"
     df = pl.read_csv(metric_file, separator="\t", infer_schema_length=0)
     return df
 
@@ -135,7 +136,7 @@ def guideline_rows(single_run_metrics) -> pl.DataFrame:
 @pytest.fixture(scope="session")
 def joint_qc_data(merged_workflow_tables_path) -> pl.DataFrame:
     """
-    Load joint sequencing QC data (run-level metrics).
+    Load joint sequencing QC data (run-level metrics) for LocalApp workflow.
     
     Contains sequencer run statistics: PCT_PF_READS, CLUSTER_DENSITY, ESTIMATED_YIELD, etc.
     One row per run, used for cross-run comparison plots.
@@ -147,7 +148,7 @@ def joint_qc_data(merged_workflow_tables_path) -> pl.DataFrame:
     Returns:
         Polars DataFrame with run-level metrics
     """
-    qc_file = merged_workflow_tables_path / "joint_sequencing_QC_file_2R.tsv"
+    qc_file = merged_workflow_tables_path / "localapp_plot_joint_sequencing_QC_file.tsv"
     df = pl.read_csv(qc_file, separator="\t", infer_schema_length=0)
     return df
 
@@ -155,7 +156,7 @@ def joint_qc_data(merged_workflow_tables_path) -> pl.DataFrame:
 @pytest.fixture(scope="session")
 def master_metrics_table(merged_workflow_tables_path) -> pl.DataFrame:
     """
-    Load pre-merged metrics table (all runs combined).
+    Load pre-merged metrics table (LocalApp workflow).
     
     This is the output of merge_metric_tables(): concatenated metrics from
     multiple runs with WORKFLOW_TYPE column added for identification.
@@ -164,7 +165,7 @@ def master_metrics_table(merged_workflow_tables_path) -> pl.DataFrame:
     Returns:
         Polars DataFrame with merged metrics from multiple runs
     """
-    master_file = merged_workflow_tables_path / "master_metrics_table_2R.tsv"
+    master_file = merged_workflow_tables_path / "localapp_plot_metrics_table.tsv"
     df = pl.read_csv(master_file, separator="\t", infer_schema_length=0)
     return df
 

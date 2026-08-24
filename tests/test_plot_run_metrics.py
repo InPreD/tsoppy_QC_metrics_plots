@@ -30,6 +30,8 @@ from plot_QC_metrics import (
     render_contamination_scatter,
     render_plot,
     save_plot,
+    load_input_tables,
+    filter_most_recent_runs,
 )
 from plots import plot_tsoppy_barplot, plot_contamination_scatter
 import matplotlib.pyplot as plt
@@ -41,28 +43,42 @@ import matplotlib.pyplot as plt
 
 @pytest.fixture(scope="session")
 def merged_workflow_tables_path() -> Path:
-    """Path to real merged workflow tables used by build_tables tests."""
-    return Path(__file__).parent.parent / "data" / "merged_workflow_tables"
+    """Path to real workflow tables used by build_tables tests."""
+    return Path(__file__).parent.parent / "data" / "workflow_tables"
 
 
 @pytest.fixture(scope="session")
 def joint_qc_data_2r(merged_workflow_tables_path) -> pl.DataFrame:
-    """Real joint QC table from merged_workflow_tables fixture set."""
-    return pl.read_csv(
-        merged_workflow_tables_path / "joint_sequencing_QC_file_2R.tsv",
+    """Real joint QC table from workflow_tables fixture set (combined LocalApp + Dragen)."""
+    localapp_df = pl.read_csv(
+        merged_workflow_tables_path / "localapp_plot_joint_sequencing_QC_file.tsv",
         separator="\t",
         infer_schema_length=0,
     )
+    dragen_df = pl.read_csv(
+        merged_workflow_tables_path / "dragen_plot_joint_sequencing_QC_file.tsv",
+        separator="\t",
+        infer_schema_length=0,
+    )
+    # Combine both workflows' data (LocalApp + Dragen)
+    return pl.concat([localapp_df, dragen_df])
 
 
 @pytest.fixture(scope="session")
 def master_metrics_table_2r(merged_workflow_tables_path) -> pl.DataFrame:
-    """Real merged metrics table from merged_workflow_tables fixture set."""
-    return pl.read_csv(
-        merged_workflow_tables_path / "master_metrics_table_2R.tsv",
+    """Real merged metrics table from workflow_tables fixture set (combined LocalApp + Dragen)."""
+    localapp_df = pl.read_csv(
+        merged_workflow_tables_path / "localapp_plot_metrics_table.tsv",
         separator="\t",
         infer_schema_length=0,
     )
+    dragen_df = pl.read_csv(
+        merged_workflow_tables_path / "dragen_plot_metrics_table.tsv",
+        separator="\t",
+        infer_schema_length=0,
+    )
+    # Combine both workflows' data (LocalApp + Dragen)
+    return pl.concat([localapp_df, dragen_df])
 
 
 # ------------------------------------ #
@@ -386,8 +402,28 @@ class TestParseArgs:
                     "metrics_table"      : "merged.tsv",
                     "highlighted_run_id" : "RUN_001",
                     "workflow_type"      : "localapp",
+                    "max_runs"           : 10,
                 },
                 id="minimal_valid_case",
+            ),
+            pytest.param(
+                [
+                    "--joint_QC",       "joint_qc.tsv",
+                    "--output_pdf",     "output/run.pdf",
+                    "--metrics_table",  "merged.tsv",
+                    "--run_id",         "RUN_001",
+                    "--workflow_type",  "localapp",
+                    "--max_runs",       "5",
+                ],
+                {
+                    "joint_qc_file"      : "joint_qc.tsv",
+                    "output_pdf"         : "output/run.pdf",
+                    "metrics_table"      : "merged.tsv",
+                    "highlighted_run_id" : "RUN_001",
+                    "workflow_type"      : "localapp",
+                    "max_runs"           : 5,
+                },
+                id="with_custom_max_runs",
             ),
         ],
     )
@@ -428,6 +464,42 @@ class TestParseArgs:
         ]
         result = parse_args(argv)
         assert result["workflow_type"] == "localapp"
+
+
+    def test_parse_args_max_runs_defaults_to_10(self):
+        """--max_runs should default to 10 when not supplied."""
+        argv = [
+            "--joint_QC",       "joint_qc.tsv",
+            "--output_pdf",     "run.pdf",
+            "--metrics_table",  "merged.tsv",
+            "--run_id",         "RUN_001",
+            "--workflow_type",  "localapp",
+        ]
+        result = parse_args(argv)
+        assert result["max_runs"] == 10
+
+
+    @pytest.mark.parametrize(
+        "max_runs_value",
+        [
+            pytest.param("0",  id="zero"),
+            pytest.param("-1", id="negative"),
+            pytest.param("11", id="exceeds_max"),
+            pytest.param("100", id="way_exceeds_max"),
+        ],
+    )
+    def test_parse_args_max_runs_invalid_raises(self, max_runs_value):
+        """--max_runs must be between 1 and 10; values outside this range should raise SystemExit."""
+        argv = [
+            "--joint_QC",       "joint_qc.tsv",
+            "--output_pdf",     "run.pdf",
+            "--metrics_table",  "merged.tsv",
+            "--run_id",         "RUN_001",
+            "--workflow_type",  "localapp",
+            "--max_runs",       max_runs_value,
+        ]
+        with pytest.raises(SystemExit):
+            parse_args(argv)
 
 
     @pytest.mark.parametrize(
@@ -494,6 +566,255 @@ class TestParseArgs:
         """Missing or invalid required CLI arguments should raise SystemExit from argparse."""
         with pytest.raises(SystemExit):
             parse_args(argv)
+
+
+# ---------------------------------------- #
+# Fixtures for table loading / filtering   #
+# ---------------------------------------- #
+
+WORKFLOW_TABLES_DIR = Path(__file__).parent.parent / "data" / "workflow_tables"
+
+
+@pytest.fixture(scope="module")
+def valid_joint_qc_path() -> Path:
+    return WORKFLOW_TABLES_DIR / "localapp_plot_joint_sequencing_QC_file.tsv"
+
+
+@pytest.fixture(scope="module")
+def valid_metrics_path() -> Path:
+    return WORKFLOW_TABLES_DIR / "localapp_plot_metrics_table.tsv"
+
+
+class TestLoadInputTables:
+    """Tests for load_input_tables() — loading and column validation."""
+
+    def test_load_returns_two_dataframes(self, valid_joint_qc_path, valid_metrics_path):
+        """load_input_tables returns two non-empty polars DataFrames."""
+        joint_qc, metrics = load_input_tables(str(valid_joint_qc_path), str(valid_metrics_path))
+
+        assert isinstance(joint_qc, pl.DataFrame)
+        assert isinstance(metrics, pl.DataFrame)
+        assert joint_qc.height > 0
+        assert metrics.height  > 0
+
+
+    def test_joint_qc_contains_required_columns(self, valid_joint_qc_path, valid_metrics_path):
+        """joint_qc_table must contain RUN_INDEX, WORKFLOW_TYPE, WORKFLOW_VERSION."""
+        joint_qc, _ = load_input_tables(str(valid_joint_qc_path), str(valid_metrics_path))
+
+        required = {"RUN_INDEX", "WORKFLOW_TYPE", "WORKFLOW_VERSION"}
+        assert required.issubset(set(joint_qc.columns))
+
+
+    def test_metrics_contains_required_columns(self, valid_joint_qc_path, valid_metrics_path):
+        """metrics_table must contain RUN_INDEX, SAMPLE_ID, RUN, WORKFLOW_TYPE, WORKFLOW_VERSION."""
+        _, metrics = load_input_tables(str(valid_joint_qc_path), str(valid_metrics_path))
+
+        required = {"RUN_INDEX", "SAMPLE_ID", "RUN", "WORKFLOW_TYPE", "WORKFLOW_VERSION"}
+        assert required.issubset(set(metrics.columns))
+
+
+    @pytest.mark.parametrize("missing_col", sorted(["RUN_INDEX", "WORKFLOW_TYPE", "WORKFLOW_VERSION"]))
+    def test_missing_joint_qc_column_raises(self, valid_joint_qc_path, valid_metrics_path, missing_col, tmp_path):
+        """load_input_tables raises ValueError when a required joint_qc column is missing."""
+        joint_qc = pl.read_csv(str(valid_joint_qc_path), separator="\t")
+        stripped  = joint_qc.drop(missing_col)
+        bad_path  = tmp_path / "bad_joint_qc.tsv"
+        stripped.write_csv(str(bad_path), separator="\t")
+
+        with pytest.raises(ValueError, match=missing_col):
+            load_input_tables(str(bad_path), str(valid_metrics_path))
+
+
+    @pytest.mark.parametrize(
+        "missing_col",
+        sorted(["RUN_INDEX", "SAMPLE_ID", "RUN", "WORKFLOW_TYPE", "WORKFLOW_VERSION"]),
+    )
+    def test_missing_metrics_column_raises(self, valid_joint_qc_path, valid_metrics_path, missing_col, tmp_path):
+        """load_input_tables raises ValueError when a required metrics column is missing."""
+        metrics  = pl.read_csv(str(valid_metrics_path), separator="\t")
+        stripped = metrics.drop(missing_col)
+        bad_path = tmp_path / "bad_metrics.tsv"
+        stripped.write_csv(str(bad_path), separator="\t")
+
+        with pytest.raises(ValueError, match=missing_col):
+            load_input_tables(str(valid_joint_qc_path), str(bad_path))
+
+
+    def test_tables_sorted_ascending_by_run_index(self, tmp_path):
+        """Both returned tables must be sorted by RUN_INDEX in ascending order."""
+        joint_qc = pl.DataFrame({
+            "RUN_INDEX"       : [3, 1, 2],
+            "WORKFLOW_TYPE"   : ["localapp"] * 3,
+            "WORKFLOW_VERSION": ["1.0"] * 3,
+        })
+        metrics = pl.DataFrame({
+            "RUN_INDEX"       : [3, 1, 2],
+            "SAMPLE_ID"       : ["S3", "S1", "S2"],
+            "RUN"             : ["RUN_C", "RUN_A", "RUN_B"],
+            "WORKFLOW_TYPE"   : ["localapp"] * 3,
+            "WORKFLOW_VERSION": ["1.0"] * 3,
+        })
+        jq_path = tmp_path / "joint_qc.tsv"
+        mt_path = tmp_path / "metrics.tsv"
+        joint_qc.write_csv(str(jq_path), separator="\t")
+        metrics.write_csv(str(mt_path), separator="\t")
+
+        jq_out, mt_out = load_input_tables(str(jq_path), str(mt_path))
+
+        assert jq_out["RUN_INDEX"].to_list() == [1, 2, 3]
+        assert mt_out["RUN_INDEX"].to_list() == [1, 2, 3]
+
+
+    def test_duplicate_sample_ids_suffixed_with_run_index(self, tmp_path):
+        """SAMPLE_IDs appearing more than once across the whole metrics table get '|RUN_INDEX' appended."""
+        joint_qc = pl.DataFrame({
+            "RUN_INDEX"       : [1, 2],
+            "WORKFLOW_TYPE"   : ["localapp"] * 2,
+            "WORKFLOW_VERSION": ["1.0"] * 2,
+        })
+        # "MCF7" appears in both run 1 and run 2 — should be suffixed.
+        # "BT20" appears only once — should be left unchanged.
+        metrics = pl.DataFrame({
+            "RUN_INDEX"       : [1, 2, 1],
+            "SAMPLE_ID"       : ["MCF7", "MCF7", "BT20"],
+            "RUN"             : ["RUN_A", "RUN_B", "RUN_A"],
+            "WORKFLOW_TYPE"   : ["localapp"] * 3,
+            "WORKFLOW_VERSION": ["1.0"] * 3,
+        })
+        jq_path = tmp_path / "joint_qc.tsv"
+        mt_path = tmp_path / "metrics.tsv"
+        joint_qc.write_csv(str(jq_path), separator="\t")
+        metrics.write_csv(str(mt_path), separator="\t")
+
+        _, mt_out = load_input_tables(str(jq_path), str(mt_path))
+
+        sample_ids = set(mt_out["SAMPLE_ID"].to_list())
+        assert "MCF7|1" in sample_ids
+        assert "MCF7|2" in sample_ids
+        assert "MCF7" not in sample_ids   # Original unsuffixed name must not remain
+        assert "BT20" in sample_ids       # Unique sample must be unchanged
+
+
+    def test_guideline_samples_not_suffixed_when_duplicated(self, tmp_path):
+        """Guideline SAMPLE_IDs (LSL_Guideline, USL_Guideline, Internal Guideline) must never be renamed."""
+        joint_qc = pl.DataFrame({
+            "RUN_INDEX"       : [1, 2],
+            "WORKFLOW_TYPE"   : ["localapp"] * 2,
+            "WORKFLOW_VERSION": ["1.0"] * 2,
+        })
+        # All three guideline IDs appear in both runs — they must not be suffixed.
+        metrics = pl.DataFrame({
+            "RUN_INDEX"       : [1, 2, 1, 2, 1, 2],
+            "SAMPLE_ID"       : [
+                "LSL_Guideline", "LSL_Guideline",
+                "USL_Guideline", "USL_Guideline",
+                "Internal Guideline", "Internal Guideline",
+            ],
+            "RUN"             : ["RUN_A", "RUN_B"] * 3,
+            "WORKFLOW_TYPE"   : ["localapp"] * 6,
+            "WORKFLOW_VERSION": ["1.0"] * 6,
+        })
+        jq_path = tmp_path / "joint_qc.tsv"
+        mt_path = tmp_path / "metrics.tsv"
+        joint_qc.write_csv(str(jq_path), separator="\t")
+        metrics.write_csv(str(mt_path), separator="\t")
+
+        _, mt_out = load_input_tables(str(jq_path), str(mt_path))
+
+        sample_ids = mt_out["SAMPLE_ID"].to_list()
+        assert all(sid in {"LSL_Guideline", "USL_Guideline", "Internal Guideline"} for sid in sample_ids)
+
+
+class TestFilterMostRecentRuns:
+    """Tests for filter_most_recent_runs() — RUN_INDEX-based run selection."""
+
+    @pytest.fixture
+    def sample_joint_qc(self) -> pl.DataFrame:
+        """Small joint QC table with RUN_INDEX values 001–005 (001 = most recent)."""
+        return pl.DataFrame({
+            "RUN_INDEX"       : ["005", "004", "003", "002", "001"],
+            "RUN_ID"          : ["RUN_E", "RUN_D", "RUN_C", "RUN_B", "RUN_A"],
+            "WORKFLOW_TYPE"   : ["localapp"] * 5,
+            "WORKFLOW_VERSION": ["1.0"] * 5,
+        })
+
+
+    @pytest.fixture
+    def sample_metrics(self) -> pl.DataFrame:
+        """Small metrics table aligned to the same runs as sample_joint_qc."""
+        return pl.DataFrame({
+            "RUN_INDEX"       : ["005", "005", "004", "004", "003", "003", "002", "002", "001", "001"],
+            "SAMPLE_ID"       : ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10"],
+            "RUN"             : ["RUN_E"] * 2 + ["RUN_D"] * 2 + ["RUN_C"] * 2 + ["RUN_B"] * 2 + ["RUN_A"] * 2,
+            "WORKFLOW_TYPE"   : ["localapp"] * 10,
+            "WORKFLOW_VERSION": ["1.0"] * 10,
+        })
+
+
+    def test_returns_two_dataframes(self, sample_joint_qc, sample_metrics):
+        """filter_most_recent_runs returns two polars DataFrames."""
+        jq, mt = filter_most_recent_runs(sample_joint_qc, sample_metrics, max_runs=2)
+
+        assert isinstance(jq, pl.DataFrame)
+        assert isinstance(mt, pl.DataFrame)
+
+
+    def test_correct_number_of_runs_in_joint_qc(self, sample_joint_qc, sample_metrics):
+        """Joint QC table should have exactly max_runs rows after filtering."""
+        jq, _ = filter_most_recent_runs(sample_joint_qc, sample_metrics, max_runs=2)
+
+        assert jq.height == 2
+
+
+    def test_selects_lowest_run_indexes(self, sample_joint_qc, sample_metrics):
+        """The two most recent runs (lowest RUN_INDEX) should be selected."""
+        jq, _ = filter_most_recent_runs(sample_joint_qc, sample_metrics, max_runs=2)
+
+        selected_indexes = set(jq["RUN_INDEX"].to_list())
+        assert selected_indexes == {"001", "002"}
+
+
+    def test_metrics_filtered_to_same_runs(self, sample_joint_qc, sample_metrics):
+        """metrics_table should be filtered to the same set of RUN_INDEX values as joint_qc."""
+        jq, mt = filter_most_recent_runs(sample_joint_qc, sample_metrics, max_runs=2)
+
+        jq_indexes = set(jq["RUN_INDEX"].to_list())
+        mt_indexes = set(mt["RUN_INDEX"].to_list())
+        assert jq_indexes == mt_indexes
+
+
+    def test_metrics_row_count_matches_selected_runs(self, sample_joint_qc, sample_metrics):
+        """Metrics rows should include only samples from selected runs (2 samples per run)."""
+        _, mt = filter_most_recent_runs(sample_joint_qc, sample_metrics, max_runs=2)
+
+        assert mt.height == 4  # 2 runs × 2 samples each
+
+
+    def test_max_runs_larger_than_available_returns_all(self, sample_joint_qc, sample_metrics):
+        """When max_runs exceeds available runs, all runs should be returned."""
+        jq, mt = filter_most_recent_runs(sample_joint_qc, sample_metrics, max_runs=100)
+
+        assert jq.height == 5
+        assert mt.height == 10
+
+
+    def test_max_runs_one_selects_single_most_recent(self, sample_joint_qc, sample_metrics):
+        """max_runs=1 should return only the single most recent run (lowest RUN_INDEX)."""
+        jq, _ = filter_most_recent_runs(sample_joint_qc, sample_metrics, max_runs=1)
+
+        assert jq.height == 1
+        assert jq["RUN_INDEX"][0] == "001"
+
+
+    def test_real_data_file(self, valid_joint_qc_path, valid_metrics_path):
+        """filter_most_recent_runs selects indexes 3 and 4 (most recent) from real data when max_runs=2."""
+        joint_qc, metrics = load_input_tables(str(valid_joint_qc_path), str(valid_metrics_path))
+        jq, mt = filter_most_recent_runs(joint_qc, metrics, max_runs=2)
+
+        # RUN_INDEX is read as integer by polars (leading zeros stripped)
+        selected_indexes = set(jq["RUN_INDEX"].to_list())
+        assert selected_indexes == {3, 4}
 
 
 class TestFilterExpressions:
@@ -1200,6 +1521,7 @@ class TestRenderClusterDensityScatter:
             "ESTIMATED_YIELD" : pl.Series(dtype=pl.Float64),
             "RUN_ID"          : pl.Series(dtype=pl.Utf8),
             "RUN_NUMBER"      : pl.Series(dtype=pl.Utf8),
+            "RUN_INDEX"       : pl.Series(dtype=pl.Int64),
         })
         tables = {"joint_qc_table": empty_table}
         mock_pdf = MagicMock()
