@@ -32,17 +32,22 @@ jobs:
           echo "RUN_ID=${RUN_ID}" >> $GITHUB_ENV
 
 
+      # =============== #
+      # Test with 1 run #
+      # =============== #
+
       - name: Run plot_QC_metrics.py 1R LocalApp
         run: |
           RESULTS_DIR=results_python/${RUN_ID}/1R
           mkdir -p ${RESULTS_DIR}
           RESULTS_FILE=${RESULTS_DIR}/1R_LocalApp_metric_plots.pdf
           echo "; Running plot_QC_metrics: 1 run (LocalApp)"
-          uv run plot_QC_metrics.py --joint_QC data/merged_workflow_tables/joint_sequencing_QC_file_1R.tsv  \
-                                    --output_pdf ${RESULTS_FILE}                                           \
-                                    --metrics_table data/merged_workflow_tables/master_metrics_table_1R.tsv \
-                                    --run_id ${RUN_ID}                                                     \
-                                    --workflow_type LocalApp                                               ;
+          uv run plot_QC_metrics.py --joint_QC data/workflow_tables/localapp_plot_joint_sequencing_QC_file.tsv \
+                                    --output_pdf ${RESULTS_FILE}                                               \
+                                    --metrics_table data/workflow_tables/localapp_plot_metrics_table.tsv       \
+                                    --run_id ${RUN_ID}                                                         \
+                                    --max_runs 1                                                               \
+                                    --workflow_type LocalApp                                                   ;
 
       - name: Run plot_QC_metrics.py 1R Dragen
         run: |
@@ -50,11 +55,17 @@ jobs:
           mkdir -p ${RESULTS_DIR}
           RESULTS_FILE=${RESULTS_DIR}/1R_Dragen_metric_plots.pdf
           echo "; Running plot_QC_metrics: 1 run (Dragen)"
-          uv run plot_QC_metrics.py --joint_QC data/merged_workflow_tables/joint_sequencing_QC_file_1R.tsv  \
-                                    --output_pdf ${RESULTS_FILE}                                           \
-                                    --metrics_table data/merged_workflow_tables/master_metrics_table_1R.tsv \
-                                    --run_id ${RUN_ID}                                                     \
-                                    --workflow_type Dragen                                                 ;
+          uv run plot_QC_metrics.py --joint_QC data/workflow_tables/dragen_plot_joint_sequencing_QC_file.tsv \
+                                    --output_pdf ${RESULTS_FILE}                                             \
+                                    --metrics_table data/workflow_tables/dragen_plot_metrics_table.tsv       \
+                                    --run_id ${RUN_ID}                                                       \
+                                    --max_runs 1                                                             \
+                                    --workflow_type Dragen                                                   ;
+
+
+      # ================ #
+      # Test with 2 runs #
+      # ================ #
 
       - name: Run plot_QC_metrics.py 2R LocalApp
         run: |
@@ -62,11 +73,12 @@ jobs:
           mkdir -p ${RESULTS_DIR}
           RESULTS_FILE=${RESULTS_DIR}/2R_LocalApp_metric_plots.pdf
           echo "; Running plot_QC_metrics: 2 runs (LocalApp)"
-          uv run plot_QC_metrics.py --joint_QC data/merged_workflow_tables/joint_sequencing_QC_file_2R.tsv  \
-                                    --output_pdf ${RESULTS_FILE}                                           \
-                                    --metrics_table data/merged_workflow_tables/master_metrics_table_2R.tsv \
-                                    --run_id ${RUN_ID}                                                     \
-                                    --workflow_type LocalApp                                               ;
+          uv run plot_QC_metrics.py --joint_QC data/workflow_tables/localapp_plot_joint_sequencing_QC_file.tsv \
+                                    --output_pdf ${RESULTS_FILE}                                               \
+                                    --metrics_table data/workflow_tables/localapp_plot_metrics_table.tsv       \
+                                    --run_id ${RUN_ID}                                                         \
+                                    --max_runs 2                                                               \
+                                    --workflow_type LocalApp                                                   ;
 
       - name: Run plot_QC_metrics.py 2R Dragen
         run: |
@@ -74,11 +86,17 @@ jobs:
           mkdir -p ${RESULTS_DIR}
           RESULTS_FILE=${RESULTS_DIR}/2R_Dragen_metric_plots.pdf
           echo "; Running plot_QC_metrics: 2 runs (Dragen)"
-          uv run plot_QC_metrics.py --joint_QC data/merged_workflow_tables/joint_sequencing_QC_file_2R.tsv  \
-                                    --output_pdf ${RESULTS_FILE}                                           \
-                                    --metrics_table data/merged_workflow_tables/master_metrics_table_2R.tsv \
-                                    --run_id ${RUN_ID}                                                     \
-                                    --workflow_type Dragen                                                 ;
+          uv run plot_QC_metrics.py --joint_QC data/workflow_tables/dragen_plot_joint_sequencing_QC_file.tsv \
+                                    --output_pdf ${RESULTS_FILE}                                             \
+                                    --metrics_table data/workflow_tables/dragen_plot_metrics_table.tsv       \
+                                    --run_id ${RUN_ID}                                                       \
+                                    --max_runs 2                                                             \
+                                    --workflow_type Dragen                                                   ;
+
+
+      # ================ #
+      # Test with 5 runs #
+      # ================ #
 
       - name: Run plot_QC_metrics.py 5R LocalApp
         run: |
@@ -86,11 +104,12 @@ jobs:
           mkdir -p ${RESULTS_DIR}
           RESULTS_FILE=${RESULTS_DIR}/5R_LocalApp_metric_plots.pdf
           echo "; Running plot_QC_metrics: 5 runs (LocalApp)"
-          uv run plot_QC_metrics.py --joint_QC data/merged_workflow_tables/joint_sequencing_QC_file_5R.tsv  \
-                                    --output_pdf ${RESULTS_FILE}                                           \
-                                    --metrics_table data/merged_workflow_tables/master_metrics_table_5R.tsv \
-                                    --run_id ${RUN_ID}                                                     \
-                                    --workflow_type LocalApp                                               ;
+          uv run plot_QC_metrics.py --joint_QC data/workflow_tables/localapp_plot_joint_sequencing_QC_file.tsv \
+                                    --output_pdf ${RESULTS_FILE}                                               \
+                                    --metrics_table data/workflow_tables/localapp_plot_metrics_table.tsv       \
+                                    --run_id ${RUN_ID}                                                         \
+                                    --max_runs 5                                                               \
+                                    --workflow_type LocalApp                                                   ;
 
       - name: Run plot_QC_metrics.py 5R Dragen
         run: |
@@ -98,11 +117,17 @@ jobs:
           mkdir -p ${RESULTS_DIR}
           RESULTS_FILE=${RESULTS_DIR}/5R_Dragen_metric_plots.pdf
           echo "; Running plot_QC_metrics: 5 runs (Dragen)"
-          uv run plot_QC_metrics.py --joint_QC data/merged_workflow_tables/joint_sequencing_QC_file_5R.tsv  \
-                                    --output_pdf ${RESULTS_FILE}                                           \
-                                    --metrics_table data/merged_workflow_tables/master_metrics_table_5R.tsv \
-                                    --run_id ${RUN_ID}                                                     \
-                                    --workflow_type Dragen                                                 ;
+          uv run plot_QC_metrics.py --joint_QC data/workflow_tables/dragen_plot_joint_sequencing_QC_file.tsv \
+                                    --output_pdf ${RESULTS_FILE}                                             \
+                                    --metrics_table data/workflow_tables/dragen_plot_metrics_table.tsv       \
+                                    --run_id ${RUN_ID}                                                       \
+                                    --max_runs 5                                                             \
+                                    --workflow_type Dragen                                                   ;
+
+
+      # ================= #
+      # Test with 10 runs #
+      # ================= #
 
       - name: Run plot_QC_metrics.py 10R LocalApp
         run: |
@@ -110,11 +135,12 @@ jobs:
           mkdir -p ${RESULTS_DIR}
           RESULTS_FILE=${RESULTS_DIR}/10R_LocalApp_metric_plots.pdf
           echo "; Running plot_QC_metrics: 10 runs (LocalApp)"
-          uv run plot_QC_metrics.py --joint_QC data/merged_workflow_tables/joint_sequencing_QC_file_10R.tsv  \
-                                    --output_pdf ${RESULTS_FILE}                                            \
-                                    --metrics_table data/merged_workflow_tables/master_metrics_table_10R.tsv \
-                                    --run_id ${RUN_ID}                                                      \
-                                    --workflow_type LocalApp                                                ;
+          uv run plot_QC_metrics.py --joint_QC data/workflow_tables/localapp_plot_joint_sequencing_QC_file.tsv \
+                                    --output_pdf ${RESULTS_FILE}                                               \
+                                    --metrics_table data/workflow_tables/localapp_plot_metrics_table.tsv       \
+                                    --run_id ${RUN_ID}                                                         \
+                                    --max_runs 10                                                              \
+                                    --workflow_type LocalApp                                                   ;
 
       - name: Run plot_QC_metrics.py 10R Dragen
         run: |
@@ -122,11 +148,12 @@ jobs:
           mkdir -p ${RESULTS_DIR}
           RESULTS_FILE=${RESULTS_DIR}/10R_Dragen_metric_plots.pdf
           echo "; Running plot_QC_metrics: 10 runs (Dragen)"
-          uv run plot_QC_metrics.py --joint_QC data/merged_workflow_tables/joint_sequencing_QC_file_10R.tsv  \
-                                    --output_pdf ${RESULTS_FILE}                                            \
-                                    --metrics_table data/merged_workflow_tables/master_metrics_table_10R.tsv \
-                                    --run_id ${RUN_ID}                                                      \
-                                    --workflow_type Dragen                                                  ;
+          uv run plot_QC_metrics.py --joint_QC data/workflow_tables/dragen_plot_joint_sequencing_QC_file.tsv \
+                                    --output_pdf ${RESULTS_FILE}                                             \
+                                    --metrics_table data/workflow_tables/dragen_plot_metrics_table.tsv       \
+                                    --run_id ${RUN_ID}                                                       \
+                                    --max_runs 10                                                            \
+                                    --workflow_type Dragen                                                   ;
 
 
       - name: Enable caching
