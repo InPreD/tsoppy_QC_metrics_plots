@@ -56,65 +56,25 @@ uv sync --locked
 
 ## Input files
 
-The script expects intermediate files produced by the TSOPPI post-processing pipeline. Input files are organised by workflow type. Using the bundled example runs:
+The script expects intermediate files produced by the TSOPPI post-processing pipeline. Input files are organized by workflow type. The script uses a single set of data files per workflow and filters runs via the `--max_runs` CLI argument.
 
-**LocalApp** (`data/LocalApp/TSO500_postprocessing/`):
+Using the bundled example data:
+
+**LocalApp** (`data/workflow_tables/`):
 ```
-data/LocalApp/TSO500_postprocessing/
-└── 251211_NB552811_0117_AHTJM2BGYX/
-    └── 251211_NB552811_0117_AHTJM2BGYX_metrics_plots/
-        └── intermediate_metrics_files/
-            ├── joint_sequencing_QC_file.tsv                 # One row per run
-            ├── master_metrics_table.tsv                     # All metrics join table (written by this script)
-            ├── 251211_NB552811_0117_AHTJM2BGYX_metrics.tsv  # Current run
-            ├── 251210_NB552811_0117_AHTJM2BGYX_metrics.tsv  # Additional run 1
-            └── ...                                          # Additional runs [2 .. N]
+data/workflow_tables/
+├── localapp_plot_joint_sequencing_QC_file.tsv   # Run-level metrics (one row per run)
+└── localapp_plot_metrics_table.tsv              # All metrics (sample-level, all runs merged)
 ```
 
-**DRAGEN** (`data/Dragen/TSO500_postprocessing/`):
+**DRAGEN** (`data/workflow_tables/`):
 ```
-data/Dragen/TSO500_postprocessing/
-└── 250822_A02134_0101_BHYFHLDRX5/
-    └── 250822_A02134_0101_BHYFHLDRX5_metrics_plots/
-        └── intermediate_metrics_files/
-            ├── joint_sequencing_QC_file.tsv
-            ├── master_metrics_table.tsv                    # All metrics join table (written by this script)
-            ├── 250822_A02134_0101_BHYFHLDRX5_metrics.tsv   # Current run
-            └── ...                                         # Additional runs [1 .. N]
+data/workflow_tables/
+├── dragen_plot_joint_sequencing_QC_file.tsv     # Run-level metrics (one row per run)
+└── dragen_plot_metrics_table.tsv                # All metrics (sample-level, all runs merged)
 ```
 
-<br>
-
-`joint_sequencing_QC_file.tsv`
-
-One row per sequencing run. Contains run-level metrics used for the cluster density vs. estimated yield scatter plot.
-
-```
-RUN_ID                              PCT_PF_READS  PCT_Q30_R1  PCT_Q30_R2  CLUSTER_DENSITY  ESTIMATED_YIELD  CLUSTERS_PASSING_FILTER  RUN_NUMBER
-251211_NB552811_0117_AHTJM2BGYX    83.8          88.8        85.4        241.9            112.3            83.8                     1
-251210_NB552811_0117_AHTJM2BGYX    83.8          88.8        85.4        241.9            112.3            83.8                     2
-...
-```
-
-Additionally, rows with `RUN_ID` equal to `LSL_Guideline`, `USL_Guideline`, or `Internal Guideline` encode QC thresholds and are extracted separately to draw reference lines on the plots.
-
-<br>
-
-`<RUN_ID>_metrics.tsv`
-
-One row per sample. Each file covers both DNA (suffix `D01`) and RNA (suffix `R03`) samples for a single run, along with three special guideline rows at the top.
-
-```
-SAMPLE_ID            COMPLETED_ALL_STEPS  DNA_CONTAMINATION_SCORE  DNA_CONTAMINATION_P_VALUE  DNA_MEDIAN_INSERT_SIZE  DNA_MEDIAN_EXON_COVERAGE  ...  RNA_MEDIAN_CV_GENE_500X  RNA_TOTAL_PF_READS  ...
-LSL_Guideline        NA                   0                        0                          70                      150                             NA                       NA
-USL_Guideline        NA                   3106                     0.049                      NA                      NA                              NA                       NA
-AU565-D01-C01-X06    TRUE                 790                      0.999                      110                     548                             NA                       NA
-AU565-R03-C01-X06    TRUE                 NA                       NA                         NA                      NA                              65.6                     30002600
-BT20-D01-C01-X06     TRUE                 ...
-...
-```
-
-- **Guideline rows** (`LSL_Guideline`, `USL_Guideline`) define lower and upper specification limits. They are separated from sample data internally and used to draw threshold lines on each plot.
+The `--max_runs` argument controls how many of the most recent runs (lowest `RUN_INDEX` values) are included in each plot.
 
 <br>
 
@@ -177,6 +137,7 @@ uv run plot_QC_metrics.py --joint_QC <joint_qc_file.tsv>             \
 | `--metrics_table` | Path to merged metrics TSV file (required) |
 | `--run_id` | Run ID to highlight in all plots (required) |
 | `--workflow_type` | Active workflow: `localapp` or `dragen` (required, case-insensitive) |
+| `--max_runs` | Maximum number of most recent runs to include (optional, default: 10, range: 1–10). If fewer runs are available, all are included. |
 
 The script reads the merged metrics table, loads the plot specifications, filters plots based on the selected workflow, and writes a multi-page PDF to the specified output path.
 
