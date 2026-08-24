@@ -25,12 +25,6 @@ jobs:
       - name: Run unit tests
         run: uv run pytest tests/ -v
 
-      - name: Setup LocalApp variables
-        run: |
-          RUN_ID=251211_NB552811_0117_AHTJM2BGYX
-
-          echo "RUN_ID=${RUN_ID}" >> $GITHUB_ENV
-
 
       # =============== #
       # Test with 1 run #
@@ -38,27 +32,25 @@ jobs:
 
       - name: Run plot_QC_metrics.py 1R LocalApp
         run: |
-          RESULTS_DIR=results_python/${RUN_ID}/1R
+          RESULTS_DIR=results_python/1R
           mkdir -p ${RESULTS_DIR}
           RESULTS_FILE=${RESULTS_DIR}/1R_LocalApp_metric_plots.pdf
           echo "; Running plot_QC_metrics: 1 run (LocalApp)"
           uv run plot_QC_metrics.py --joint_QC data/workflow_tables/localapp_plot_joint_sequencing_QC_file.tsv \
                                     --output_pdf ${RESULTS_FILE}                                               \
                                     --metrics_table data/workflow_tables/localapp_plot_metrics_table.tsv       \
-                                    --run_id ${RUN_ID}                                                         \
                                     --max_runs 1                                                               \
                                     --workflow_type LocalApp                                                   ;
 
       - name: Run plot_QC_metrics.py 1R Dragen
         run: |
-          RESULTS_DIR=results_python/${RUN_ID}/1R
+          RESULTS_DIR=results_python/1R
           mkdir -p ${RESULTS_DIR}
           RESULTS_FILE=${RESULTS_DIR}/1R_Dragen_metric_plots.pdf
           echo "; Running plot_QC_metrics: 1 run (Dragen)"
           uv run plot_QC_metrics.py --joint_QC data/workflow_tables/dragen_plot_joint_sequencing_QC_file.tsv \
                                     --output_pdf ${RESULTS_FILE}                                             \
                                     --metrics_table data/workflow_tables/dragen_plot_metrics_table.tsv       \
-                                    --run_id ${RUN_ID}                                                       \
                                     --max_runs 1                                                             \
                                     --workflow_type Dragen                                                   ;
 
@@ -69,27 +61,25 @@ jobs:
 
       - name: Run plot_QC_metrics.py 2R LocalApp
         run: |
-          RESULTS_DIR=results_python/${RUN_ID}/2R
+          RESULTS_DIR=results_python/2R
           mkdir -p ${RESULTS_DIR}
           RESULTS_FILE=${RESULTS_DIR}/2R_LocalApp_metric_plots.pdf
           echo "; Running plot_QC_metrics: 2 runs (LocalApp)"
           uv run plot_QC_metrics.py --joint_QC data/workflow_tables/localapp_plot_joint_sequencing_QC_file.tsv \
                                     --output_pdf ${RESULTS_FILE}                                               \
                                     --metrics_table data/workflow_tables/localapp_plot_metrics_table.tsv       \
-                                    --run_id ${RUN_ID}                                                         \
                                     --max_runs 2                                                               \
                                     --workflow_type LocalApp                                                   ;
 
       - name: Run plot_QC_metrics.py 2R Dragen
         run: |
-          RESULTS_DIR=results_python/${RUN_ID}/2R
+          RESULTS_DIR=results_python/2R
           mkdir -p ${RESULTS_DIR}
           RESULTS_FILE=${RESULTS_DIR}/2R_Dragen_metric_plots.pdf
           echo "; Running plot_QC_metrics: 2 runs (Dragen)"
           uv run plot_QC_metrics.py --joint_QC data/workflow_tables/dragen_plot_joint_sequencing_QC_file.tsv \
                                     --output_pdf ${RESULTS_FILE}                                             \
                                     --metrics_table data/workflow_tables/dragen_plot_metrics_table.tsv       \
-                                    --run_id ${RUN_ID}                                                       \
                                     --max_runs 2                                                             \
                                     --workflow_type Dragen                                                   ;
 
@@ -100,27 +90,25 @@ jobs:
 
       - name: Run plot_QC_metrics.py 5R LocalApp
         run: |
-          RESULTS_DIR=results_python/${RUN_ID}/5R
+          RESULTS_DIR=results_python/5R
           mkdir -p ${RESULTS_DIR}
           RESULTS_FILE=${RESULTS_DIR}/5R_LocalApp_metric_plots.pdf
           echo "; Running plot_QC_metrics: 5 runs (LocalApp)"
           uv run plot_QC_metrics.py --joint_QC data/workflow_tables/localapp_plot_joint_sequencing_QC_file.tsv \
                                     --output_pdf ${RESULTS_FILE}                                               \
                                     --metrics_table data/workflow_tables/localapp_plot_metrics_table.tsv       \
-                                    --run_id ${RUN_ID}                                                         \
                                     --max_runs 5                                                               \
                                     --workflow_type LocalApp                                                   ;
 
       - name: Run plot_QC_metrics.py 5R Dragen
         run: |
-          RESULTS_DIR=results_python/${RUN_ID}/5R
+          RESULTS_DIR=results_python/5R
           mkdir -p ${RESULTS_DIR}
           RESULTS_FILE=${RESULTS_DIR}/5R_Dragen_metric_plots.pdf
           echo "; Running plot_QC_metrics: 5 runs (Dragen)"
           uv run plot_QC_metrics.py --joint_QC data/workflow_tables/dragen_plot_joint_sequencing_QC_file.tsv \
                                     --output_pdf ${RESULTS_FILE}                                             \
                                     --metrics_table data/workflow_tables/dragen_plot_metrics_table.tsv       \
-                                    --run_id ${RUN_ID}                                                       \
                                     --max_runs 5                                                             \
                                     --workflow_type Dragen                                                   ;
 
@@ -131,27 +119,25 @@ jobs:
 
       - name: Run plot_QC_metrics.py 10R LocalApp
         run: |
-          RESULTS_DIR=results_python/${RUN_ID}/10R
+          RESULTS_DIR=results_python/10R
           mkdir -p ${RESULTS_DIR}
           RESULTS_FILE=${RESULTS_DIR}/10R_LocalApp_metric_plots.pdf
           echo "; Running plot_QC_metrics: 10 runs (LocalApp)"
           uv run plot_QC_metrics.py --joint_QC data/workflow_tables/localapp_plot_joint_sequencing_QC_file.tsv \
                                     --output_pdf ${RESULTS_FILE}                                               \
                                     --metrics_table data/workflow_tables/localapp_plot_metrics_table.tsv       \
-                                    --run_id ${RUN_ID}                                                         \
                                     --max_runs 10                                                              \
                                     --workflow_type LocalApp                                                   ;
 
       - name: Run plot_QC_metrics.py 10R Dragen
         run: |
-          RESULTS_DIR=results_python/${RUN_ID}/10R
+          RESULTS_DIR=results_python/10R
           mkdir -p ${RESULTS_DIR}
           RESULTS_FILE=${RESULTS_DIR}/10R_Dragen_metric_plots.pdf
           echo "; Running plot_QC_metrics: 10 runs (Dragen)"
           uv run plot_QC_metrics.py --joint_QC data/workflow_tables/dragen_plot_joint_sequencing_QC_file.tsv \
                                     --output_pdf ${RESULTS_FILE}                                             \
                                     --metrics_table data/workflow_tables/dragen_plot_metrics_table.tsv       \
-                                    --run_id ${RUN_ID}                                                       \
                                     --max_runs 10                                                            \
                                     --workflow_type Dragen                                                   ;
 

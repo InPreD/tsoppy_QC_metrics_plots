@@ -10,7 +10,8 @@ Command-line parameters:
     --joint_QC path/to/joint_sequencing_QC_file.tsv
     --output_folder path/to/output/directory
     --metrics_table path/to/master_metrics_table.tsv
-    --run_id RUN_ID
+    --workflow_type {localapp|dragen}
+    --max_runs N (optional, default: 10)
 """
 
 import argparse
@@ -169,17 +170,19 @@ def load_input_tables(joint_qc_file: str,
     Load and validate the joint QC table and merged metrics table.
 
     Validates that each table contains its required columns before returning.
-    Raises ValueError listing any missing columns if validation fails.
+    Extracts the most recent run (minimum RUN_INDEX) as the highlighted run,
+    and verifies it is the same in both tables.
+    Raises ValueError listing any missing columns or index mismatches if validation fails.
 
     Args:
         joint_qc_file:      Path to the joint sequencing QC TSV file.
         metrics_table_file: Path to the merged metrics TSV file.
 
     Returns:
-        Tuple of (joint_qc_table, metrics_table) as polars DataFrames.
+        Tuple of (joint_qc_table, metrics_table, highlighted_run_id) as (DataFrame, DataFrame, str).
 
     Raises:
-        ValueError: If either table is missing any of its required columns.
+        ValueError: If either table is missing required columns, or if the minimum RUN_INDEX differs between tables.
     """
     joint_qc_table = pl.read_csv(joint_qc_file,      separator="\t")
     metrics_table  = pl.read_csv(metrics_table_file, separator="\t")
@@ -200,6 +203,25 @@ def load_input_tables(joint_qc_file: str,
     joint_qc_table = joint_qc_table.sort("RUN_INDEX")
     metrics_table  = metrics_table.sort("RUN_INDEX")
 
+    # Extract the minimum RUN_INDEX (most recent run) from both tables
+    joint_qc_min_index = joint_qc_table.select(pl.col("RUN_INDEX").min()).item()
+    metrics_min_index  = metrics_table.select(pl.col("RUN_INDEX").min()).item()
+
+    # Verify that the minimum RUN_INDEX is the same in both tables
+    if joint_qc_min_index != metrics_min_index:
+        raise ValueError(
+            f"Minimum RUN_INDEX mismatch: joint_qc_table has {joint_qc_min_index}, "
+            f"but metrics_table has {metrics_min_index}. Both tables must include the same most recent run."
+        )
+
+    # Extract the RUN_ID for the highlighted run (the one with minimum RUN_INDEX)
+    highlighted_run_id = (
+        joint_qc_table
+        .filter(pl.col("RUN_INDEX") == joint_qc_min_index)
+        .select("RUN_ID")
+        .item()
+    )
+
     # Suffix duplicated SAMPLE_IDs across the whole table with '|RUN_INDEX' to prevent
     # bar stacking when the same sample ID appears more than once across runs.
     # Exclude guideline samples (LSL_Guideline, USL_Guideline, Internal Guideline) from this logic.
@@ -213,7 +235,7 @@ def load_input_tables(joint_qc_file: str,
         .alias("SAMPLE_ID")
     )
 
-    return joint_qc_table, metrics_table
+    return joint_qc_table, metrics_table, highlighted_run_id
 
 
 def filter_most_recent_runs(joint_qc_table : pl.DataFrame,
@@ -257,11 +279,11 @@ def parse_args(argv):
     The script expects a precomputed joint QC table and a precomputed
     merged metrics table, both supplied explicitly on the command line.
     The parent directory of output_pdf is created if it does not exist.
+    The highlighted run is automatically determined from the lowest RUN_INDEX.
     """
     parser = argparse.ArgumentParser(description="Generate TSO500 QC plots from precomputed metrics tables")
     parser.add_argument("--joint_QC",      required=True,  dest="joint_qc_file")
     parser.add_argument("--metrics_table", required=True,  dest="metrics_table")
-    parser.add_argument("--run_id",        required=True,  dest="highlighted_run_id")
     parser.add_argument("--output_pdf",    required=True,  dest="output_pdf")
     parser.add_argument("--workflow_type", required=True,  dest="workflow_type",
                         choices=[w.lower() for w in SUPPORTED_WORKFLOW], type=str.lower,
@@ -278,7 +300,6 @@ def parse_args(argv):
         "joint_qc_file"      : args.joint_qc_file,
         "output_pdf"         : args.output_pdf,
         "metrics_table"      : args.metrics_table,
-        "highlighted_run_id" : args.highlighted_run_id,
         "workflow_type"      : args.workflow_type,
         "max_runs"           : args.max_runs,
     }
@@ -701,9 +722,11 @@ def main():
     # Read the supplied input tables #
     # ------------------------------ #
     print("; Reading and validating input tables")
-    joint_qc_table, merged_tables = load_input_tables(joint_qc_file      = parsed_args["joint_qc_file"],
-                                                      metrics_table_file = parsed_args["metrics_table"],
-                                                     )
+    joint_qc_table, merged_tables, highlighted_run_id = load_input_tables(
+        joint_qc_file      = parsed_args["joint_qc_file"],
+        metrics_table_file = parsed_args["metrics_table"],
+    )
+    print(f"; Highlighting most recent run: {highlighted_run_id}")
 
     # If --max_runs is specified and there are more runs than max_runs, filter to the N most recent.
     # If there are fewer runs than max_runs, all runs are kept.
@@ -727,7 +750,7 @@ def main():
     tables = build_tables(
         joint_qc_table     = joint_qc_table,
         merged_tables      = merged_tables,
-        highlighted_run_id = parsed_args["highlighted_run_id"],
+        highlighted_run_id = highlighted_run_id,
         workflow           = workflow,
     )
 

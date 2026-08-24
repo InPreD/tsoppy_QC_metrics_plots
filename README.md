@@ -124,7 +124,6 @@ pyproject.toml             # Project metadata and dependencies
 uv run plot_QC_metrics.py --joint_QC <joint_qc_file.tsv>             \
                           --output_pdf <output.pdf>                  \
                           --metrics_table <master_metrics_table.tsv> \
-                          --run_id <highlighted_run_id>              \
                           --workflow_type <workflow>                 ;
 ```
 
@@ -135,11 +134,10 @@ uv run plot_QC_metrics.py --joint_QC <joint_qc_file.tsv>             \
 | `--joint_QC` | Path to `joint_sequencing_QC_file.tsv` (required) |
 | `--output_pdf` | Output PDF file path (required); parent directory is created if needed |
 | `--metrics_table` | Path to merged metrics TSV file (required) |
-| `--run_id` | Run ID to highlight in all plots (required) |
 | `--workflow_type` | Active workflow: `localapp` or `dragen` (required, case-insensitive) |
 | `--max_runs` | Maximum number of most recent runs to include (optional, default: 10, range: 1–10). If fewer runs are available, all are included. |
 
-The script reads the merged metrics table, loads the plot specifications, filters plots based on the selected workflow, and writes a multi-page PDF to the specified output path.
+The script reads the merged metrics table, loads the plot specifications, filters plots based on the selected workflow, and writes a multi-page PDF to the specified output path. The most recent run (lowest `RUN_INDEX`) is automatically highlighted in the plots.
 
 <br>
 
@@ -148,22 +146,21 @@ The script reads the merged metrics table, loads the plot specifications, filter
 ### Quick start: Single run count with both workflows
 
 ```bash
-RUN_ID=251211_NB552811_0117_AHTJM2BGYX
-RESULTS_DIR=results_python/LocalApp/${RUN_ID}/1R
+RESULTS_DIR=results_python/LocalApp/1R
 mkdir -p ${RESULTS_DIR}
 
 # Run with LocalApp workflow
-uv run plot_QC_metrics.py --joint_QC data/merged_workflow_tables/joint_sequencing_QC_file_1R.tsv \
+uv run plot_QC_metrics.py --joint_QC data/workflow_tables/localapp_plot_joint_sequencing_QC_file.tsv \
                           --output_pdf ${RESULTS_DIR}/1R_LocalApp_metric_plots.pdf \
-                          --metrics_table data/merged_workflow_tables/master_metrics_table_1R.tsv \
-                          --run_id ${RUN_ID} \
+                          --metrics_table data/workflow_tables/localapp_plot_metrics_table.tsv \
+                          --max_runs 1 \
                           --workflow_type localapp ;
 
 # Run with Dragen workflow
-uv run plot_QC_metrics.py --joint_QC data/merged_workflow_tables/joint_sequencing_QC_file_1R.tsv \
+uv run plot_QC_metrics.py --joint_QC data/workflow_tables/dragen_plot_joint_sequencing_QC_file.tsv \
                           --output_pdf ${RESULTS_DIR}/1R_Dragen_metric_plots.pdf \
-                          --metrics_table data/merged_workflow_tables/master_metrics_table_1R.tsv \
-                          --run_id ${RUN_ID} \
+                          --metrics_table data/workflow_tables/dragen_plot_metrics_table.tsv \
+                          --max_runs 1 \
                           --workflow_type dragen ;
 ```
 

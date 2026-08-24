@@ -393,14 +393,12 @@ class TestParseArgs:
                     "--joint_QC",       "joint_qc.tsv",
                     "--output_pdf",     "output/run.pdf",
                     "--metrics_table",  "merged.tsv",
-                    "--run_id",         "RUN_001",
                     "--workflow_type",  "localapp",
                 ],
                 {
                     "joint_qc_file"      : "joint_qc.tsv",
                     "output_pdf"         : "output/run.pdf",
                     "metrics_table"      : "merged.tsv",
-                    "highlighted_run_id" : "RUN_001",
                     "workflow_type"      : "localapp",
                     "max_runs"           : 10,
                 },
@@ -411,7 +409,6 @@ class TestParseArgs:
                     "--joint_QC",       "joint_qc.tsv",
                     "--output_pdf",     "output/run.pdf",
                     "--metrics_table",  "merged.tsv",
-                    "--run_id",         "RUN_001",
                     "--workflow_type",  "localapp",
                     "--max_runs",       "5",
                 ],
@@ -419,7 +416,6 @@ class TestParseArgs:
                     "joint_qc_file"      : "joint_qc.tsv",
                     "output_pdf"         : "output/run.pdf",
                     "metrics_table"      : "merged.tsv",
-                    "highlighted_run_id" : "RUN_001",
                     "workflow_type"      : "localapp",
                     "max_runs"           : 5,
                 },
@@ -443,7 +439,6 @@ class TestParseArgs:
             "--joint_QC",       "path/to/joint_qc.tsv",
             "--output_pdf",     "output/results/run.pdf",
             "--metrics_table",  "output/merged.tsv",
-            "--run_id",         "RUN_highlighted",
             "--workflow_type",  "dragen",
         ]
         result = parse_args(argv)
@@ -459,7 +454,6 @@ class TestParseArgs:
             "--joint_QC",       "joint_qc.tsv",
             "--output_pdf",     "run.pdf",
             "--metrics_table",  "merged.tsv",
-            "--run_id",         "RUN_001",
             "--workflow_type",  "LocalApp",
         ]
         result = parse_args(argv)
@@ -472,7 +466,6 @@ class TestParseArgs:
             "--joint_QC",       "joint_qc.tsv",
             "--output_pdf",     "run.pdf",
             "--metrics_table",  "merged.tsv",
-            "--run_id",         "RUN_001",
             "--workflow_type",  "localapp",
         ]
         result = parse_args(argv)
@@ -494,7 +487,6 @@ class TestParseArgs:
             "--joint_QC",       "joint_qc.tsv",
             "--output_pdf",     "run.pdf",
             "--metrics_table",  "merged.tsv",
-            "--run_id",         "RUN_001",
             "--workflow_type",  "localapp",
             "--max_runs",       max_runs_value,
         ]
@@ -509,7 +501,6 @@ class TestParseArgs:
                 [
                     "--output_pdf",     "run.pdf",
                     "--metrics_table",  "merged.tsv",
-                    "--run_id",         "RUN_001",
                     "--workflow_type",  "localapp",
                 ],
                 id="missing_joint_qc",
@@ -518,7 +509,6 @@ class TestParseArgs:
                 [
                     "--joint_QC",       "joint_qc.tsv",
                     "--metrics_table",  "merged.tsv",
-                    "--run_id",         "RUN_001",
                     "--workflow_type",  "localapp",
                 ],
                 id="missing_output_pdf",
@@ -527,7 +517,6 @@ class TestParseArgs:
                 [
                     "--joint_QC",       "joint_qc.tsv",
                     "--output_pdf",     "run.pdf",
-                    "--run_id",         "RUN_001",
                     "--workflow_type",  "localapp",
                 ],
                 id="missing_metrics_table",
@@ -537,16 +526,6 @@ class TestParseArgs:
                     "--joint_QC",       "joint_qc.tsv",
                     "--output_pdf",     "run.pdf",
                     "--metrics_table",  "merged.tsv",
-                    "--workflow_type",  "localapp",
-                ],
-                id="missing_run_id",
-            ),
-            pytest.param(
-                [
-                    "--joint_QC",       "joint_qc.tsv",
-                    "--output_pdf",     "run.pdf",
-                    "--metrics_table",  "merged.tsv",
-                    "--run_id",         "RUN_001",
                 ],
                 id="missing_workflow_type",
             ),
@@ -555,7 +534,6 @@ class TestParseArgs:
                     "--joint_QC",       "joint_qc.tsv",
                     "--output_pdf",     "run.pdf",
                     "--metrics_table",  "merged.tsv",
-                    "--run_id",         "RUN_001",
                     "--workflow_type",  "unsupported_workflow",
                 ],
                 id="invalid_workflow_type",
@@ -589,18 +567,20 @@ class TestLoadInputTables:
     """Tests for load_input_tables() — loading and column validation."""
 
     def test_load_returns_two_dataframes(self, valid_joint_qc_path, valid_metrics_path):
-        """load_input_tables returns two non-empty polars DataFrames."""
-        joint_qc, metrics = load_input_tables(str(valid_joint_qc_path), str(valid_metrics_path))
+        """load_input_tables returns two non-empty polars DataFrames and a highlighted_run_id string."""
+        joint_qc, metrics, highlighted_run_id = load_input_tables(str(valid_joint_qc_path), str(valid_metrics_path))
 
         assert isinstance(joint_qc, pl.DataFrame)
         assert isinstance(metrics, pl.DataFrame)
+        assert isinstance(highlighted_run_id, str)
         assert joint_qc.height > 0
         assert metrics.height  > 0
+        assert len(highlighted_run_id) > 0
 
 
     def test_joint_qc_contains_required_columns(self, valid_joint_qc_path, valid_metrics_path):
         """joint_qc_table must contain RUN_INDEX, WORKFLOW_TYPE, WORKFLOW_VERSION."""
-        joint_qc, _ = load_input_tables(str(valid_joint_qc_path), str(valid_metrics_path))
+        joint_qc, _, _ = load_input_tables(str(valid_joint_qc_path), str(valid_metrics_path))
 
         required = {"RUN_INDEX", "WORKFLOW_TYPE", "WORKFLOW_VERSION"}
         assert required.issubset(set(joint_qc.columns))
@@ -608,7 +588,7 @@ class TestLoadInputTables:
 
     def test_metrics_contains_required_columns(self, valid_joint_qc_path, valid_metrics_path):
         """metrics_table must contain RUN_INDEX, SAMPLE_ID, RUN, WORKFLOW_TYPE, WORKFLOW_VERSION."""
-        _, metrics = load_input_tables(str(valid_joint_qc_path), str(valid_metrics_path))
+        _, metrics, _ = load_input_tables(str(valid_joint_qc_path), str(valid_metrics_path))
 
         required = {"RUN_INDEX", "SAMPLE_ID", "RUN", "WORKFLOW_TYPE", "WORKFLOW_VERSION"}
         assert required.issubset(set(metrics.columns))
@@ -645,6 +625,7 @@ class TestLoadInputTables:
         """Both returned tables must be sorted by RUN_INDEX in ascending order."""
         joint_qc = pl.DataFrame({
             "RUN_INDEX"       : [3, 1, 2],
+            "RUN_ID"          : ["RUN_C", "RUN_A", "RUN_B"],
             "WORKFLOW_TYPE"   : ["localapp"] * 3,
             "WORKFLOW_VERSION": ["1.0"] * 3,
         })
@@ -660,16 +641,19 @@ class TestLoadInputTables:
         joint_qc.write_csv(str(jq_path), separator="\t")
         metrics.write_csv(str(mt_path), separator="\t")
 
-        jq_out, mt_out = load_input_tables(str(jq_path), str(mt_path))
+        jq_out, mt_out, highlighted_run_id = load_input_tables(str(jq_path), str(mt_path))
 
         assert jq_out["RUN_INDEX"].to_list() == [1, 2, 3]
         assert mt_out["RUN_INDEX"].to_list() == [1, 2, 3]
+        # Minimum RUN_INDEX is 1, so highlighted_run_id should be found with that index
+        assert isinstance(highlighted_run_id, str)
 
 
     def test_duplicate_sample_ids_suffixed_with_run_index(self, tmp_path):
         """SAMPLE_IDs appearing more than once across the whole metrics table get '|RUN_INDEX' appended."""
         joint_qc = pl.DataFrame({
             "RUN_INDEX"       : [1, 2],
+            "RUN_ID"          : ["RUN_A", "RUN_B"],
             "WORKFLOW_TYPE"   : ["localapp"] * 2,
             "WORKFLOW_VERSION": ["1.0"] * 2,
         })
@@ -687,7 +671,7 @@ class TestLoadInputTables:
         joint_qc.write_csv(str(jq_path), separator="\t")
         metrics.write_csv(str(mt_path), separator="\t")
 
-        _, mt_out = load_input_tables(str(jq_path), str(mt_path))
+        _, mt_out, _ = load_input_tables(str(jq_path), str(mt_path))
 
         sample_ids = set(mt_out["SAMPLE_ID"].to_list())
         assert "MCF7|1" in sample_ids
@@ -700,6 +684,7 @@ class TestLoadInputTables:
         """Guideline SAMPLE_IDs (LSL_Guideline, USL_Guideline, Internal Guideline) must never be renamed."""
         joint_qc = pl.DataFrame({
             "RUN_INDEX"       : [1, 2],
+            "RUN_ID"          : ["RUN_A", "RUN_B"],
             "WORKFLOW_TYPE"   : ["localapp"] * 2,
             "WORKFLOW_VERSION": ["1.0"] * 2,
         })
@@ -720,10 +705,61 @@ class TestLoadInputTables:
         joint_qc.write_csv(str(jq_path), separator="\t")
         metrics.write_csv(str(mt_path), separator="\t")
 
-        _, mt_out = load_input_tables(str(jq_path), str(mt_path))
+        _, mt_out, _ = load_input_tables(str(jq_path), str(mt_path))
 
         sample_ids = mt_out["SAMPLE_ID"].to_list()
         assert all(sid in {"LSL_Guideline", "USL_Guideline", "Internal Guideline"} for sid in sample_ids)
+
+
+    def test_highlighted_run_id_extracted_from_min_run_index(self, tmp_path):
+        """highlighted_run_id should be extracted from the row with minimum RUN_INDEX."""
+        joint_qc = pl.DataFrame({
+            "RUN_INDEX"       : [2, 1, 3],
+            "RUN_ID"          : ["RUN_B", "RUN_A", "RUN_C"],
+            "WORKFLOW_TYPE"   : ["localapp"] * 3,
+            "WORKFLOW_VERSION": ["1.0"] * 3,
+        })
+        metrics = pl.DataFrame({
+            "RUN_INDEX"       : [2, 1, 3],
+            "SAMPLE_ID"       : ["S1", "S2", "S3"],
+            "RUN"             : ["RUN_B", "RUN_A", "RUN_C"],
+            "WORKFLOW_TYPE"   : ["localapp"] * 3,
+            "WORKFLOW_VERSION": ["1.0"] * 3,
+        })
+        jq_path = tmp_path / "joint_qc.tsv"
+        mt_path = tmp_path / "metrics.tsv"
+        joint_qc.write_csv(str(jq_path), separator="\t")
+        metrics.write_csv(str(mt_path), separator="\t")
+
+        _, _, highlighted_run_id = load_input_tables(str(jq_path), str(mt_path))
+
+        # Minimum RUN_INDEX is 1, which corresponds to RUN_A
+        assert highlighted_run_id == "RUN_A"
+
+
+    def test_mismatched_min_run_index_raises_error(self, tmp_path):
+        """load_input_tables should raise ValueError if min RUN_INDEX differs between tables."""
+        joint_qc = pl.DataFrame({
+            "RUN_INDEX"       : [1, 2],
+            "RUN_ID"          : ["RUN_A", "RUN_B"],
+            "WORKFLOW_TYPE"   : ["localapp"] * 2,
+            "WORKFLOW_VERSION": ["1.0"] * 2,
+        })
+        # metrics_table has min RUN_INDEX of 2, but joint_qc has min of 1
+        metrics = pl.DataFrame({
+            "RUN_INDEX"       : [2, 3],
+            "SAMPLE_ID"       : ["S1", "S2"],
+            "RUN"             : ["RUN_B", "RUN_C"],
+            "WORKFLOW_TYPE"   : ["localapp"] * 2,
+            "WORKFLOW_VERSION": ["1.0"] * 2,
+        })
+        jq_path = tmp_path / "joint_qc.tsv"
+        mt_path = tmp_path / "metrics.tsv"
+        joint_qc.write_csv(str(jq_path), separator="\t")
+        metrics.write_csv(str(mt_path), separator="\t")
+
+        with pytest.raises(ValueError, match="Minimum RUN_INDEX mismatch"):
+            load_input_tables(str(jq_path), str(mt_path))
 
 
 class TestFilterMostRecentRuns:
@@ -809,7 +845,7 @@ class TestFilterMostRecentRuns:
 
     def test_real_data_file(self, valid_joint_qc_path, valid_metrics_path):
         """filter_most_recent_runs selects indexes 3 and 4 (most recent) from real data when max_runs=2."""
-        joint_qc, metrics = load_input_tables(str(valid_joint_qc_path), str(valid_metrics_path))
+        joint_qc, metrics, _ = load_input_tables(str(valid_joint_qc_path), str(valid_metrics_path))
         jq, mt = filter_most_recent_runs(joint_qc, metrics, max_runs=2)
 
         # RUN_INDEX is read as integer by polars (leading zeros stripped)

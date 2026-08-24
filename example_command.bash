@@ -1,7 +1,6 @@
 # ========================================================= #
 # python script to create LocalApp and Dragen metrics plots #
 # ========================================================= #
-RUN_ID=250613_A02134_0091_BHYFHJDRX5
 
 # Configuration variables
 MAX_RUNS="1 2 5 10"
@@ -21,7 +20,6 @@ for RUN_COUNT in ${MAX_RUNS}; do
         uv run plot_QC_metrics.py --joint_QC      data/workflow_tables/${WORKFLOW}_plot_joint_sequencing_QC_file.tsv \
                                   --output_pdf    ${RESULTS_FILE}                                                    \
                                   --metrics_table data/workflow_tables/${WORKFLOW}_plot_metrics_table.tsv            \
-                                  --run_id        ${RUN_ID}                                                          \
                                   --max_runs      ${RUN_COUNT}                                                       \
                                   --workflow_type ${WORKFLOW}                                                        ;
     done
