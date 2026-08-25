@@ -222,18 +222,32 @@ def load_input_tables(joint_qc_file: str,
         .item()
     )
 
-    # Suffix duplicated SAMPLE_IDs across the whole table with '|RUN_INDEX' to prevent
-    # bar stacking when the same sample ID appears more than once across runs.
-    # Exclude guideline samples (LSL_Guideline, USL_Guideline, Internal Guideline) from this logic.
-    metrics_table = metrics_table.with_columns(
+    # Add '|RUN_INDEX' suffix to all non-guideline samples and RUN column for visual distinction in plots.
+    # Exclude guideline samples (LSL_Guideline, USL_Guideline, Internal Guideline) from suffixing.
+    metrics_table = metrics_table.with_columns([
         pl.when(
-            (pl.col("SAMPLE_ID").is_duplicated())
-            & (~pl.col("SAMPLE_ID").is_in(["LSL_Guideline", "USL_Guideline", "Internal Guideline"]))
+            ~pl.col("SAMPLE_ID").is_in(["LSL_Guideline", "USL_Guideline", "Internal Guideline"])
         )
         .then(pl.col("SAMPLE_ID") + "|" + pl.col("RUN_INDEX").cast(pl.Utf8))
         .otherwise(pl.col("SAMPLE_ID"))
-        .alias("SAMPLE_ID")
-    )
+        .alias("SAMPLE_ID"),
+        pl.when(
+            ~pl.col("SAMPLE_ID").is_in(["LSL_Guideline", "USL_Guideline", "Internal Guideline"])
+        )
+        .then(pl.col("RUN") + "|" + pl.col("RUN_INDEX").cast(pl.Utf8))
+        .otherwise(pl.col("RUN"))
+        .alias("RUN"),
+    ])
+
+    # Add '|RUN_INDEX' suffix to RUN_ID column in joint_qc_table for non-guideline runs.
+    joint_qc_table = joint_qc_table.with_columns([
+        pl.when(
+            ~pl.col("RUN_ID").is_in(["LSL_Guideline", "USL_Guideline", "Internal Guideline"])
+        )
+        .then(pl.col("RUN_ID") + "|" + pl.col("RUN_INDEX").cast(pl.Utf8))
+        .otherwise(pl.col("RUN_ID"))
+        .alias("RUN_ID"),
+    ])
 
     return joint_qc_table, metrics_table, highlighted_run_id
 

@@ -650,15 +650,14 @@ class TestLoadInputTables:
 
 
     def test_duplicate_sample_ids_suffixed_with_run_index(self, tmp_path):
-        """SAMPLE_IDs appearing more than once across the whole metrics table get '|RUN_INDEX' appended."""
+        """All non-guideline SAMPLE_IDs receive '|RUN_INDEX' suffix for visual distinction in plots."""
         joint_qc = pl.DataFrame({
             "RUN_INDEX"       : [1, 2],
             "RUN_ID"          : ["RUN_A", "RUN_B"],
             "WORKFLOW_TYPE"   : ["localapp"] * 2,
             "WORKFLOW_VERSION": ["1.0"] * 2,
         })
-        # "MCF7" appears in both run 1 and run 2 — should be suffixed.
-        # "BT20" appears only once — should be left unchanged.
+        # All samples (both duplicated and unique) receive the |RUN_INDEX suffix for clarity.
         metrics = pl.DataFrame({
             "RUN_INDEX"       : [1, 2, 1],
             "SAMPLE_ID"       : ["MCF7", "MCF7", "BT20"],
@@ -677,7 +676,7 @@ class TestLoadInputTables:
         assert "MCF7|1" in sample_ids
         assert "MCF7|2" in sample_ids
         assert "MCF7" not in sample_ids   # Original unsuffixed name must not remain
-        assert "BT20" in sample_ids       # Unique sample must be unchanged
+        assert "BT20|1" in sample_ids     # All samples receive the suffix for visual distinction
 
 
     def test_guideline_samples_not_suffixed_when_duplicated(self, tmp_path):
