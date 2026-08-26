@@ -15,13 +15,13 @@ import polars as pl
 import pandas as pd
 from plotnine import ggplot
 
-from plot_run_metrics import (
+from plot_QC_metrics import (
     parse_args,
+    validate_plot_specs,
     valid_metric_expr,
     build_filter_expression,
     build_value_expression,
     get_guideline_value,
-    merge_metric_tables,
     build_tables,
     compute_cart_ylim,
     prepare_bar_plot_data,
@@ -30,69 +30,404 @@ from plot_run_metrics import (
     render_contamination_scatter,
     render_plot,
     save_plot,
+    load_input_tables,
+    filter_most_recent_runs,
 )
 from plots import plot_tsoppy_barplot, plot_contamination_scatter
 import matplotlib.pyplot as plt
+
+
+# --------------------------------------------- #
+# Local Fixtures for Workflow-Aware Build Tests #
+# --------------------------------------------- #
+
+@pytest.fixture(scope="session")
+def merged_workflow_tables_path() -> Path:
+    """Path to real workflow tables used by build_tables tests."""
+    return Path(__file__).parent.parent / "data" / "workflow_tables"
+
+
+@pytest.fixture(scope="session")
+def joint_qc_data_2r(merged_workflow_tables_path) -> pl.DataFrame:
+    """Real joint QC table from workflow_tables fixture set (combined LocalApp + Dragen)."""
+    localapp_df = pl.read_csv(
+        merged_workflow_tables_path / "localapp_plot_joint_sequencing_QC_file.tsv",
+        separator="\t",
+        infer_schema_length=0,
+    )
+    dragen_df = pl.read_csv(
+        merged_workflow_tables_path / "dragen_plot_joint_sequencing_QC_file.tsv",
+        separator="\t",
+        infer_schema_length=0,
+    )
+    # Combine both workflows' data (LocalApp + Dragen)
+    return pl.concat([localapp_df, dragen_df])
+
+
+@pytest.fixture(scope="session")
+def master_metrics_table_2r(merged_workflow_tables_path) -> pl.DataFrame:
+    """Real merged metrics table from workflow_tables fixture set (combined LocalApp + Dragen)."""
+    localapp_df = pl.read_csv(
+        merged_workflow_tables_path / "localapp_plot_metrics_table.tsv",
+        separator="\t",
+        infer_schema_length=0,
+    )
+    dragen_df = pl.read_csv(
+        merged_workflow_tables_path / "dragen_plot_metrics_table.tsv",
+        separator="\t",
+        infer_schema_length=0,
+    )
+    # Combine both workflows' data (LocalApp + Dragen)
+    return pl.concat([localapp_df, dragen_df])
 
 
 # ------------------------------------ #
 # Unit tests without Data Dependencies #
 # ------------------------------------ #
 
+class TestValidatePlotSpecs:
+    """
+    Table-driven tests for validate_plot_specs().
+
+    Valid and invalid spec cases are defined as parametrize data at the top of each test method.
+    Each pytest.param id reflects the scenario being tested, keeping the test body free of
+    per-case logic and making it trivial to add new cases without touching the test logic.
+    """
+
+    @pytest.mark.parametrize("specs", [
+        pytest.param(
+            {
+                "TEST_PLOT": {
+                    "localapp" : {"plot": True,  "index": 1},
+                    "dragen"   : {"plot": False, "index": 0},
+                    "plot_kind"   : "bar",
+                    "source"      : "joint_qc_table",
+                    "title"       : "Test Plot",
+                    "x_var"       : "RUN_ID",
+                    "y_var"       : "VALUE",
+                    "fill_var"    : "RUN_ID",
+                    "x_lab"       : "Run",
+                    "y_lab"       : "Value",
+                    "value_spec"  : {"operation": "cast", "column": "VALUE"},
+                }
+            },
+            id="bar_plot",
+        ),
+        pytest.param(
+            {
+                "SCATTER_PLOT": {
+                    "localapp" : {"plot": True,  "index": 2},
+                    "dragen"   : {"plot": False, "index": 0},
+                    "plot_kind"   : "cluster_density_scatter",
+                    "source"      : "joint_qc_table",
+                    "title"       : "Scatter Test",
+                }
+            },
+            id="cluster_density_scatter",
+        ),
+        pytest.param(
+            {
+                "CONTAMINATION": {
+                    "localapp" : {"plot": True,  "index": 3},
+                    "dragen"   : {"plot": False, "index": 0},
+                    "plot_kind"   : "contamination_scatter",
+                    "source"      : "dna_data_table",
+                    "title"       : "Contamination Plot",
+                    "color_var"   : "RUN",
+                    "label_var"   : "SAMPLE_ID",
+                }
+            },
+            id="contamination_scatter",
+        ),
+    ])
+    def test_valid_specs_do_not_raise(self, specs):
+        """Valid specs should pass validation without raising."""
+        validate_plot_specs(specs)
+
+
+    @pytest.mark.parametrize("specs, expected_match", [
+        pytest.param(
+            {
+                "BAD_PLOT": {
+                    "localapp" : {"plot": True,  "index": 1},
+                    "dragen"   : {"plot": False, "index": 0},
+                    # Missing: plot_kind, source, title
+                }
+            },
+            "Error in",
+            id="missing_common_fields",
+        ),
+        pytest.param(
+            {
+                "BAD_PLOT": {
+                    "localapp" : {"plot": True,  "index": 1},
+                    "dragen"   : {"plot": False, "index": 0},
+                    "plot_kind"   : "unknown_kind",
+                    "source"      : "joint_qc_table",
+                    "title"       : "Test",
+                }
+            },
+            "not recognized",
+            id="unknown_plot_kind",
+        ),
+        pytest.param(
+            {
+                "BAD_BAR": {
+                    "localapp" : {"plot": True,  "index": 1},
+                    "dragen"   : {"plot": False, "index": 0},
+                    "plot_kind"   : "bar",
+                    "source"      : "joint_qc_table",
+                    "title"       : "Test",
+                    # Missing: x_var, y_var, fill_var, x_lab, y_lab, value_spec
+                }
+            },
+            "Missing fields",
+            id="missing_bar_fields",
+        ),
+        pytest.param(
+            {
+                "BAD_CONTAMINATION": {
+                    "localapp" : {"plot": True,  "index": 1},
+                    "dragen"   : {"plot": False, "index": 0},
+                    "plot_kind"   : "contamination_scatter",
+                    "source"      : "dna_data_table",
+                    "title"       : "Test",
+                    # Missing: color_var, label_var
+                }
+            },
+            "Missing fields",
+            id="missing_contamination_fields",
+        ),
+        pytest.param(
+            {
+                "SPEC_1": {},
+                "SPEC_2": {
+                    "localapp" : {"plot": True,  "index": 2},
+                    "dragen"   : {"plot": False, "index": 0},
+                    "plot_kind"   : "nonexistent_kind",
+                    "source"      : "table",
+                    "title"       : "Test",
+                },
+            },
+            "2 validation error",
+            id="multiple_errors_accumulation",
+        ),
+        pytest.param(
+            {
+                "MISSING_WORKFLOW_KEY": {
+                    # Missing dragen entirely
+                    "localapp" : {"plot": True,  "index": 1},
+                    "plot_kind"   : "bar",
+                    "source"      : "joint_qc_table",
+                    "title"       : "Test",
+                    "x_var": "X", "y_var": "Y", "fill_var": "F",
+                    "x_lab": "X", "y_lab": "Y",
+                    "value_spec": {"operation": "cast", "column": "X"},
+                }
+            },
+            "Missing workflow routing key",
+            id="missing_workflow_key",
+        ),
+        pytest.param(
+            {
+                "INVALID_PLOT_TYPE": {
+                    "localapp" : {"plot": "yes", "index": 1},  # plot must be bool
+                    "dragen"   : {"plot": False, "index": 0},
+                    "plot_kind"   : "bar",
+                    "source"      : "joint_qc_table",
+                    "title"       : "Test",
+                    "x_var": "X", "y_var": "Y", "fill_var": "F",
+                    "x_lab": "X", "y_lab": "Y",
+                    "value_spec": {"operation": "cast", "column": "X"},
+                }
+            },
+            "'plot' must be a bool",
+            id="invalid_plot_type",
+        ),
+        pytest.param(
+            {
+                "NEGATIVE_INDEX": {
+                    "localapp" : {"plot": True, "index": -1},  # index must be >= 0
+                    "dragen"   : {"plot": False, "index": 0},
+                    "plot_kind"   : "bar",
+                    "source"      : "joint_qc_table",
+                    "title"       : "Test",
+                    "x_var": "X", "y_var": "Y", "fill_var": "F",
+                    "x_lab": "X", "y_lab": "Y",
+                    "value_spec": {"operation": "cast", "column": "X"},
+                }
+            },
+            "'index' must be a non-negative integer",
+            id="negative_index",
+        ),
+        pytest.param(
+            {
+                "FLOAT_INDEX": {
+                    "localapp" : {"plot": True, "index": 1.5},  # index must be int
+                    "dragen"   : {"plot": False, "index": 0},
+                    "plot_kind"   : "bar",
+                    "source"      : "joint_qc_table",
+                    "title"       : "Test",
+                    "x_var": "X", "y_var": "Y", "fill_var": "F",
+                    "x_lab": "X", "y_lab": "Y",
+                    "value_spec": {"operation": "cast", "column": "X"},
+                }
+            },
+            "'index' must be a non-negative integer",
+            id="float_index",
+        ),
+    ])
+    def test_invalid_specs_raise_key_error(self, specs, expected_match):
+        """Invalid specs should raise KeyError with a message matching the expected pattern."""
+        with pytest.raises(KeyError, match=expected_match):
+            validate_plot_specs(specs)
+
+
+    @patch("plot_QC_metrics.logger")
+    def test_validate_plot_specs_logs_errors(self, mock_logger):
+        """
+        Test that each validation error is logged immediately via logger.error().
+        Kept separate because it tests logger behavior via mock, not exception raising.
+        """
+        invalid_specs = {
+            "PLOT_A": {
+                "localapp" : {"plot": True,  "index": 1},
+                "dragen"   : {"plot": False, "index": 0},
+                # Missing: plot_kind, source, title
+            },
+            "PLOT_B": {
+                "localapp" : {"plot": True,  "index": 2},
+                "dragen"   : {"plot": False, "index": 1},  # Changed from 0 to 1 to avoid duplicate
+                "plot_kind" : "bar",
+                "source"    : "joint_qc_table",
+                "title"     : "Test",
+                # Missing bar-specific fields
+            }
+        }
+        
+        with pytest.raises(KeyError):
+            validate_plot_specs(invalid_specs)
+        
+        assert mock_logger.error.call_count == 2
+        
+        first_call_args = mock_logger.error.call_args_list[0][0][0]
+        assert "PLOT_A" in first_call_args
+        assert "Missing fields:" in first_call_args
+        
+        second_call_args = mock_logger.error.call_args_list[1][0][0]
+        assert "PLOT_B" in second_call_args
+        assert "Missing fields:" in second_call_args
+
+
+    def test_duplicate_indexes_raise_error(self):
+        """
+        Duplicate indexes within the same workflow should raise KeyError.
+        """
+        specs = {
+            "PLOT_1": {
+                "localapp" : {"plot": True,  "index": 1},
+                "dragen"   : {"plot": False, "index": 0},
+                "plot_kind"   : "bar",
+                "source"      : "joint_qc_table",
+                "title"       : "Plot 1",
+                "x_var": "X", "y_var": "Y", "fill_var": "F",
+                "x_lab": "X", "y_lab": "Y",
+                "value_spec": {"operation": "cast", "column": "X"},
+            },
+            "PLOT_2": {
+                "localapp" : {"plot": True,  "index": 1},  # Duplicate index for localapp
+                "dragen"   : {"plot": False, "index": 0},
+                "plot_kind"   : "bar",
+                "source"      : "joint_qc_table",
+                "title"       : "Plot 2",
+                "x_var": "X", "y_var": "Y", "fill_var": "F",
+                "x_lab": "X", "y_lab": "Y",
+                "value_spec": {"operation": "cast", "column": "X"},
+            },
+        }
+
+        with pytest.raises(KeyError, match="Duplicate index"):
+            validate_plot_specs(specs)
+
+
+    def test_multiple_index_zeros_do_not_raise_error(self):
+        """
+        Multiple plots with index 0 (not relevant) should NOT raise a duplicate index error.
+        Index 0 means the plot is not relevant for that workflow and should be ignored.
+        """
+        specs = {
+            "PLOT_1": {
+                "localapp" : {"plot": False, "index": 0},  # Not relevant for localapp
+                "dragen"   : {"plot": True,  "index": 1},
+                "plot_kind"   : "bar",
+                "source"      : "joint_qc_table",
+                "title"       : "Plot 1",
+                "x_var": "X", "y_var": "Y", "fill_var": "F",
+                "x_lab": "X", "y_lab": "Y",
+                "value_spec": {"operation": "cast", "column": "X"},
+            },
+            "PLOT_2": {
+                "localapp" : {"plot": False, "index": 0},  # Also not relevant for localapp
+                "dragen"   : {"plot": True,  "index": 2},
+                "plot_kind"   : "bar",
+                "source"      : "joint_qc_table",
+                "title"       : "Plot 2",
+                "x_var": "X", "y_var": "Y", "fill_var": "F",
+                "x_lab": "X", "y_lab": "Y",
+                "value_spec": {"operation": "cast", "column": "X"},
+            },
+        }
+
+        # Should not raise an error since multiple 0s are allowed
+        validate_plot_specs(specs)  # Passes without raising
+
+
 class TestParseArgs:
     """Test command-line argument parsing."""
 
-
-    def test_parse_args_minimal(self):
-        """
-        Test parsing with one run and minimal arguments.
-        """
-        argv = [
-            "D",                # workflow_type (D for DRAGEN or L for LocalApp)
-            "1",                # run_count
-            "joint_qc.tsv",     # joint_qc_file
-            "output.pdf",       # output_pdf
-            "merged.tsv",       # merged_metrics_file
-            "RUN_001",          # highlighted_run_id
-            "True",             # create_plots
-            "metrics_run1.tsv", # metric_files[0]
-            "RUN_001",          # run_labels[0]
-        ]
+    @pytest.mark.parametrize(
+        "argv, expected",
+        [
+            pytest.param(
+                [
+                    "--joint_QC",       "joint_qc.tsv",
+                    "--output_pdf",     "output/run.pdf",
+                    "--metrics_table",  "merged.tsv",
+                    "--workflow_type",  "localapp",
+                ],
+                {
+                    "joint_qc_file"      : "joint_qc.tsv",
+                    "output_pdf"         : "output/run.pdf",
+                    "metrics_table"      : "merged.tsv",
+                    "workflow_type"      : "localapp",
+                    "max_runs"           : 10,
+                },
+                id="minimal_valid_case",
+            ),
+            pytest.param(
+                [
+                    "--joint_QC",       "joint_qc.tsv",
+                    "--output_pdf",     "output/run.pdf",
+                    "--metrics_table",  "merged.tsv",
+                    "--workflow_type",  "localapp",
+                    "--max_runs",       "5",
+                ],
+                {
+                    "joint_qc_file"      : "joint_qc.tsv",
+                    "output_pdf"         : "output/run.pdf",
+                    "metrics_table"      : "merged.tsv",
+                    "workflow_type"      : "localapp",
+                    "max_runs"           : 5,
+                },
+                id="with_custom_max_runs",
+            ),
+        ],
+    )
+    def test_parse_args_valid(self, argv, expected):
+        """Parse required named arguments and preserve their values."""
         result = parse_args(argv)
 
-        assert result["workflow_type"]       == "D"
-        assert result["run_count"]           == 1
-        assert result["joint_qc_file"]       == "joint_qc.tsv"
-        assert result["output_pdf"]          == "output.pdf"
-        assert result["merged_metrics_file"] == "merged.tsv"
-        assert result["highlighted_run_id"]  == "RUN_001"
-        assert result["create_plots"]        == "True"
-        assert result["metric_files"]        == ["metrics_run1.tsv"]
-        assert result["run_labels"]          == ["RUN_001"]
-
-
-    def test_parse_args_multiple_runs(self):
-        """
-        Test parsing with multiple runs.
-        """
-        argv = [
-            "L",
-            "3",
-            "joint_qc.tsv",
-            "output.pdf",
-            "merged.tsv",
-            "RUN_002",
-            "False",
-            "metrics1.tsv", "metrics2.tsv", "metrics3.tsv",
-            "RUN_001", "RUN_002", "RUN_003",
-        ]
-        result = parse_args(argv)
-
-        assert result["workflow_type"] == "L"
-        assert result["run_count"]    == 3
-        assert result["metric_files"] == ["metrics1.tsv", "metrics2.tsv", "metrics3.tsv"]
-        assert result["run_labels"]   == ["RUN_001", "RUN_002", "RUN_003"]
-        assert result["create_plots"] == "False"
+        assert result == expected
 
 
     def test_parse_args_file_paths_preserved(self):
@@ -101,66 +436,446 @@ class TestParseArgs:
         This ensures that Path objects are not altered during parsing.
         """
         argv = [
-            "D",
-            "2",
-            "path/to/joint_qc.tsv",
-            "output/results.pdf",
-            "output/merged.tsv",
-            "RUN_highlighted",
-            "True",
-            "path/to/metrics1.tsv", "path/to/metrics2.tsv",
-            "Label_1", "Label_2",
+            "--joint_QC",       "path/to/joint_qc.tsv",
+            "--output_pdf",     "output/results/run.pdf",
+            "--metrics_table",  "output/merged.tsv",
+            "--workflow_type",  "dragen",
         ]
         result = parse_args(argv)
 
-        assert result["workflow_type"]       == "D"
-        assert result["joint_qc_file"]   == "path/to/joint_qc.tsv"
-        assert result["output_pdf"]      == "output/results.pdf"
-        assert result["metric_files"][0] == "path/to/metrics1.tsv"
+        assert result["joint_qc_file"] == "path/to/joint_qc.tsv"
+        assert result["output_pdf"]    == "output/results/run.pdf"
+        assert result["metrics_table"] == "output/merged.tsv"
+
+
+    def test_parse_args_workflow_type_is_case_insensitive(self):
+        """--workflow_type should accept mixed-case values and normalise to lowercase."""
+        argv = [
+            "--joint_QC",       "joint_qc.tsv",
+            "--output_pdf",     "run.pdf",
+            "--metrics_table",  "merged.tsv",
+            "--workflow_type",  "LocalApp",
+        ]
+        result = parse_args(argv)
+        assert result["workflow_type"] == "localapp"
+
+
+    def test_parse_args_max_runs_defaults_to_10(self):
+        """--max_runs should default to 10 when not supplied."""
+        argv = [
+            "--joint_QC",       "joint_qc.tsv",
+            "--output_pdf",     "run.pdf",
+            "--metrics_table",  "merged.tsv",
+            "--workflow_type",  "localapp",
+        ]
+        result = parse_args(argv)
+        assert result["max_runs"] == 10
+
+
+    @pytest.mark.parametrize(
+        "max_runs_value",
+        [
+            pytest.param("0",  id="zero"),
+            pytest.param("-1", id="negative"),
+            pytest.param("11", id="exceeds_max"),
+            pytest.param("100", id="way_exceeds_max"),
+        ],
+    )
+    def test_parse_args_max_runs_invalid_raises(self, max_runs_value):
+        """--max_runs must be between 1 and 10; values outside this range should raise SystemExit."""
+        argv = [
+            "--joint_QC",       "joint_qc.tsv",
+            "--output_pdf",     "run.pdf",
+            "--metrics_table",  "merged.tsv",
+            "--workflow_type",  "localapp",
+            "--max_runs",       max_runs_value,
+        ]
+        with pytest.raises(SystemExit):
+            parse_args(argv)
+
+
+    @pytest.mark.parametrize(
+        "argv",
+        [
+            pytest.param(
+                [
+                    "--output_pdf",     "run.pdf",
+                    "--metrics_table",  "merged.tsv",
+                    "--workflow_type",  "localapp",
+                ],
+                id="missing_joint_qc",
+            ),
+            pytest.param(
+                [
+                    "--joint_QC",       "joint_qc.tsv",
+                    "--metrics_table",  "merged.tsv",
+                    "--workflow_type",  "localapp",
+                ],
+                id="missing_output_pdf",
+            ),
+            pytest.param(
+                [
+                    "--joint_QC",       "joint_qc.tsv",
+                    "--output_pdf",     "run.pdf",
+                    "--workflow_type",  "localapp",
+                ],
+                id="missing_metrics_table",
+            ),
+            pytest.param(
+                [
+                    "--joint_QC",       "joint_qc.tsv",
+                    "--output_pdf",     "run.pdf",
+                    "--metrics_table",  "merged.tsv",
+                ],
+                id="missing_workflow_type",
+            ),
+            pytest.param(
+                [
+                    "--joint_QC",       "joint_qc.tsv",
+                    "--output_pdf",     "run.pdf",
+                    "--metrics_table",  "merged.tsv",
+                    "--workflow_type",  "unsupported_workflow",
+                ],
+                id="invalid_workflow_type",
+            ),
+        ],
+    )
+    def test_parse_args_missing_required_raises(self, argv):
+        """Missing or invalid required CLI arguments should raise SystemExit from argparse."""
+        with pytest.raises(SystemExit):
+            parse_args(argv)
+
+
+# ---------------------------------------- #
+# Fixtures for table loading / filtering   #
+# ---------------------------------------- #
+
+WORKFLOW_TABLES_DIR = Path(__file__).parent.parent / "data" / "workflow_tables"
+
+
+@pytest.fixture(scope="module")
+def valid_joint_qc_path() -> Path:
+    return WORKFLOW_TABLES_DIR / "localapp_plot_joint_sequencing_QC_file.tsv"
+
+
+@pytest.fixture(scope="module")
+def valid_metrics_path() -> Path:
+    return WORKFLOW_TABLES_DIR / "localapp_plot_metrics_table.tsv"
+
+
+class TestLoadInputTables:
+    """Tests for load_input_tables() — loading and column validation."""
+
+    def test_load_returns_two_dataframes(self, valid_joint_qc_path, valid_metrics_path):
+        """load_input_tables returns two non-empty polars DataFrames and a highlighted_run_id string."""
+        joint_qc, metrics, highlighted_run_id = load_input_tables(str(valid_joint_qc_path), str(valid_metrics_path))
+
+        assert isinstance(joint_qc, pl.DataFrame)
+        assert isinstance(metrics, pl.DataFrame)
+        assert isinstance(highlighted_run_id, str)
+        assert joint_qc.height > 0
+        assert metrics.height  > 0
+        assert len(highlighted_run_id) > 0
+
+
+    def test_joint_qc_contains_required_columns(self, valid_joint_qc_path, valid_metrics_path):
+        """joint_qc_table must contain RUN_INDEX, WORKFLOW_TYPE, WORKFLOW_VERSION."""
+        joint_qc, _, _ = load_input_tables(str(valid_joint_qc_path), str(valid_metrics_path))
+
+        required = {"RUN_INDEX", "WORKFLOW_TYPE", "WORKFLOW_VERSION"}
+        assert required.issubset(set(joint_qc.columns))
+
+
+    def test_metrics_contains_required_columns(self, valid_joint_qc_path, valid_metrics_path):
+        """metrics_table must contain RUN_INDEX, SAMPLE_ID, RUN, WORKFLOW_TYPE, WORKFLOW_VERSION."""
+        _, metrics, _ = load_input_tables(str(valid_joint_qc_path), str(valid_metrics_path))
+
+        required = {"RUN_INDEX", "SAMPLE_ID", "RUN", "WORKFLOW_TYPE", "WORKFLOW_VERSION"}
+        assert required.issubset(set(metrics.columns))
+
+
+    @pytest.mark.parametrize("missing_col", sorted(["RUN_INDEX", "WORKFLOW_TYPE", "WORKFLOW_VERSION"]))
+    def test_missing_joint_qc_column_raises(self, valid_joint_qc_path, valid_metrics_path, missing_col, tmp_path):
+        """load_input_tables raises ValueError when a required joint_qc column is missing."""
+        joint_qc = pl.read_csv(str(valid_joint_qc_path), separator="\t")
+        stripped  = joint_qc.drop(missing_col)
+        bad_path  = tmp_path / "bad_joint_qc.tsv"
+        stripped.write_csv(str(bad_path), separator="\t")
+
+        with pytest.raises(ValueError, match=missing_col):
+            load_input_tables(str(bad_path), str(valid_metrics_path))
+
+
+    @pytest.mark.parametrize(
+        "missing_col",
+        sorted(["RUN_INDEX", "SAMPLE_ID", "RUN", "WORKFLOW_TYPE", "WORKFLOW_VERSION"]),
+    )
+    def test_missing_metrics_column_raises(self, valid_joint_qc_path, valid_metrics_path, missing_col, tmp_path):
+        """load_input_tables raises ValueError when a required metrics column is missing."""
+        metrics  = pl.read_csv(str(valid_metrics_path), separator="\t")
+        stripped = metrics.drop(missing_col)
+        bad_path = tmp_path / "bad_metrics.tsv"
+        stripped.write_csv(str(bad_path), separator="\t")
+
+        with pytest.raises(ValueError, match=missing_col):
+            load_input_tables(str(valid_joint_qc_path), str(bad_path))
+
+
+    def test_tables_sorted_ascending_by_run_index(self, tmp_path):
+        """Both returned tables must be sorted by RUN_INDEX in ascending order."""
+        joint_qc = pl.DataFrame({
+            "RUN_INDEX"       : [3, 1, 2],
+            "RUN_ID"          : ["RUN_C", "RUN_A", "RUN_B"],
+            "WORKFLOW_TYPE"   : ["localapp"] * 3,
+            "WORKFLOW_VERSION": ["1.0"] * 3,
+        })
+        metrics = pl.DataFrame({
+            "RUN_INDEX"       : [3, 1, 2],
+            "SAMPLE_ID"       : ["S3", "S1", "S2"],
+            "RUN"             : ["RUN_C", "RUN_A", "RUN_B"],
+            "WORKFLOW_TYPE"   : ["localapp"] * 3,
+            "WORKFLOW_VERSION": ["1.0"] * 3,
+        })
+        jq_path = tmp_path / "joint_qc.tsv"
+        mt_path = tmp_path / "metrics.tsv"
+        joint_qc.write_csv(str(jq_path), separator="\t")
+        metrics.write_csv(str(mt_path), separator="\t")
+
+        jq_out, mt_out, highlighted_run_id = load_input_tables(str(jq_path), str(mt_path))
+
+        assert jq_out["RUN_INDEX"].to_list() == [1, 2, 3]
+        assert mt_out["RUN_INDEX"].to_list() == [1, 2, 3]
+        # Minimum RUN_INDEX is 1, so highlighted_run_id should be found with that index
+        assert isinstance(highlighted_run_id, str)
+
+
+    def test_duplicate_sample_ids_suffixed_with_run_index(self, tmp_path):
+        """All non-guideline SAMPLE_IDs receive '|RUN_INDEX' suffix for visual distinction in plots."""
+        joint_qc = pl.DataFrame({
+            "RUN_INDEX"       : [1, 2],
+            "RUN_ID"          : ["RUN_A", "RUN_B"],
+            "WORKFLOW_TYPE"   : ["localapp"] * 2,
+            "WORKFLOW_VERSION": ["1.0"] * 2,
+        })
+        # All samples (both duplicated and unique) receive the |RUN_INDEX suffix for clarity.
+        metrics = pl.DataFrame({
+            "RUN_INDEX"       : [1, 2, 1],
+            "SAMPLE_ID"       : ["MCF7", "MCF7", "BT20"],
+            "RUN"             : ["RUN_A", "RUN_B", "RUN_A"],
+            "WORKFLOW_TYPE"   : ["localapp"] * 3,
+            "WORKFLOW_VERSION": ["1.0"] * 3,
+        })
+        jq_path = tmp_path / "joint_qc.tsv"
+        mt_path = tmp_path / "metrics.tsv"
+        joint_qc.write_csv(str(jq_path), separator="\t")
+        metrics.write_csv(str(mt_path), separator="\t")
+
+        _, mt_out, _ = load_input_tables(str(jq_path), str(mt_path))
+
+        sample_ids = set(mt_out["SAMPLE_ID"].to_list())
+        assert "MCF7|1" in sample_ids
+        assert "MCF7|2" in sample_ids
+        assert "MCF7" not in sample_ids   # Original unsuffixed name must not remain
+        assert "BT20|1" in sample_ids     # All samples receive the suffix for visual distinction
+
+
+    def test_guideline_samples_not_suffixed_when_duplicated(self, tmp_path):
+        """Guideline SAMPLE_IDs (LSL_Guideline, USL_Guideline, Internal Guideline) must never be renamed."""
+        joint_qc = pl.DataFrame({
+            "RUN_INDEX"       : [1, 2],
+            "RUN_ID"          : ["RUN_A", "RUN_B"],
+            "WORKFLOW_TYPE"   : ["localapp"] * 2,
+            "WORKFLOW_VERSION": ["1.0"] * 2,
+        })
+        # All three guideline IDs appear in both runs — they must not be suffixed.
+        metrics = pl.DataFrame({
+            "RUN_INDEX"       : [1, 2, 1, 2, 1, 2],
+            "SAMPLE_ID"       : [
+                "LSL_Guideline", "LSL_Guideline",
+                "USL_Guideline", "USL_Guideline",
+                "Internal Guideline", "Internal Guideline",
+            ],
+            "RUN"             : ["RUN_A", "RUN_B"] * 3,
+            "WORKFLOW_TYPE"   : ["localapp"] * 6,
+            "WORKFLOW_VERSION": ["1.0"] * 6,
+        })
+        jq_path = tmp_path / "joint_qc.tsv"
+        mt_path = tmp_path / "metrics.tsv"
+        joint_qc.write_csv(str(jq_path), separator="\t")
+        metrics.write_csv(str(mt_path), separator="\t")
+
+        _, mt_out, _ = load_input_tables(str(jq_path), str(mt_path))
+
+        sample_ids = mt_out["SAMPLE_ID"].to_list()
+        assert all(sid in {"LSL_Guideline", "USL_Guideline", "Internal Guideline"} for sid in sample_ids)
+
+
+    def test_highlighted_run_id_extracted_from_min_run_index(self, tmp_path):
+        """highlighted_run_id should be extracted from the row with minimum RUN_INDEX."""
+        joint_qc = pl.DataFrame({
+            "RUN_INDEX"       : [2, 1, 3],
+            "RUN_ID"          : ["RUN_B", "RUN_A", "RUN_C"],
+            "WORKFLOW_TYPE"   : ["localapp"] * 3,
+            "WORKFLOW_VERSION": ["1.0"] * 3,
+        })
+        metrics = pl.DataFrame({
+            "RUN_INDEX"       : [2, 1, 3],
+            "SAMPLE_ID"       : ["S1", "S2", "S3"],
+            "RUN"             : ["RUN_B", "RUN_A", "RUN_C"],
+            "WORKFLOW_TYPE"   : ["localapp"] * 3,
+            "WORKFLOW_VERSION": ["1.0"] * 3,
+        })
+        jq_path = tmp_path / "joint_qc.tsv"
+        mt_path = tmp_path / "metrics.tsv"
+        joint_qc.write_csv(str(jq_path), separator="\t")
+        metrics.write_csv(str(mt_path), separator="\t")
+
+        _, _, highlighted_run_id = load_input_tables(str(jq_path), str(mt_path))
+
+        # Minimum RUN_INDEX is 1, which corresponds to RUN_A
+        assert highlighted_run_id == "RUN_A"
+
+
+    def test_mismatched_min_run_index_raises_error(self, tmp_path):
+        """load_input_tables should raise ValueError if min RUN_INDEX differs between tables."""
+        joint_qc = pl.DataFrame({
+            "RUN_INDEX"       : [1, 2],
+            "RUN_ID"          : ["RUN_A", "RUN_B"],
+            "WORKFLOW_TYPE"   : ["localapp"] * 2,
+            "WORKFLOW_VERSION": ["1.0"] * 2,
+        })
+        # metrics_table has min RUN_INDEX of 2, but joint_qc has min of 1
+        metrics = pl.DataFrame({
+            "RUN_INDEX"       : [2, 3],
+            "SAMPLE_ID"       : ["S1", "S2"],
+            "RUN"             : ["RUN_B", "RUN_C"],
+            "WORKFLOW_TYPE"   : ["localapp"] * 2,
+            "WORKFLOW_VERSION": ["1.0"] * 2,
+        })
+        jq_path = tmp_path / "joint_qc.tsv"
+        mt_path = tmp_path / "metrics.tsv"
+        joint_qc.write_csv(str(jq_path), separator="\t")
+        metrics.write_csv(str(mt_path), separator="\t")
+
+        with pytest.raises(ValueError, match="Minimum RUN_INDEX mismatch"):
+            load_input_tables(str(jq_path), str(mt_path))
+
+
+class TestFilterMostRecentRuns:
+    """Tests for filter_most_recent_runs() — RUN_INDEX-based run selection."""
+
+    @pytest.fixture
+    def sample_joint_qc(self) -> pl.DataFrame:
+        """Small joint QC table with RUN_INDEX values 001–005 (001 = most recent)."""
+        return pl.DataFrame({
+            "RUN_INDEX"       : ["005", "004", "003", "002", "001"],
+            "RUN_ID"          : ["RUN_E", "RUN_D", "RUN_C", "RUN_B", "RUN_A"],
+            "WORKFLOW_TYPE"   : ["localapp"] * 5,
+            "WORKFLOW_VERSION": ["1.0"] * 5,
+        })
+
+
+    @pytest.fixture
+    def sample_metrics(self) -> pl.DataFrame:
+        """Small metrics table aligned to the same runs as sample_joint_qc."""
+        return pl.DataFrame({
+            "RUN_INDEX"       : ["005", "005", "004", "004", "003", "003", "002", "002", "001", "001"],
+            "SAMPLE_ID"       : ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10"],
+            "RUN"             : ["RUN_E"] * 2 + ["RUN_D"] * 2 + ["RUN_C"] * 2 + ["RUN_B"] * 2 + ["RUN_A"] * 2,
+            "WORKFLOW_TYPE"   : ["localapp"] * 10,
+            "WORKFLOW_VERSION": ["1.0"] * 10,
+        })
+
+
+    def test_returns_two_dataframes(self, sample_joint_qc, sample_metrics):
+        """filter_most_recent_runs returns two polars DataFrames."""
+        jq, mt = filter_most_recent_runs(sample_joint_qc, sample_metrics, max_runs=2)
+
+        assert isinstance(jq, pl.DataFrame)
+        assert isinstance(mt, pl.DataFrame)
+
+
+    def test_correct_number_of_runs_in_joint_qc(self, sample_joint_qc, sample_metrics):
+        """Joint QC table should have exactly max_runs rows after filtering."""
+        jq, _ = filter_most_recent_runs(sample_joint_qc, sample_metrics, max_runs=2)
+
+        assert jq.height == 2
+
+
+    def test_selects_lowest_run_indexes(self, sample_joint_qc, sample_metrics):
+        """The two most recent runs (lowest RUN_INDEX) should be selected."""
+        jq, _ = filter_most_recent_runs(sample_joint_qc, sample_metrics, max_runs=2)
+
+        selected_indexes = set(jq["RUN_INDEX"].to_list())
+        assert selected_indexes == {"001", "002"}
+
+
+    def test_metrics_filtered_to_same_runs(self, sample_joint_qc, sample_metrics):
+        """metrics_table should be filtered to the same set of RUN_INDEX values as joint_qc."""
+        jq, mt = filter_most_recent_runs(sample_joint_qc, sample_metrics, max_runs=2)
+
+        jq_indexes = set(jq["RUN_INDEX"].to_list())
+        mt_indexes = set(mt["RUN_INDEX"].to_list())
+        assert jq_indexes == mt_indexes
+
+
+    def test_metrics_row_count_matches_selected_runs(self, sample_joint_qc, sample_metrics):
+        """Metrics rows should include only samples from selected runs (2 samples per run)."""
+        _, mt = filter_most_recent_runs(sample_joint_qc, sample_metrics, max_runs=2)
+
+        assert mt.height == 4  # 2 runs × 2 samples each
+
+
+    def test_max_runs_larger_than_available_returns_all(self, sample_joint_qc, sample_metrics):
+        """When max_runs exceeds available runs, all runs should be returned."""
+        jq, mt = filter_most_recent_runs(sample_joint_qc, sample_metrics, max_runs=100)
+
+        assert jq.height == 5
+        assert mt.height == 10
+
+
+    def test_max_runs_one_selects_single_most_recent(self, sample_joint_qc, sample_metrics):
+        """max_runs=1 should return only the single most recent run (lowest RUN_INDEX)."""
+        jq, _ = filter_most_recent_runs(sample_joint_qc, sample_metrics, max_runs=1)
+
+        assert jq.height == 1
+        assert jq["RUN_INDEX"][0] == "001"
+
+
+    def test_real_data_file(self, valid_joint_qc_path, valid_metrics_path):
+        """filter_most_recent_runs selects indexes 3 and 4 (most recent) from real data when max_runs=2."""
+        joint_qc, metrics, _ = load_input_tables(str(valid_joint_qc_path), str(valid_metrics_path))
+        jq, mt = filter_most_recent_runs(joint_qc, metrics, max_runs=2)
+
+        # RUN_INDEX is read as integer by polars (leading zeros stripped)
+        selected_indexes = set(jq["RUN_INDEX"].to_list())
+        assert selected_indexes == {3, 4}
 
 
 class TestFilterExpressions:
-    """
-    Test build_filter_expression for different filter types.
-    Each filter type should produce a valid Polars expression that can be applied to a DataFrame.
-    """
+    """Table-driven tests for build_filter_expression()."""
 
-
-    def test_build_filter_contains(self):
-        """
-        Test filter with 'contains' operator.
-        """
-        filter_spec = {"column": "SAMPLE_ID", "contains": "D01"}
-        expr        = build_filter_expression(filter_spec)
-
-        # Verify it's a Polars expression and doesn't throw when applied
+    @pytest.mark.parametrize(
+        "filter_spec",
+        [
+            pytest.param({"column": "SAMPLE_ID", "contains": "D01"}, id="contains"),
+            pytest.param({"column": "SAMPLE_ID", "equals": "LSL_Guideline"}, id="equals"),
+            pytest.param({"column": "SAMPLE_ID", "not_equals": "LSL_Guideline"}, id="not_equals"),
+        ],
+    )
+    def test_build_filter_supported_types(self, filter_spec):
+        """Supported filter specs should produce a valid Polars expression."""
+        expr = build_filter_expression(filter_spec)
         assert str(type(expr)).find("Expr") != -1
 
-
-    def test_build_filter_equals(self):
-        """
-        Test filter with 'equals' operator.
-        """
-        filter_spec = {"column": "SAMPLE_ID", "equals": "LSL_Guideline"}
-        expr        = build_filter_expression(filter_spec)
-        assert str(type(expr)).find("Expr") != -1
-
-
-    def test_build_filter_not_equals(self):
-        """
-        Test filter with 'not_equals' operator.
-        """
-        filter_spec = {"column": "SAMPLE_ID", "not_equals": "LSL_Guideline"}
-        expr        = build_filter_expression(filter_spec)
-        assert str(type(expr)).find("Expr") != -1
-
-
-    def test_build_filter_unsupported_raises(self):
-        """
-        Test that unsupported filter type raises ValueError.
-        """
-        filter_spec = {"column": "SAMPLE_ID", "range": (0, 100)}
-        
+    @pytest.mark.parametrize(
+        "filter_spec",
+        [
+            pytest.param({"column": "SAMPLE_ID", "range": (0, 100)}, id="unsupported_filter"),
+        ],
+    )
+    def test_build_filter_unsupported_raises(self, filter_spec):
+        """Unsupported filter types should raise ValueError."""
         with pytest.raises(ValueError, match="Unsupported filter"):
             build_filter_expression(filter_spec)
 
@@ -354,95 +1069,14 @@ class TestComputeCartYLim:
 # Data transformation tests (Real Data from Fixtures) #
 # --------------------------------------------------- #
 
-class TestMergeMetricTables:
-    """
-    Test merging multiple metric files into one table.
-    
-    The variable 'single_run_metrics' is a fixture that provides a Polars DataFrame representing one run's metrics.
-    The fixture is defined in conftest.py and loads a TSV file from the test data directory.
-    """
-
-    def test_merge_single_file(self, single_run_metrics):
-        """
-        Test merge with single metric file.
-        """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.tsv', delete=False) as f:
-            single_run_metrics.write_csv(f.name, separator='\t')
-            temp_path = f.name
-
-        try:
-            parsed_args = {
-                "metric_files" : [temp_path],
-                "run_labels"   : ["RUN_001"],
-            }
-            result = merge_metric_tables(parsed_args)
-
-            assert result.height == single_run_metrics.height
-            assert "RUN" in result.columns
-            assert (result["RUN"] == "RUN_001").all()
-        finally:
-            Path(temp_path).unlink()
-
-
-    def test_merge_multiple_files(self, single_run_metrics):
-        """
-        Test merge with multiple metric files.
-        Each file should be assigned the correct RUN label in the merged result.
-        """
-        with tempfile.TemporaryDirectory() as tmpdir:
-            # Create two metric files
-            file1 = Path(tmpdir) / "metrics1.tsv"
-            file2 = Path(tmpdir) / "metrics2.tsv"
-
-            single_run_metrics.write_csv(str(file1), separator='\t')
-            single_run_metrics.write_csv(str(file2), separator='\t')
-
-            parsed_args = {
-                "metric_files" : [str(file1), str(file2)],
-                "run_labels"   : ["RUN_001", "RUN_002"],
-            }
-            result = merge_metric_tables(parsed_args)
-
-            # Should have both runs
-            assert set(result["RUN"].unique()) == {"RUN_001", "RUN_002"}
-
-            # Each run should appear in the merged result
-            assert result.filter(pl.col("RUN") == "RUN_001").height > 0
-            assert result.filter(pl.col("RUN") == "RUN_002").height > 0
-
-
-    def test_merge_preserves_all_columns(self, single_run_metrics):
-        """
-        Test that merge preserves all original columns.
-        The merged table should contain all columns from the original metric files, plus the added RUN column."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.tsv', delete=False) as f:
-            single_run_metrics.write_csv(f.name, separator='\t')
-            temp_path = f.name
-
-        try:
-            original_cols = set(single_run_metrics.columns)
-            parsed_args = {
-                "metric_files" : [temp_path],
-                "run_labels"   : ["RUN_001"],
-            }
-            result = merge_metric_tables(parsed_args)
-            result_cols = set(result.columns) - {"RUN"}  # Remove the added RUN column
-
-            assert original_cols == result_cols
-        finally:
-            Path(temp_path).unlink()
-
-
 class TestBuildTables:
     """Test the build_tables function that creates logical subsets."""
 
-    def test_build_tables_structure(self, joint_qc_data, single_run_metrics):
-        """
-        Test that build_tables returns all expected table keys.
-        """
-        merged = single_run_metrics.with_columns(pl.lit("RUN_001").alias("RUN"))
-
-        result = build_tables(joint_qc_data, merged, "RUN_001")
+    @pytest.mark.parametrize("workflow", ["Dragen", "dragen", "LocalApp", "localapp"])
+    def test_build_tables_structure(self, joint_qc_data_2r, master_metrics_table_2r, workflow):
+        """Ensure stable output keys for accepted workflow values (case-insensitive)."""
+        highlight_run = master_metrics_table_2r.select(pl.col("RUN").drop_nulls().first()).item()
+        result = build_tables(joint_qc_data_2r, master_metrics_table_2r, highlight_run, workflow=workflow)
 
         expected_keys = {
             "joint_qc_table",
@@ -460,54 +1094,64 @@ class TestBuildTables:
         }
         assert set(result.keys()) == expected_keys
 
+    @pytest.mark.parametrize(
+        "requested_workflow, expected_workflow_type",
+        [
+            ("Dragen", "dragen"),
+            ("localapp", "localapp"),
+        ],
+    )
+    def test_build_tables_filters_by_workflow(self, joint_qc_data_2r, master_metrics_table_2r, requested_workflow, expected_workflow_type):
+        """Ensure only rows from requested workflow remain after filtering."""
+        highlight_run = master_metrics_table_2r.select(pl.col("RUN").drop_nulls().first()).item()
+        result = build_tables(joint_qc_data_2r, master_metrics_table_2r, highlight_run, workflow=requested_workflow)
+        observed_workflows = set(
+            result["merged_tables"]["WORKFLOW_TYPE"]
+            .cast(pl.Utf8)
+            .str.to_lowercase()
+            .unique()
+            .to_list()
+        )
+        assert observed_workflows == {expected_workflow_type}
 
-    def test_build_tables_guideline_filtering(self, joint_qc_data, single_run_metrics):
-        """
-        Test that guidelines are correctly separated from data.
+    def test_build_tables_guideline_and_data_partitioning(self, joint_qc_data_2r, master_metrics_table_2r):
+        """Guideline rows must be split from regular data rows."""
+        highlight_run = master_metrics_table_2r.select(pl.col("RUN").drop_nulls().first()).item()
+        result = build_tables(joint_qc_data_2r, master_metrics_table_2r, highlight_run, workflow="Dragen")
 
-        Guideline rows (LSL_Guideline, USL_Guideline, Internal Guideline) should be in the guideline_table, 
-        while data rows should be in the data_table.
-        """
-        merged = single_run_metrics.with_columns(pl.lit("RUN_001").alias("RUN"))
-        result = build_tables(joint_qc_data, merged, "RUN_001")
-
-        # Guideline table should only have LSL/USL guidelines
         guideline_ids = set(result["guideline_table"]["SAMPLE_ID"].unique())
         assert guideline_ids.issubset({"LSL_Guideline", "USL_Guideline"})
 
-        # Data table should exclude all guideline rows
         data_ids = result["data_table"]["SAMPLE_ID"].unique()
         for sample_id in data_ids:
             assert sample_id not in {"LSL_Guideline", "USL_Guideline", "Internal Guideline"}
 
+    @pytest.mark.parametrize(
+        "pick_existing_run, expected_present_flags",
+        [(True, {"True"}), (False, {"False"})],
+    )
+    def test_build_tables_highlighted_run_marking(self, joint_qc_data_2r, master_metrics_table_2r, pick_existing_run, expected_present_flags):
+        """highlighted_run flag must reflect RUN equality against highlighted_run_id."""
+        data_for_workflow = master_metrics_table_2r.filter(pl.col("WORKFLOW_TYPE").str.to_lowercase() == "dragen")
+        if data_for_workflow.height == 0:
+            pytest.skip("No Dragen rows available in master_metrics_table_2r fixture")
 
-    def test_build_tables_dna_rna_separation(self, joint_qc_data, dna_samples_only, rna_samples_only):
-        """
-        Test that DNA and RNA samples are correctly separated.
-        """
-        # Create a mixed dataset
-        mixed = pl.concat([dna_samples_only, rna_samples_only]).with_columns(pl.lit("RUN_001").alias("RUN"))
+        existing_run = data_for_workflow.select(pl.col("RUN").drop_nulls().first()).item()
+        highlighted_run = existing_run if pick_existing_run else "RUN_NOT_PRESENT"
+        result = build_tables(joint_qc_data_2r, master_metrics_table_2r, highlighted_run, workflow="Dragen")
 
-        result = build_tables(joint_qc_data, mixed, "RUN_001")
+        if result["dna_data_table"].height == 0:
+            pytest.skip("No DNA rows available after workflow filtering")
 
-        # DNA table should have non-null DNA_TOTAL_PF_READS
-        for row in result["dna_data_table"].to_dicts():
-            assert row["DNA_TOTAL_PF_READS"] is not None
+        observed_flags = set(result["dna_data_table"]["highlighted_run"].unique())
+        assert expected_present_flags.issubset(observed_flags)
 
-        # RNA table should have non-null RNA_TOTAL_PF_READS
-        for row in result["rna_data_table"].to_dicts():
-            assert row["RNA_TOTAL_PF_READS"] is not None
+    def test_build_tables_invalid_workflow_raises(self, joint_qc_data_2r, master_metrics_table_2r):
+        """Unsupported workflow values should fail fast with ValueError."""
+        highlight_run = master_metrics_table_2r.select(pl.col("RUN").drop_nulls().first()).item()
 
-
-    def test_build_tables_highlighted_run_marking(self, joint_qc_data, dna_samples_only):
-        """
-        Test that highlighted_run column is set correctly.
-        """
-        data   = dna_samples_only.with_columns(pl.lit("RUN_001").alias("RUN"))
-        result = build_tables(joint_qc_data, data, "RUN_001")
-
-        # All rows should have highlighted_run == "True" since RUN_001 is highlighted
-        assert (result["dna_data_table"]["highlighted_run"] == "True").all()
+        with pytest.raises(ValueError, match="Unsupported workflow"):
+            build_tables(joint_qc_data_2r, master_metrics_table_2r, highlight_run, workflow="Other")
 
 
 class TestPrepareBarPlotData:
@@ -727,64 +1371,28 @@ class TestRenderBarPlot:
 
 
 class TestPlotTsoppyBarplot:
-    """Test the barplot function from plots.py."""
+    """Table-driven checks for plot_tsoppy_barplot() variants."""
 
-    def test_plot_tsoppy_barplot_returns_ggplot(self, dna_samples_only):
-        """
-        Test that plot_tsoppy_barplot returns a valid ggplot object.
-        Using real DNA sample data from the fixture to ensure the plot is generated correctly.
-        """
-        data = dna_samples_only.to_pandas()
-        plot = plot_tsoppy_barplot(
-            data     = data,
-            x_var    = "SAMPLE_ID",
-            y_var    = "DNA_CONTAMINATION_SCORE",
-            fill_var = "SAMPLE_ID",
-            x_lab    = "Sample",
-            y_lab    = "Contamination",
-            title    = "Test",
-        )
-
-        assert isinstance(plot, ggplot)
-
-
-    def test_plot_tsoppy_barplot_with_hline(self, dna_samples_only):
-        """
-        Test barplot with horizontal line.
-        Using real DNA sample data from the fixture to ensure the plot is generated correctly.
-        """
+    @pytest.mark.parametrize(
+        "plot_kwargs",
+        [
+            pytest.param({}, id="basic"),
+            pytest.param({"hline_y": 100.0, "hline_label": "Threshold"}, id="with_hline"),
+            pytest.param({"y_tick_step": 50, "cart_ylim": (0, 500)}, id="with_y_tick_step"),
+        ],
+    )
+    def test_plot_tsoppy_barplot_variants(self, dna_samples_only, plot_kwargs):
+        """Plot variants should return a ggplot object for real DNA data."""
         data = dna_samples_only.to_pandas()
         plot = plot_tsoppy_barplot(
             data=data,
-            x_var       = "SAMPLE_ID",
-            y_var       = "DNA_CONTAMINATION_SCORE",
-            fill_var    = "SAMPLE_ID",
-            hline_y     = 100.0,
-            hline_label = "Threshold",
-            x_lab       = "Sample",
-            y_lab       = "Contamination",
-            title       = "Test with Threshold",
-        )
-
-        assert isinstance(plot, ggplot)
-
-
-    def test_plot_tsoppy_barplot_with_y_tick_step(self, dna_samples_only):
-        """
-        Test barplot with fixed y-axis tick spacing.
-        Using real DNA sample data from the fixture to ensure the plot is generated correctly.
-        """
-        data = dna_samples_only.to_pandas()
-        plot = plot_tsoppy_barplot(
-            data        = data,
-            x_var       = "SAMPLE_ID",
-            y_var       = "DNA_CONTAMINATION_SCORE",
-            fill_var    = "SAMPLE_ID",
-            y_tick_step = 50,
-            cart_ylim   = (0, 500),
-            x_lab       = "Sample",
-            y_lab       = "Contamination",
-            title       = "Test with Ticks",
+            x_var="SAMPLE_ID",
+            y_var="DNA_CONTAMINATION_SCORE",
+            fill_var="SAMPLE_ID",
+            x_lab="Sample",
+            y_lab="Contamination",
+            title="Test",
+            **plot_kwargs,
         )
 
         assert isinstance(plot, ggplot)
@@ -876,65 +1484,24 @@ class TestRenderPlot:
 class TestSavePlot:
     """Test the save_plot function that writes plots to PDF."""
 
-    def test_save_plot_calls_savefig(self, dna_samples_only):
-        """
-        Test that save_plot correctly saves a ggplot object to PDF.
-        This verifies that the PDF handle's savefig method is called.
-        """
-        # Create a simple ggplot object
+    def test_save_plot_saves_and_closes_figure(self, dna_samples_only):
+        """save_plot should save the figure to the PDF handle and close the matplotlib figure."""
         data = dna_samples_only.to_pandas()
         plot = plot_tsoppy_barplot(
-            data     = data,
-            x_var    = "SAMPLE_ID",
-            y_var    = "DNA_CONTAMINATION_SCORE",
-            fill_var = "SAMPLE_ID",
-            x_lab    = "Sample",
-            y_lab    = "Contamination",
-            title    = "Test Plot",
+            data=data,
+            x_var="SAMPLE_ID",
+            y_var="DNA_CONTAMINATION_SCORE",
+            fill_var="SAMPLE_ID",
+            x_lab="Sample",
+            y_lab="Contamination",
+            title="Test Plot",
         )
 
-        # Mock the PDF handle
         mock_pdf = MagicMock()
-
-        # Call save_plot
         save_plot(mock_pdf, plot)
 
-        # Verify that savefig was called
         assert mock_pdf.savefig.called
-
-        # Close any remaining matplotlib figures to avoid warnings
-        plt.close('all')
-
-
-    def test_save_plot_closes_figure(self, dna_samples_only):
-        """
-        Test that save_plot closes the matplotlib figure after saving.
-        This verifies that matplotlib figure resources are properly cleaned up.
-        """
-        data = dna_samples_only.to_pandas()
-        plot = plot_tsoppy_barplot(
-            data     = data,
-            x_var    = "SAMPLE_ID",
-            y_var    = "DNA_CONTAMINATION_SCORE",
-            fill_var = "SAMPLE_ID",
-            x_lab    = "Sample",
-            y_lab    = "Contamination",
-            title    = "Test Plot",
-        )
-
-        mock_pdf = MagicMock()
-
-        # Get initial figure count
-        initial_count = len(plt.get_fignums())
-
-        # Call save_plot
-        save_plot(mock_pdf, plot)
-
-        # After save_plot, the figure should be closed
-        # We expect no figures to be open (or at least not more than before)
-        final_count = len(plt.get_fignums())
-
-        # Clean up any remaining figures
+        assert len(plt.get_fignums()) == 0
         plt.close('all')
 
 
@@ -989,6 +1556,7 @@ class TestRenderClusterDensityScatter:
             "ESTIMATED_YIELD" : pl.Series(dtype=pl.Float64),
             "RUN_ID"          : pl.Series(dtype=pl.Utf8),
             "RUN_NUMBER"      : pl.Series(dtype=pl.Utf8),
+            "RUN_INDEX"       : pl.Series(dtype=pl.Int64),
         })
         tables = {"joint_qc_table": empty_table}
         mock_pdf = MagicMock()
