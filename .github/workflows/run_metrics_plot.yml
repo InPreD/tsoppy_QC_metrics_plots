@@ -142,6 +142,41 @@ jobs:
                                     --workflow_type Dragen                                                   ;
 
 
+      # ========================= #
+      # Per-sample QC plots (DNA) #
+      # ========================= #
+
+      - name: Run 01_plot_sample_metrics_DNA.py
+        run: |
+          RESULTS_DIR=results_python/sample_metrics
+          mkdir -p ${RESULTS_DIR}
+          echo "; Running 01_plot_sample_metrics_DNA.py (AU565-D01-C01-X06)"
+          uv run 01_plot_sample_metrics_DNA.py                               \
+              data/workflow_tables/localapp_plot_metrics_table.tsv           \
+              ${RESULTS_DIR}/AU565-D01-C01-X06_DNA_QC.pdf                   \
+              ${RESULTS_DIR}/AU565-D01-C01-X06_DNA_QC.png                   \
+              AU565-D01-C01-X06                                              \
+              AU565-D01-C01-X06                                              \
+              False                                                          ;
+
+      # ========================= #
+      # Per-sample QC plots (RNA) #
+      # ========================= #
+
+      - name: Run 01_plot_sample_metrics_RNA.py
+        run: |
+          RESULTS_DIR=results_python/sample_metrics
+          mkdir -p ${RESULTS_DIR}
+          echo "; Running 01_plot_sample_metrics_RNA.py (AU565-R03-C01-X06)"
+          uv run 01_plot_sample_metrics_RNA.py                               \
+              data/workflow_tables/localapp_plot_metrics_table.tsv           \
+              ${RESULTS_DIR}/AU565-R03-C01-X06_RNA_QC.pdf                   \
+              ${RESULTS_DIR}/AU565-R03-C01-X06_RNA_QC.png                   \
+              AU565-R03-C01-X06                                              \
+              AU565-R03-C01-X06                                              \
+              False                                                          ;
+
+
       - name: Enable caching
         uses: astral-sh/setup-uv@v6
         with:
