@@ -15,6 +15,7 @@ Python re-implementation of the TSO500 run metrics plotting from [TSOPPI](https:
 - [Usage](#usage)
 - [Running locally](#running-locally)
 - [Adding new plots](#adding-new-plots)
+- [Per-sample QC plots](#per-sample-qc-plots)
 - [Contributors](#contributors)
 
 
@@ -330,6 +331,108 @@ The workflow routing sub-dicts control plot visibility and ordering:
 ### Adding a new plot kind
 
 If none of the three existing `plot_kind` values fits, add a `render_<kind>` function in `plot_QC_metrics.py` and a corresponding dispatch branch in `render_plot()`. Register the new kind in `_REQUIRED_FIELDS_BY_KIND`. The new kind is then available to any entry in `PLOT_SPECS`.
+
+<br>
+
+<br>
+
+## Per-sample QC plots
+
+In addition to the multi-run overview (`plot_QC_metrics.py`), two scripts generate a per-sample QC panel used in sample-level reporting. Each produces a self-contained figure with colour-coded pass/fail rows covering all QC thresholds for a single sample. Both are Python re-implementations of the original R scripts (`01_plot_sample_metrics_DNA.R`, `plot_sample_metrics_RNA.R`).
+
+<br>
+
+### `01_plot_sample_metrics_DNA.py`
+
+Generates a 9-row QC panel for a single DNA sample.
+
+```bash
+uv run 01_plot_sample_metrics_DNA.py \
+    <input_tsv> <output_pdf> <output_png> \
+    <input_id> <output_id> <inpred_nomenclature>
+```
+
+| Argument | Description |
+|----------|-------------|
+| `input_tsv` | TSV metrics table with a `SAMPLE_ID` column and all DNA QC columns. |
+| `output_pdf` | Output PDF path. |
+| `output_png` | Output PNG path. |
+| `input_id` | Sample ID used to filter a single row from `input_tsv`. |
+| `output_id` | Sample ID string displayed in the plot title. |
+| `inpred_nomenclature` | `True` or `False`. When `True`, the 13th character of `output_id` is decoded as an InPreD sample-type code (requires a 19-character ID; e.g. `C` → cell line, `T` → tumour). |
+
+Rows plotted:
+
+| Row | Metric | Threshold | Colour logic |
+|-----|--------|-----------|---------------|
+| 1 | Pipeline completed | — | boolean (green = complete) |
+| 2 | Contamination | score > 3106 **and** p-value > 0.049 | boolean (amber = contaminated) |
+| 3 | Median exon coverage | ≥ 150 | FailPass |
+| 4 | Exon bases with coverage ≥50× (%) | ≥ 90 | FailPass |
+| 5 | Median insert size | ≥ 70 | FailPass |
+| 6 | Aligned reads (%) | ≥ 70 | FailPass |
+| 7 | Usable MSI sites | ≥ 40 | FailPass |
+| 8 | Median raw bin count per CNV target | ≥ 1 | FailPass |
+| 9 | CNV coverage MAD | ≤ 0.21 | PassFail |
+
+<br>
+
+### `01_plot_sample_metrics_RNA.py`
+
+Generates an 8-row QC panel for a single RNA sample.
+
+```bash
+uv run 01_plot_sample_metrics_RNA.py \
+    <input_tsv> <output_pdf> <output_png> \
+    <input_id> <output_id> <inpred_nomenclature>
+```
+
+Arguments are identical to the DNA script; see the table above.
+
+> `RNA_TOTAL_ON_TARGET_READS` and `RNA_TOTAL_PF_READS` are stored as raw counts in the input TSV. The script divides them by 1 000 000 internally, so thresholds (9.0 and 30.0) are expressed in millions.
+
+Rows plotted:
+
+| Row | Metric | Threshold | Colour logic |
+|-----|--------|-----------|---------------|
+| 1 | Pipeline completed | — | boolean (green = complete) |
+| 2 | CV for genes at median coverage >500× | ≤ 93 | PassFail |
+| 3 | Total on-target reads (millions) | ≥ 9 | FailPass |
+| 4 | Median insert size | ≥ 80 | FailPass |
+| 5 | Chimeric reads (%) | no reference | no threshold bar |
+| 6 | On-target reads (%) | no reference | no threshold bar |
+| 7 | Scaled median gene coverage | no reference | no threshold bar |
+| 8 | Total reads passing filters (millions) | no reference | no threshold bar |
+
+<br>
+
+### Example
+
+Using the bundled example data:
+
+```bash
+mkdir -p results_python/sample_metrics
+
+# DNA sample
+uv run 01_plot_sample_metrics_DNA.py \
+    data/workflow_tables/localapp_plot_metrics_table.tsv                \
+    results_python/sample_metrics/AU565-D01-C01-X06_DNA_QC.pdf         \
+    results_python/sample_metrics/AU565-D01-C01-X06_DNA_QC.png         \
+    AU565-D01-C01-X06                                                  \
+    AU565-D01-C01-X06                                                  \
+    False                                                              ;
+
+# RNA sample
+uv run 01_plot_sample_metrics_RNA.py \
+    data/workflow_tables/localapp_plot_metrics_table.tsv                \
+    results_python/sample_metrics/AU565-R03-C01-X06_RNA_QC.pdf         \
+    results_python/sample_metrics/AU565-R03-C01-X06_RNA_QC.png         \
+    AU565-R03-C01-X06                                                  \
+    AU565-R03-C01-X06                                                  \
+    False                                                              ;
+```
+
+<br>
 
 <br>
 
