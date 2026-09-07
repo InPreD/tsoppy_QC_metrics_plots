@@ -7,17 +7,17 @@ Replicates the behaviour of 01_plot_sample_metrics_DNA.R using plotnine.
 Usage
 -----
     python3 01_plot_sample_metrics_DNA.py \\
-        <input_tsv> <output_pdf> <output_png> \\
-        <input_id> <output_id> <inpred_nomenclature>
+        --input_tsv <path> --sample_id <id> --output_pdf <path> \\
+        --inpred_nomenclature [True|False]
 
 Arguments
 ---------
-    input_tsv            Path to the input TSV metrics table.
-    output_pdf           Path for the output PDF figure.
-    output_png           Path for the output PNG figure.
-    input_id             Sample ID to extract from the input table.
-    output_id            Sample ID string displayed in the plot title.
-    inpred_nomenclature  "True" | "False" — decode InPreD sample-type codes.
+    --input_tsv            Path to the input TSV metrics table.
+    --sample_id            Sample ID to extract from the input table (also used as plot title).
+    --output_pdf           Path for the output PDF figure.
+    --inpred_nomenclature  "True" | "False" — decode InPreD sample-type codes (optional, default: False).
+
+Note: Output PNG is automatically saved alongside the PDF with .png extension.
 """
 
 import argparse
@@ -198,15 +198,26 @@ def parse_args() -> argparse.Namespace:
         description="Plot DNA QC metrics for a single TSO500 sample.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("input_tsv",           help="Path to the input TSV metrics table.")
-    parser.add_argument("output_pdf",          help="Path for the output PDF figure.")
-    parser.add_argument("output_png",          help="Path for the output PNG figure.")
-    parser.add_argument("input_id",            help="Sample ID to extract from the input table.")
-    parser.add_argument("output_id",           help="Sample ID string displayed in the plot title.")
     parser.add_argument(
-        "inpred_nomenclature",
+        "--input_tsv",
+        required=True,
+        help="Path to the input TSV metrics table.",
+    )
+    parser.add_argument(
+        "--sample_id",
+        required=True,
+        help="Sample ID to extract from the input table (also used in plot title).",
+    )
+    parser.add_argument(
+        "--output_pdf",
+        required=True,
+        help="Path for the output PDF figure; PNG is automatically saved alongside with .png extension.",
+    )
+    parser.add_argument(
+        "--inpred_nomenclature",
         choices=["True", "False"],
-        help='"True" to decode InPreD sample-type codes from output_id.',
+        default="False",
+        help='Decode InPreD sample-type codes from sample_id (optional, default: False).',
     )
     return parser.parse_args()
 
@@ -686,19 +697,22 @@ def main() -> None:
     args = parse_args()
 
     use_inpred  = args.inpred_nomenclature == "True"
-    sample_type = get_sample_type(args.output_id, use_inpred)
-    title       = f'QC for DNA sample "{args.output_id}"\n{sample_type}'
+    sample_type = get_sample_type(args.sample_id, use_inpred)
+    title       = f'QC for DNA sample "{args.sample_id}"\n{sample_type}'
 
-    raw_values = load_and_extract(args.input_tsv, args.input_id)
+    # Derive output PNG path from output PDF (replace .pdf with .png)
+    output_png = args.output_pdf.rsplit(".", 1)[0] + ".png"
+
+    raw_values = load_and_extract(args.input_tsv, args.sample_id)
     obs_values = compute_plot_obs_values(raw_values)
 
     p = make_plot(obs_values, title)
 
     p.save(args.output_pdf, width=9, height=7, units="in", verbose=False)
-    p.save(args.output_png, width=9, height=7, units="in", dpi=150, verbose=False)
+    p.save(output_png, width=9, height=7, units="in", dpi=150, verbose=False)
 
     print(f"Saved PDF : {args.output_pdf}")
-    print(f"Saved PNG : {args.output_png}")
+    print(f"Saved PNG : {output_png}")
 
 
 if __name__ == "__main__":
