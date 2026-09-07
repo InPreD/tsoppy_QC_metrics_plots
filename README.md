@@ -348,18 +348,16 @@ Generates a 9-row QC panel for a single DNA sample.
 
 ```bash
 uv run 01_plot_sample_metrics_DNA.py \
-    <input_tsv> <output_pdf> <output_png> \
-    <input_id> <output_id> <inpred_nomenclature>
+    --input_tsv <path> --sample_id <id> --output_pdf <path> \
+    [--inpred_nomenclature True|False]
 ```
 
 | Argument | Description |
 |----------|-------------|
-| `input_tsv` | TSV metrics table with a `SAMPLE_ID` column and all DNA QC columns. |
-| `output_pdf` | Output PDF path. |
-| `output_png` | Output PNG path. |
-| `input_id` | Sample ID used to filter a single row from `input_tsv`. |
-| `output_id` | Sample ID string displayed in the plot title. |
-| `inpred_nomenclature` | `True` or `False`. When `True`, the 13th character of `output_id` is decoded as an InPreD sample-type code (requires a 19-character ID; e.g. `C` → cell line, `T` → tumour). |
+| `--input_tsv` (required) | TSV metrics table with a `SAMPLE_ID` column and all DNA QC columns. |
+| `--sample_id` (required) | Sample ID to extract from the input table and display in the plot title. |
+| `--output_pdf` (required) | Output PDF path; PNG is automatically saved alongside with `.png` extension. |
+| `--inpred_nomenclature` (optional) | `True` or `False` (default: `False`). When `True`, the 13th character of `sample_id` is decoded as an InPreD sample-type code (requires a 19-character ID; e.g. `C` → cell line, `T` → tumour). |
 
 Rows plotted:
 
@@ -383,11 +381,16 @@ Generates an 8-row QC panel for a single RNA sample.
 
 ```bash
 uv run 01_plot_sample_metrics_RNA.py \
-    <input_tsv> <output_pdf> <output_png> \
-    <input_id> <output_id> <inpred_nomenclature>
+    --input_tsv <path> --sample_id <id> --output_pdf <path> \
+    [--inpred_nomenclature True|False]
 ```
 
-Arguments are identical to the DNA script; see the table above.
+| Argument | Description |
+|----------|-------------|
+| `--input_tsv` (required) | TSV metrics table with a `SAMPLE_ID` column and all RNA QC columns. |
+| `--sample_id` (required) | Sample ID to extract from the input table and display in the plot title. |
+| `--output_pdf` (required) | Output PDF path; PNG is automatically saved alongside with `.png` extension. |
+| `--inpred_nomenclature` (optional) | `True` or `False` (default: `False`). When `True`, the 13th character of `sample_id` is decoded as an InPreD sample-type code (requires a 19-character ID; e.g. `C` → cell line, `T` → tumour). |
 
 > `RNA_TOTAL_ON_TARGET_READS` and `RNA_TOTAL_PF_READS` are stored as raw counts in the input TSV. The script divides them by 1 000 000 internally, so thresholds (9.0 and 30.0) are expressed in millions.
 
@@ -415,22 +418,18 @@ mkdir -p results_python/sample_metrics
 
 # DNA sample
 uv run 01_plot_sample_metrics_DNA.py \
-    data/workflow_tables/localapp_plot_metrics_table.tsv                \
-    results_python/sample_metrics/AU565-D01-C01-X06_DNA_QC.pdf         \
-    results_python/sample_metrics/AU565-D01-C01-X06_DNA_QC.png         \
-    AU565-D01-C01-X06                                                  \
-    AU565-D01-C01-X06                                                  \
-    False                                                              ;
+    --input_tsv data/workflow_tables/localapp_plot_metrics_table.tsv \
+    --sample_id IPD0195-D01-P91-A25-0001_P \
+    --output_pdf results_python/sample_metrics/IPD0195-D01-P91-A25-0001_P_DNA_QC.pdf
 
 # RNA sample
 uv run 01_plot_sample_metrics_RNA.py \
-    data/workflow_tables/localapp_plot_metrics_table.tsv                \
-    results_python/sample_metrics/AU565-R03-C01-X06_RNA_QC.pdf         \
-    results_python/sample_metrics/AU565-R03-C01-X06_RNA_QC.png         \
-    AU565-R03-C01-X06                                                  \
-    AU565-R03-C01-X06                                                  \
-    False                                                              ;
+    --input_tsv data/workflow_tables/localapp_plot_metrics_table.tsv \
+    --sample_id IPD0195-R03-P91-A25-0001_P \
+    --output_pdf results_python/sample_metrics/IPD0195-R03-P91-A25-0001_P_RNA_QC.pdf
 ```
+
+Both scripts automatically create `.png` files alongside the `.pdf` files.
 
 <br>
 
