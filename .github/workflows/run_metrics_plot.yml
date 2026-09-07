@@ -150,14 +150,14 @@ jobs:
         run: |
           RESULTS_DIR=results_python/sample_metrics
           mkdir -p ${RESULTS_DIR}
-          echo "; Running 01_plot_sample_metrics_DNA.py (AU565-D01-C01-X06)"
-          uv run 01_plot_sample_metrics_DNA.py                               \
-              data/workflow_tables/localapp_plot_metrics_table.tsv           \
-              ${RESULTS_DIR}/AU565-D01-C01-X06_DNA_QC.pdf                   \
-              ${RESULTS_DIR}/AU565-D01-C01-X06_DNA_QC.png                   \
-              AU565-D01-C01-X06                                              \
-              AU565-D01-C01-X06                                              \
-              False                                                          ;
+          echo "; Running 01_plot_sample_metrics_DNA.py (IPD0195-R03-P91-A25-0001_P)"
+          uv run 01_plot_sample_metrics_DNA.py                     \
+              data/workflow_tables/localapp_plot_metrics_table.tsv \
+              ${RESULTS_DIR}/IPD0195-R03-P91-A25-0001_P_DNA_QC.pdf \
+              ${RESULTS_DIR}/IPD0195-R03-P91-A25-0001_P_DNA_QC.png \
+              IPD0195-R03-P91-A25-0001_P                           \
+              IPD0195-R03-P91-A25-0001_P                           \
+              False                                                ;
 
       # ========================= #
       # Per-sample QC plots (RNA) #
@@ -167,14 +167,14 @@ jobs:
         run: |
           RESULTS_DIR=results_python/sample_metrics
           mkdir -p ${RESULTS_DIR}
-          echo "; Running 01_plot_sample_metrics_RNA.py (AU565-R03-C01-X06)"
-          uv run 01_plot_sample_metrics_RNA.py                               \
-              data/workflow_tables/localapp_plot_metrics_table.tsv           \
-              ${RESULTS_DIR}/AU565-R03-C01-X06_RNA_QC.pdf                   \
-              ${RESULTS_DIR}/AU565-R03-C01-X06_RNA_QC.png                   \
-              AU565-R03-C01-X06                                              \
-              AU565-R03-C01-X06                                              \
-              False                                                          ;
+          echo "; Running 01_plot_sample_metrics_RNA.py (IPD0195-R03-P91-A25-0001_P)"
+          uv run 01_plot_sample_metrics_RNA.py                     \
+              data/workflow_tables/localapp_plot_metrics_table.tsv \
+              ${RESULTS_DIR}/IPD0195-R03-P91-A25-0001_P_RNA_QC.pdf \
+              ${RESULTS_DIR}/IPD0195-R03-P91-A25-0001_P_RNA_QC.png \
+              IPD0195-R03-P91-A25-0001_P                           \
+              IPD0195-R03-P91-A25-0001_P                           \
+              False                                                ;
 
 
       - name: Enable caching
