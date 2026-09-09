@@ -172,6 +172,21 @@ jobs:
               --output_pdf ${RESULTS_DIR}/IPD0195-R03-P91-A25-0001_P_RNA_QC.pdf \
               --inpred_nomenclature False                                       ;
 
+      # ================================================= #
+      # Per-sample QC plots (DNA – failing sample)       #
+      # ================================================= #
+
+      - name: Run 01_plot_sample_metrics_DNA.py (failing sample)
+        run: |
+          RESULTS_DIR=results_python/sample_metrics
+          mkdir -p ${RESULTS_DIR}
+          echo "; Running 01_plot_sample_metrics_DNA.py (IPD1881-D01-D01-A25_P – multiple QC failures)"
+          uv run 01_plot_sample_metrics_DNA.py                                  \
+              --input_tsv data/workflow_tables/localapp_plot_metrics_table.tsv  \
+              --sample_id IPD1881-D01-D01-A25_P                                 \
+              --output_pdf ${RESULTS_DIR}/IPD1881-D01-D01-A25_P_DNA_QC.pdf      \
+              --inpred_nomenclature False                                       ;
+
 
       - name: Enable caching
         uses: astral-sh/setup-uv@v6
