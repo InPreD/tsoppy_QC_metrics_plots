@@ -409,24 +409,43 @@ Rows plotted:
 
 <br>
 
+### Visual indicators
+
+Each row shows:
+- **Colour-coded bar**: Green indicates pass, orange indicates fail.
+- **Observed value**: Displayed as a number inside the bar with a thin **light red vertical line** marking its position on the scale.
+- **Red "X" marker**: Large red "X" appears in the conclusion box (right side) when a metric fails the QC threshold, making it immediately visible in quick visual scans.
+
+<br>
+
 ### Example
 
 Using the bundled example data:
 
+**Passing sample (all metrics pass):**
 ```bash
 mkdir -p results_python/sample_metrics
 
-# DNA sample
+# DNA sample – all metrics pass
 uv run 01_plot_sample_metrics_DNA.py \
     --input_tsv data/workflow_tables/localapp_plot_metrics_table.tsv \
     --sample_id IPD0195-D01-P91-A25-0001_P \
     --output_pdf results_python/sample_metrics/IPD0195-D01-P91-A25-0001_P_DNA_QC.pdf
 
-# RNA sample
+# RNA sample – all metrics pass
 uv run 01_plot_sample_metrics_RNA.py \
     --input_tsv data/workflow_tables/localapp_plot_metrics_table.tsv \
     --sample_id IPD0195-R03-P91-A25-0001_P \
     --output_pdf results_python/sample_metrics/IPD0195-R03-P91-A25-0001_P_RNA_QC.pdf
+```
+
+**Failing sample (multiple QC failures – includes red "X" markers):**
+```bash
+# DNA sample – multiple metrics fail (contamination, coverage, alignment)
+uv run 01_plot_sample_metrics_DNA.py \
+    --input_tsv data/workflow_tables/localapp_plot_metrics_table.tsv \
+    --sample_id IPD1881-D01-D01-A25_P \
+    --output_pdf results_python/sample_metrics/IPD1881-D01-D01-A25_P_DNA_QC.pdf
 ```
 
 Both scripts automatically create `.png` files alongside the `.pdf` files.
