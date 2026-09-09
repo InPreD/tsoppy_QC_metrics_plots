@@ -32,6 +32,8 @@ from plotnine import (
     geom_text,
     geom_vline,
     scale_fill_identity,
+    scale_color_identity,
+    scale_size_identity,
     scale_x_continuous,
     scale_y_continuous,
     labs,
@@ -79,6 +81,9 @@ INPRED_SAMPLE_TYPES: dict[str, str] = {
 # stored as raw counts in the TSV; compute_plot_obs_values divides them by
 # 1 000 000 and rounds to 1 decimal, so the thresholds below (9.0 and 30.0)
 # are expressed in millions.
+
+# Float metrics that should display with 1 decimal place; all others as integers
+FLOAT_METRICS = {"RNA_PCT_CHIMERIC_READS"}
 
 QC_METRICS: list[dict] = [
     # variable                                  lowest    threshold   highest
@@ -331,15 +336,37 @@ def _scale_to_bar(value: float, highest: float) -> float:
     return min(value / highest * X_BAR_RIGHT, X_BAR_RIGHT)
 
 
-def _format_number(value: float) -> str:
+def _format_number(value: float, variable: str = None) -> str:
     """
-    Format a float for axis annotation: show as integer when the value is
-    whole, otherwise keep up to 3 decimal places.
+    Format a float for axis annotation:
+    - For FLOAT_METRICS: round to 1 decimal place
+    - For others: round to integer (no decimals)
     """
-    rounded = round(value, 3)
-    if rounded == int(rounded):
-        return str(int(rounded))
-    return str(rounded)
+    if variable and variable in FLOAT_METRICS:
+        # Float metrics: always show 1 decimal
+        rounded = round(value, 1)
+        return str(rounded)
+    else:
+        # All others: show as integer
+        return str(int(round(value)))
+
+
+def _is_value_in_fail_region(obs: float, metric: dict, qc_type: str) -> bool:
+    """
+    Check if an observed value falls in the fail (orange) region.
+    - FailPass: fail if value < threshold
+    - PassFail: fail if value > threshold
+    """
+    if np.isnan(obs):
+        return False
+    threshold = metric["threshold"]
+    if np.isnan(threshold):
+        return False
+    if qc_type == "FailPass":
+        return obs < threshold
+    elif qc_type == "PassFail":
+        return obs > threshold
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -429,9 +456,10 @@ def build_rect_data(obs_values: list[float]) -> dict[str, pd.DataFrame]:
                 "fill": color_right,
             })
 
-            # Observation marker: white within range, red if obs exceeds highest
+            # Observation marker: lighter red for visibility against bands and threshold lines.
+            # Becomes bright red only when value exceeds the plotted range.
             marker_fill = (
-                COLOR_RED if (not np.isnan(obs) and obs > highest) else COLOR_WHITE
+                COLOR_RED if (not np.isnan(obs) and obs > highest) else "#E64C4C"
             )
             markers.append({
                 "xmin": obs_x - MARKER_HALF, "xmax": obs_x + MARKER_HALF,
@@ -454,7 +482,7 @@ def build_text_data(obs_values: list[float]) -> tuple[pd.DataFrame, pd.DataFrame
 
     bold_df    – main row labels (bold, right-aligned)
     thold_df   – threshold description labels (regular, right-aligned, smaller)
-    center_df  – all other text: YES/NO, min/max range, observed values
+    center_df  – all other text: YES/NO, min/max range, observed values, and red X for fails
     """
     bold_records:   list[dict] = []
     thold_records:  list[dict] = []
@@ -486,6 +514,8 @@ def build_text_data(obs_values: list[float]) -> tuple[pd.DataFrame, pd.DataFrame
                 "x": X_BOOL_CENTER,
                 "y": yb + CENTER_OFFSET,
                 "label": "YES" if obs == 1.0 else "NO",
+                "color": "#333333",
+                "size": 7,
             })
 
         else:
@@ -504,14 +534,18 @@ def build_text_data(obs_values: list[float]) -> tuple[pd.DataFrame, pd.DataFrame
                 center_records.append({
                     "x": X_MIN_LABEL,
                     "y": yb + CENTER_OFFSET,
-                    "label": _format_number(lowest),
+                    "label": _format_number(lowest, metric["variable"]),
+                    "color": "#333333",
+                    "size": 7,
                 })
 
             # Max label (right of bar)
             center_records.append({
                 "x": X_MAX_LABEL,
                 "y": yb + CENTER_OFFSET,
-                "label": _format_number(highest),
+                "label": _format_number(highest, metric["variable"]),
+                "color": "#333333",
+                "size": 7,
             })
 
             # Observed value (centred vertically inside the bar, at its x position)
@@ -519,7 +553,19 @@ def build_text_data(obs_values: list[float]) -> tuple[pd.DataFrame, pd.DataFrame
                 center_records.append({
                     "x": obs_x,
                     "y": yb + CENTER_OFFSET,
-                    "label": _format_number(obs),
+                    "label": _format_number(obs, metric["variable"]),
+                    "color": "#333333",
+                    "size": 7,
+                })
+
+            # Red "X" in conclusion box if value is in fail region
+            if _is_value_in_fail_region(obs, metric, qc_type):
+                center_records.append({
+                    "x": (X_BOX_LEFT + X_BOX_RIGHT) / 2.0,
+                    "y": yb + CENTER_OFFSET,
+                    "label": "X",
+                    "color": COLOR_RED,
+                    "size": 13,
                 })
 
     return (
@@ -624,16 +670,16 @@ def make_plot(obs_values: list[float], title: str) -> ggplot:
             color       = "#777777",
             inherit_aes = False,
         )
-        # Centred annotation text (YES/NO, min/max range, observed values)
+        # Centred annotation text (YES/NO, min/max range, observed values, and red X for fails)
         + geom_text(
             data        = center_df,
-            mapping     = aes(x="x", y="y", label="label"),
+            mapping     = aes(x="x", y="y", label="label", color="color", size="size"),
             ha          = "center",
             va          = "center",
-            size        = 7,
-            color       = "#333333",
             inherit_aes = False,
         )
+        + scale_color_identity()
+        + scale_size_identity()
         # Column headers (bold, centred)
         + geom_text(
             data        = header_df,
