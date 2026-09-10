@@ -565,7 +565,7 @@ def build_text_data(obs_values: list[float]) -> tuple[pd.DataFrame, pd.DataFrame
                     "y": yb + CENTER_OFFSET,
                     "label": "X",
                     "color": COLOR_RED,
-                    "size": 13,
+                    "size": 18,
                 })
 
     return (

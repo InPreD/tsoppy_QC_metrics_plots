@@ -472,7 +472,7 @@ def build_rect_data(obs_values: list[float]) -> dict[str, pd.DataFrame]:
             # Observation marker: lighter red for visibility against bands and threshold lines.
             # Becomes bright red only when value exceeds the plotted range.
             marker_fill = (
-                COLOR_RED if (not np.isnan(obs) and obs > highest) else "#E64C4C"
+                COLOR_RED if (not np.isnan(obs) and obs > highest) else "#F67979"
             )
             markers.append({
                 "xmin": obs_x - MARKER_HALF, "xmax": obs_x + MARKER_HALF,
@@ -579,7 +579,7 @@ def build_text_data(obs_values: list[float]) -> tuple[pd.DataFrame, pd.DataFrame
                     "y": yb + CENTER_OFFSET,
                     "label": "X",
                     "color": COLOR_RED,
-                    "size": 13,
+                    "size": 18,
                 })
 
     return (
