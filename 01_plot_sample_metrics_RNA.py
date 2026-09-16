@@ -183,7 +183,9 @@ BAR_HEIGHT    = 0.5
 LABEL_OFFSET  = 0.30   # y above row_bottom for the main (bold) label
 THOLD_OFFSET  = 0.0    # y above row_bottom for the threshold description
 CENTER_OFFSET = 0.25   # y above row_bottom for centred text inside bars
-OBS_OFFSET    = 0.75   # kept for reference; obs labels now use CENTER_OFFSET
+
+OBS_LABEL_OFFSET = 0.09   # horizontal gap between marker line and adjacent value label
+X_BAR_MID        = (X_BAR_LEFT + X_BAR_RIGHT) / 2.0   # = 1.0
 
 # -- observation marker --
 MARKER_HALF = 0.01    # half-width of the thin vertical marker rect
@@ -456,10 +458,10 @@ def build_rect_data(obs_values: list[float]) -> dict[str, pd.DataFrame]:
                 "fill": color_right,
             })
 
-            # Observation marker: lighter red for visibility against bands and threshold lines.
+            # Observation marker: softer red for elegant, professional appearance.
             # Becomes bright red only when value exceeds the plotted range.
             marker_fill = (
-                COLOR_RED if (not np.isnan(obs) and obs > highest) else "#E64C4C"
+                COLOR_RED if (not np.isnan(obs) and obs > highest) else "#D4534A"
             )
             markers.append({
                 "xmin": obs_x - MARKER_HALF, "xmax": obs_x + MARKER_HALF,
@@ -476,17 +478,23 @@ def build_rect_data(obs_values: list[float]) -> dict[str, pd.DataFrame]:
     }
 
 
-def build_text_data(obs_values: list[float]) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def build_text_data(obs_values: list[float]) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
-    Build three DataFrames of text annotations:
+    Build five DataFrames of text annotations:
 
-    bold_df    – main row labels (bold, right-aligned)
-    thold_df   – threshold description labels (regular, right-aligned, smaller)
-    center_df  – all other text: YES/NO, min/max range, observed values, and red X for fails
+    bold_df     – main row labels (bold, right-aligned)
+    thold_df    – threshold description labels (regular, right-aligned, smaller)
+    center_df   – centred text: YES/NO, min/max range labels, red X for fails
+    obs_left_df – observed values placed LEFT of the marker (ha=right), used
+                  when the marker sits in the right half of the bar
+    obs_right_df– observed values placed RIGHT of the marker (ha=left), used
+                  when the marker sits in the left half of the bar
     """
-    bold_records:   list[dict] = []
-    thold_records:  list[dict] = []
-    center_records: list[dict] = []
+    bold_records:      list[dict] = []
+    thold_records:     list[dict] = []
+    center_records:    list[dict] = []
+    obs_left_records:  list[dict] = []   # text to left  of marker (ha="right")
+    obs_right_records: list[dict] = []   # text to right of marker (ha="left")
 
     for i, row in enumerate(PLOT_ROWS):
         yb  = _row_bottom(i)
@@ -535,8 +543,8 @@ def build_text_data(obs_values: list[float]) -> tuple[pd.DataFrame, pd.DataFrame
                     "x": X_MIN_LABEL,
                     "y": yb + CENTER_OFFSET,
                     "label": _format_number(lowest, metric["variable"]),
-                    "color": "#333333",
-                    "size": 7,
+                    "color": "#444444",
+                    "size": 8.5,
                 })
 
             # Max label (right of bar)
@@ -544,34 +552,47 @@ def build_text_data(obs_values: list[float]) -> tuple[pd.DataFrame, pd.DataFrame
                 "x": X_MAX_LABEL,
                 "y": yb + CENTER_OFFSET,
                 "label": _format_number(highest, metric["variable"]),
-                "color": "#333333",
-                "size": 7,
+                "color": "#444444",
+                "size": 8.5,
             })
 
-            # Observed value (centred vertically inside the bar, at its x position)
+            # Observed value: placed immediately to the left or right of the
+            # marker line depending on which half of the bar it falls in.
             if not np.isnan(obs):
-                center_records.append({
-                    "x": obs_x,
-                    "y": yb + CENTER_OFFSET,
-                    "label": _format_number(obs, metric["variable"]),
-                    "color": "#333333",
-                    "size": 7,
-                })
+                label = _format_number(obs, metric["variable"])
+                if obs_x > X_BAR_MID:
+                    obs_left_records.append({
+                        "x": obs_x - OBS_LABEL_OFFSET,
+                        "y": yb + CENTER_OFFSET,
+                        "label": label,
+                        "color": "#444444",
+                        "size": 8.5,
+                    })
+                else:
+                    obs_right_records.append({
+                        "x": obs_x + OBS_LABEL_OFFSET,
+                        "y": yb + CENTER_OFFSET,
+                        "label": label,
+                        "color": "#444444",
+                        "size": 8.5,
+                    })
 
             # Red "X" in conclusion box if value is in fail region
             if _is_value_in_fail_region(obs, metric, qc_type):
                 center_records.append({
                     "x": (X_BOX_LEFT + X_BOX_RIGHT) / 2.0,
-                    "y": yb + CENTER_OFFSET,
+                    "y": yb + CENTER_OFFSET,  # Center of conclusion box (yb to yb+0.5)
                     "label": "X",
                     "color": COLOR_RED,
                     "size": 18,
                 })
 
     return (
-        pd.DataFrame(bold_records),
-        pd.DataFrame(thold_records),
-        pd.DataFrame(center_records),
+        pd.DataFrame(bold_records) if bold_records else pd.DataFrame(columns=["x", "y", "label"]),
+        pd.DataFrame(thold_records) if thold_records else pd.DataFrame(columns=["x", "y", "label"]),
+        pd.DataFrame(center_records) if center_records else pd.DataFrame(columns=["x", "y", "label", "color", "size"]),
+        pd.DataFrame(obs_left_records) if obs_left_records else pd.DataFrame(columns=["x", "y", "label", "color", "size"]),
+        pd.DataFrame(obs_right_records) if obs_right_records else pd.DataFrame(columns=["x", "y", "label", "color", "size"]),
     )
 
 
@@ -581,8 +602,8 @@ def build_text_data(obs_values: list[float]) -> tuple[pd.DataFrame, pd.DataFrame
 
 def make_plot(obs_values: list[float], title: str) -> ggplot:
     """Assemble and return the plotnine ggplot object."""
-    rects                        = build_rect_data(obs_values)
-    bold_df, thold_df, center_df = build_text_data(obs_values)
+    rects                                                = build_rect_data(obs_values)
+    bold_df, thold_df, center_df, obs_left_df, obs_right_df = build_text_data(obs_values)
 
     title_parts = title.split("\n", maxsplit=1)
     title_main  = title_parts[0]
@@ -670,11 +691,27 @@ def make_plot(obs_values: list[float], title: str) -> ggplot:
             color       = "#777777",
             inherit_aes = False,
         )
-        # Centred annotation text (YES/NO, min/max range, observed values, and red X for fails)
+        # Centred annotation text (YES/NO, min/max range, and red X for fails)
         + geom_text(
             data        = center_df,
             mapping     = aes(x="x", y="y", label="label", color="color", size="size"),
             ha          = "center",
+            va          = "center",
+            inherit_aes = False,
+        )
+        # Observed value labels – left of marker (marker in right half of bar)
+        + geom_text(
+            data        = obs_left_df,
+            mapping     = aes(x="x", y="y", label="label", color="color", size="size"),
+            ha          = "right",
+            va          = "center",
+            inherit_aes = False,
+        )
+        # Observed value labels – right of marker (marker in left half of bar)
+        + geom_text(
+            data        = obs_right_df,
+            mapping     = aes(x="x", y="y", label="label", color="color", size="size"),
+            ha          = "left",
             va          = "center",
             inherit_aes = False,
         )
