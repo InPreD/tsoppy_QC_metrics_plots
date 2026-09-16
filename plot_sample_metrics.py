@@ -31,7 +31,7 @@ import argparse
 import sys
 
 import numpy as np
-import pandas as pd
+import polars as pl
 from plotnine import (
     ggplot,
     aes,
@@ -405,14 +405,14 @@ def load_and_extract(
     tsv_path: str, sample_id: str, qc_metrics: list[dict]
 ) -> dict[str, float]:
     """Load the metrics TSV and return {variable: float_value} for the given sample."""
-    df   = pd.read_csv(tsv_path, sep="\t", dtype=str)
-    mask = df["SAMPLE_ID"] == sample_id
-    if not mask.any():
+    df       = pl.read_csv(tsv_path, separator="\t", infer_schema=False)
+    filtered = df.filter(pl.col("SAMPLE_ID") == sample_id)
+    if filtered.is_empty():
         sys.exit(
             f"ERROR: sample ID '{sample_id}' not found in '{tsv_path}'.\n"
-            f"Available IDs: {df['SAMPLE_ID'].tolist()}"
+            f"Available IDs: {df['SAMPLE_ID'].to_list()}"
         )
-    row = df.loc[mask].iloc[0]
+    row = filtered.row(0, named=True)
     return {m["variable"]: _to_float(row.get(m["variable"])) for m in qc_metrics}
 
 
@@ -515,205 +515,213 @@ def _is_value_in_fail_region(obs: float, metric: dict, qc_type: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Geometry builders
+# Per-row-type rendering helpers
 # ---------------------------------------------------------------------------
 
-def build_rect_data(
-    obs_values: list[float], plot_rows: list[dict]
-) -> dict[str, pd.DataFrame]:
+def _build_boolean_row(
+    i: int, row: dict, obs: float, n_rows: int, float_metrics: set[str]
+) -> dict[str, list[dict]]:
     """
-    Build rectangle geometry for all rendered layers.
+    Build geometry and text records for a TrueFalse (boolean) row.
 
-    Returns a dict keyed by layer name; all DataFrames share columns:
-    xmin, xmax, ymin, ymax, fill.
-
-      "row_bgs" – alternating zebra-stripe backgrounds (full row width)
-      "boxes"   – white conclusion boxes with dark border
-      "bools"   – coloured boolean YES/NO boxes with dark border
-      "bands"   – coloured (or white for NoThold) metric bands with thin border
-      "markers" – thin vertical observation-position markers, no border
+    The coloured box spans [X_BOOL_LEFT, X_BOOL_RIGHT].  pass_value in the
+    row definition declares which observed value constitutes a pass (green);
+    any other value is rendered as a fail (amber).
     """
-    n_rows  = len(plot_rows)
-    row_bgs: list[dict] = []
-    boxes:   list[dict] = []
-    bools:   list[dict] = []
-    bands:   list[dict] = []
-    markers: list[dict] = []
-
-    _half_pad = (1.0 - BAR_HEIGHT) / 2
-    for i in range(n_rows):
-        yb = _row_bottom(i, n_rows)
-        row_bgs.append({
-            "xmin": X_BAR_LEFT - 0.05, "xmax": X_BOX_RIGHT + 0.05,
-            "ymin": yb - _half_pad,    "ymax": yb + BAR_HEIGHT + _half_pad,
-            "fill": ROW_BG_EVEN if i % 2 == 0 else ROW_BG_ODD,
-        })
-
-    for i, row in enumerate(plot_rows):
-        yb      = _row_bottom(i, n_rows)
-        yt      = yb + BAR_HEIGHT
-        qc_type = row["qc_type"]
-        obs     = obs_values[i]
-
-        # Conclusion box (always drawn, white background)
-        boxes.append({
-            "xmin": X_BOX_LEFT, "xmax": X_BOX_RIGHT,
-            "ymin": yb,         "ymax": yt,
-            "fill": COLOR_WHITE,
-        })
-
-        if qc_type == "TrueFalse":
-            # pass_value declares which obs value means PASS; the other is FAIL.
-            box_fill = COLOR_PASS if obs == row["pass_value"] else COLOR_FAIL
-            bools.append({
-                "xmin": X_BOOL_LEFT, "xmax": X_BOOL_RIGHT,
-                "ymin": yb,          "ymax": yt,
-                "fill": box_fill,
-            })
-
-        else:
-            # Each PLOT_ROW embeds a direct reference to its QC_METRICS entry.
-            metric  = row["metric"]
-            highest = metric["highest"]
-            thr     = metric["threshold"]
-
-            if np.isnan(highest) or highest == 0.0:
-                continue
-
-            thr_scaled = _scale_to_bar(thr, highest)
-            obs_x      = _scale_to_bar(obs if not np.isnan(obs) else 0.0, highest)
-
-            if qc_type == "FailPass":
-                color_left, color_right = COLOR_FAIL, COLOR_PASS
-            elif qc_type == "PassFail":
-                color_left, color_right = COLOR_PASS, COLOR_FAIL
-            else:  # NoThold: informational only, rendered white throughout
-                color_left, color_right = COLOR_WHITE, COLOR_WHITE
-
-            # Left region [0, threshold] — skipped when threshold is at the origin
-            if thr_scaled > X_BAR_LEFT:
-                bands.append({
-                    "xmin": X_BAR_LEFT, "xmax": thr_scaled,
-                    "ymin": yb,         "ymax": yt,
-                    "fill": color_left,
-                })
-            # Right region [threshold, bar_right]
-            bands.append({
-                "xmin": thr_scaled,  "xmax": X_BAR_RIGHT,
-                "ymin": yb,          "ymax": yt,
-                "fill": color_right,
-            })
-
-            # Softer red marker; bright red only when value exceeds the plotted range
-            marker_fill = COLOR_RED if (not np.isnan(obs) and obs > highest) else "#D4534A"
-            markers.append({
-                "xmin": obs_x - MARKER_HALF, "xmax": obs_x + MARKER_HALF,
-                "ymin": yb + MARKER_BOT,     "ymax": yt + MARKER_TOP - BAR_HEIGHT,
-                "fill": marker_fill,
-            })
-
+    yb       = _row_bottom(i, n_rows)
+    yt       = yb + BAR_HEIGHT
+    box_fill = COLOR_PASS if obs == row["pass_value"] else COLOR_FAIL
     return {
-        "row_bgs": pd.DataFrame(row_bgs),
-        "boxes":   pd.DataFrame(boxes),
-        "bools":   pd.DataFrame(bools),
-        "bands":   pd.DataFrame(bands),
-        "markers": pd.DataFrame(markers),
+        "bools":     [{"xmin": X_BOOL_LEFT, "xmax": X_BOOL_RIGHT, "ymin": yb, "ymax": yt, "fill": box_fill}],
+        "bands":     [],
+        "markers":   [],
+        "center":    [{"x": X_BOOL_CENTER, "y": yb + CENTER_OFFSET,
+                        "label": "YES" if obs == 1.0 else "NO", "color": "#333333", "size": 7}],
+        "obs_left":  [],
+        "obs_right": [],
     }
 
 
-def build_text_data(
-    obs_values:   list[float],
-    plot_rows:    list[dict],
-    float_metrics: set[str],
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def _build_continuous_row(
+    i: int, row: dict, obs: float, n_rows: int, float_metrics: set[str]
+) -> dict[str, list[dict]] | None:
     """
-    Build five DataFrames of text annotations:
+    Build geometry and text records for a continuous metric row.
 
-      bold_df      – bold row labels (right-aligned, left margin)
-      thold_df     – threshold descriptions (muted, right-aligned, smaller)
-      center_df    – centred text: YES/NO, range limits, and red X for failures
-      obs_left_df  – observed values placed LEFT of the marker (marker in right half)
-      obs_right_df – observed values placed RIGHT of the marker (marker in left half)
+    Handles FailPass, PassFail, and NoThold qc_types.
+    Returns None when the row has no valid display range (highest is nan or 0),
+    so the caller can skip it cleanly.
     """
-    n_rows           = len(plot_rows)
-    bold_records:      list[dict] = []
-    thold_records:     list[dict] = []
-    center_records:    list[dict] = []
-    obs_left_records:  list[dict] = []
-    obs_right_records: list[dict] = []
+    metric  = row["metric"]
+    highest = metric["highest"]
+    lowest  = metric["lowest"]
+    thr     = metric["threshold"]
+    qc_type = row["qc_type"]
+
+    if np.isnan(highest) or highest == 0.0:
+        return None
+
+    yb         = _row_bottom(i, n_rows)
+    yt         = yb + BAR_HEIGHT
+    thr_scaled = _scale_to_bar(thr, highest)
+    obs_x      = _scale_to_bar(obs if not np.isnan(obs) else 0.0, highest)
+
+    if qc_type == "FailPass":
+        color_left, color_right = COLOR_FAIL, COLOR_PASS
+    elif qc_type == "PassFail":
+        color_left, color_right = COLOR_PASS, COLOR_FAIL
+    else:  # NoThold: informational only, rendered white throughout
+        color_left, color_right = COLOR_WHITE, COLOR_WHITE
+
+    # Geometry ---------------------------------------------------------------
+    bands: list[dict] = []
+    # Left region [0, threshold] — skipped when threshold is at the origin
+    if thr_scaled > X_BAR_LEFT:
+        bands.append({"xmin": X_BAR_LEFT, "xmax": thr_scaled, "ymin": yb, "ymax": yt, "fill": color_left})
+    # Right region [threshold, bar_right]
+    bands.append({"xmin": thr_scaled, "xmax": X_BAR_RIGHT, "ymin": yb, "ymax": yt, "fill": color_right})
+
+    # Softer red marker; bright red only when value exceeds the plotted range
+    marker_fill = COLOR_RED if (not np.isnan(obs) and obs > highest) else "#D4534A"
+    markers = [{"xmin": obs_x - MARKER_HALF, "xmax": obs_x + MARKER_HALF,
+                 "ymin": yb + MARKER_BOT,     "ymax": yt + MARKER_TOP - BAR_HEIGHT,
+                 "fill": marker_fill}]
+
+    # Text annotations -------------------------------------------------------
+    center: list[dict] = []
+    if not np.isnan(lowest):
+        center.append({"x": X_MIN_LABEL, "y": yb + CENTER_OFFSET,
+                        "label": _format_number(lowest, metric["variable"], float_metrics),
+                        "color": "#444444", "size": 8.5})
+    center.append({"x": X_MAX_LABEL, "y": yb + CENTER_OFFSET,
+                   "label": _format_number(highest, metric["variable"], float_metrics),
+                   "color": "#444444", "size": 8.5})
+    # Red X in the conclusion box for metrics that fall in the fail region
+    if _is_value_in_fail_region(obs, metric, qc_type):
+        center.append({"x": (X_BOX_LEFT + X_BOX_RIGHT) / 2.0, "y": yb + CENTER_OFFSET,
+                        "label": "X", "color": COLOR_RED, "size": 18})
+
+    # Observed value: placed left or right of the marker to avoid overlap
+    obs_left:  list[dict] = []
+    obs_right: list[dict] = []
+    if not np.isnan(obs):
+        fmt = _format_number(obs, metric["variable"], float_metrics)
+        if obs_x > X_BAR_MID:
+            obs_left.append({"x": obs_x - OBS_LABEL_OFFSET, "y": yb + CENTER_OFFSET,
+                              "label": fmt, "color": "#444444", "size": 8.5})
+        else:
+            obs_right.append({"x": obs_x + OBS_LABEL_OFFSET, "y": yb + CENTER_OFFSET,
+                               "label": fmt, "color": "#444444", "size": 8.5})
+
+    return {
+        "bools":     [],
+        "bands":     bands,
+        "markers":   markers,
+        "center":    center,
+        "obs_left":  obs_left,
+        "obs_right": obs_right,
+    }
+
+
+# Dispatch table: maps each qc_type to its row-builder function.
+# To support a new qc_type, implement a builder with the same signature
+# (i, row, obs, n_rows, float_metrics) and register it here.
+_ROW_BUILDERS: dict[str, callable] = {
+    "TrueFalse": _build_boolean_row,
+    "FailPass":  _build_continuous_row,
+    "PassFail":  _build_continuous_row,
+    "NoThold":   _build_continuous_row,
+}
+
+
+# ---------------------------------------------------------------------------
+# Unified layer builder (single pass over plot_rows)
+# ---------------------------------------------------------------------------
+
+def build_layer_data(
+    obs_values:    list[float],
+    plot_rows:     list[dict],
+    float_metrics: set[str],
+) -> dict[str, pl.DataFrame]:
+    """
+    Build all geometry and annotation DataFrames in a single pass over plot_rows.
+
+    Row-type-specific rendering is delegated to the functions registered in
+    _ROW_BUILDERS.  Adding or removing a metric only requires updating the
+    plot_rows configuration list; adding a new qc_type only requires registering
+    a new builder in _ROW_BUILDERS.
+
+    Returns a dict keyed by layer name.
+
+    Geometry layers (columns: xmin, xmax, ymin, ymax, fill):
+      "row_bgs"   – alternating zebra-stripe backgrounds (full row width)
+      "boxes"     – white conclusion boxes with dark border
+      "bools"     – coloured boolean YES/NO boxes with dark border
+      "bands"     – coloured (or white for NoThold) metric bands with thin border
+      "markers"   – thin vertical observation-position notches, no border
+
+    Text layers:
+      "bold"      – bold row labels (columns: x, y, label)
+      "thold"     – threshold descriptions (columns: x, y, label)
+      "center"    – centred annotations: YES/NO, range limits, red X  (columns: x, y, label, color, size)
+      "obs_left"  – observed values left of the marker  (columns: x, y, label, color, size)
+      "obs_right" – observed values right of the marker (columns: x, y, label, color, size)
+    """
+    n_rows   = len(plot_rows)
+    half_pad = (1.0 - BAR_HEIGHT) / 2
+
+    acc: dict[str, list[dict]] = {
+        "row_bgs": [], "boxes": [], "bools": [], "bands": [], "markers": [],
+        "bold": [], "thold": [], "center": [], "obs_left": [], "obs_right": [],
+    }
 
     for i, row in enumerate(plot_rows):
-        yb      = _row_bottom(i, n_rows)
-        obs     = obs_values[i]
-        qc_type = row["qc_type"]
+        yb  = _row_bottom(i, n_rows)
+        obs = obs_values[i]
 
-        bold_records.append({"x": X_ROW_LABEL, "y": yb + LABEL_OFFSET, "label": row["label"]})
+        # Structural elements common to every row
+        acc["row_bgs"].append({
+            "xmin": X_BAR_LEFT - 0.05, "xmax": X_BOX_RIGHT + 0.05,
+            "ymin": yb - half_pad,     "ymax": yb + BAR_HEIGHT + half_pad,
+            "fill": ROW_BG_EVEN if i % 2 == 0 else ROW_BG_ODD,
+        })
+        acc["boxes"].append({
+            "xmin": X_BOX_LEFT, "xmax": X_BOX_RIGHT,
+            "ymin": yb,         "ymax": yb + BAR_HEIGHT,
+            "fill": COLOR_WHITE,
+        })
 
+        # Labels common to every row
+        acc["bold"].append({"x": X_ROW_LABEL, "y": yb + LABEL_OFFSET, "label": row["label"]})
         if row["threshold_label"]:
-            thold_records.append({"x": X_ROW_LABEL, "y": yb + THOLD_OFFSET, "label": row["threshold_label"]})
+            acc["thold"].append({"x": X_ROW_LABEL, "y": yb + THOLD_OFFSET, "label": row["threshold_label"]})
 
-        if qc_type == "TrueFalse":
-            center_records.append({
-                "x": X_BOOL_CENTER, "y": yb + CENTER_OFFSET,
-                "label": "YES" if obs == 1.0 else "NO",
-                "color": "#333333", "size": 7,
-            })
+        # Dispatch row-type-specific geometry and text
+        builder = _ROW_BUILDERS[row["qc_type"]]
+        result  = builder(i, row, obs, n_rows, float_metrics)
+        if result is not None:
+            for key in ("bools", "bands", "markers", "center", "obs_left", "obs_right"):
+                acc[key].extend(result[key])
 
-        else:
-            metric  = row["metric"]
-            highest = metric["highest"]
-            lowest  = metric["lowest"]
+    rect_cols  = ["xmin", "xmax", "ymin", "ymax", "fill"]
+    text_cols  = ["x", "y", "label"]
+    annot_cols = ["x", "y", "label", "color", "size"]
 
-            if np.isnan(highest) or highest == 0.0:
-                continue
+    def _df(records: list[dict], cols: list[str]) -> pl.DataFrame:
+        return pl.DataFrame(records) if records else pl.DataFrame({c: [] for c in cols})
 
-            obs_x = _scale_to_bar(obs if not np.isnan(obs) else 0.0, highest)
-
-            # Range boundary labels
-            if not np.isnan(lowest):
-                center_records.append({
-                    "x": X_MIN_LABEL, "y": yb + CENTER_OFFSET,
-                    "label": _format_number(lowest, metric["variable"], float_metrics),
-                    "color": "#444444", "size": 8.5,
-                })
-            center_records.append({
-                "x": X_MAX_LABEL, "y": yb + CENTER_OFFSET,
-                "label": _format_number(highest, metric["variable"], float_metrics),
-                "color": "#444444", "size": 8.5,
-            })
-
-            # Observed value: placed left or right of the marker depending on
-            # which half of the bar the marker falls in, to avoid overlap.
-            if not np.isnan(obs):
-                fmt = _format_number(obs, metric["variable"], float_metrics)
-                if obs_x > X_BAR_MID:
-                    obs_left_records.append({
-                        "x": obs_x - OBS_LABEL_OFFSET, "y": yb + CENTER_OFFSET,
-                        "label": fmt, "color": "#444444", "size": 8.5,
-                    })
-                else:
-                    obs_right_records.append({
-                        "x": obs_x + OBS_LABEL_OFFSET, "y": yb + CENTER_OFFSET,
-                        "label": fmt, "color": "#444444", "size": 8.5,
-                    })
-
-            # Red X in the conclusion box for metrics in the fail region
-            if _is_value_in_fail_region(obs, metric, qc_type):
-                center_records.append({
-                    "x": (X_BOX_LEFT + X_BOX_RIGHT) / 2.0, "y": yb + CENTER_OFFSET,
-                    "label": "X", "color": COLOR_RED, "size": 18,
-                })
-
-    def _df(records: list[dict], cols: list[str]) -> pd.DataFrame:
-        return pd.DataFrame(records) if records else pd.DataFrame(columns=cols)
-
-    return (
-        _df(bold_records,      ["x", "y", "label"]),
-        _df(thold_records,     ["x", "y", "label"]),
-        _df(center_records,    ["x", "y", "label", "color", "size"]),
-        _df(obs_left_records,  ["x", "y", "label", "color", "size"]),
-        _df(obs_right_records, ["x", "y", "label", "color", "size"]),
-    )
+    return {
+        "row_bgs":  _df(acc["row_bgs"],   rect_cols),
+        "boxes":    _df(acc["boxes"],     rect_cols),
+        "bools":    _df(acc["bools"],     rect_cols),
+        "bands":    _df(acc["bands"],     rect_cols),
+        "markers":  _df(acc["markers"],   rect_cols),
+        "bold":     _df(acc["bold"],      text_cols),
+        "thold":    _df(acc["thold"],     text_cols),
+        "center":   _df(acc["center"],    annot_cols),
+        "obs_left": _df(acc["obs_left"],  annot_cols),
+        "obs_right":_df(acc["obs_right"], annot_cols),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -727,35 +735,33 @@ def make_plot(
     float_metrics: set[str],
 ) -> ggplot:
     """Assemble and return the complete plotnine ggplot object."""
-    n_rows = len(plot_rows)
-    rects  = build_rect_data(obs_values, plot_rows)
-    bold_df, thold_df, center_df, obs_left_df, obs_right_df = build_text_data(
-        obs_values, plot_rows, float_metrics
-    )
+    n_rows    = len(plot_rows)
+    layers    = build_layer_data(obs_values, plot_rows, float_metrics)
+    pd_layers = {k: v.to_pandas() for k, v in layers.items()}
 
     title_parts = title.split("\n", maxsplit=1)
     title_main  = title_parts[0]
     title_sub   = title_parts[1] if len(title_parts) > 1 else ""
 
-    header_df = pd.DataFrame([
+    header_df = pl.DataFrame([
         {"x": X_BOOL_CENTER,                     "y": -0.40, "label": "Observed values"},
         {"x": (X_BOX_LEFT + X_BOX_RIGHT) / 2.0,  "y": -0.40, "label": "Conclusions"},
-    ])
+    ]).to_pandas()
 
-    base_df = pd.DataFrame({"x": [0.0], "y": [0.0]})
+    base_df = pl.DataFrame({"x": [0.0], "y": [0.0]}).to_pandas()
 
     p = (
         ggplot(base_df, aes("x", "y"))
 
         # Row alternating backgrounds (drawn first, behind everything)
         + geom_rect(
-            data        = rects["row_bgs"],
+            data        = pd_layers["row_bgs"],
             mapping     = aes(xmin="xmin", xmax="xmax", ymin="ymin", ymax="ymax", fill="fill"),
             inherit_aes = False,
         )
         # Coloured metric bands (thin border frames each bar)
         + geom_rect(
-            data        = rects["bands"],
+            data        = pd_layers["bands"],
             mapping     = aes(xmin="xmin", xmax="xmax", ymin="ymin", ymax="ymax", fill="fill"),
             color       = "#505050",
             size        = 0.25,
@@ -763,13 +769,13 @@ def make_plot(
         )
         # Observation markers (thin vertical notches, no border)
         + geom_rect(
-            data        = rects["markers"],
+            data        = pd_layers["markers"],
             mapping     = aes(xmin="xmin", xmax="xmax", ymin="ymin", ymax="ymax", fill="fill"),
             inherit_aes = False,
         )
         # Boolean YES/NO boxes (dark border)
         + geom_rect(
-            data        = rects["bools"],
+            data        = pd_layers["bools"],
             mapping     = aes(xmin="xmin", xmax="xmax", ymin="ymin", ymax="ymax", fill="fill"),
             color       = "#505050",
             size        = 0.5,
@@ -777,7 +783,7 @@ def make_plot(
         )
         # Conclusion boxes (white fill, dark border)
         + geom_rect(
-            data        = rects["boxes"],
+            data        = pd_layers["boxes"],
             mapping     = aes(xmin="xmin", xmax="xmax", ymin="ymin", ymax="ymax", fill="fill"),
             color       = "#505050",
             size        = 0.5,
@@ -790,7 +796,7 @@ def make_plot(
 
         # Text labels (back-to-front rendering order)
         + geom_text(
-            data        = bold_df,
+            data        = pd_layers["bold"],
             mapping     = aes(x="x", y="y", label="label"),
             ha          = "right",
             va          = "center",
@@ -799,7 +805,7 @@ def make_plot(
             inherit_aes = False,
         )
         + geom_text(
-            data        = thold_df,
+            data        = pd_layers["thold"],
             mapping     = aes(x="x", y="y", label="label"),
             ha          = "right",
             va          = "center",
@@ -808,21 +814,21 @@ def make_plot(
             inherit_aes = False,
         )
         + geom_text(
-            data        = center_df,
+            data        = pd_layers["center"],
             mapping     = aes(x="x", y="y", label="label", color="color", size="size"),
             ha          = "center",
             va          = "center",
             inherit_aes = False,
         )
         + geom_text(
-            data        = obs_left_df,
+            data        = pd_layers["obs_left"],
             mapping     = aes(x="x", y="y", label="label", color="color", size="size"),
             ha          = "right",
             va          = "center",
             inherit_aes = False,
         )
         + geom_text(
-            data        = obs_right_df,
+            data        = pd_layers["obs_right"],
             mapping     = aes(x="x", y="y", label="label", color="color", size="size"),
             ha          = "left",
             va          = "center",
