@@ -338,28 +338,34 @@ If none of the three existing `plot_kind` values fits, add a `render_<kind>` fun
 
 ## Per-sample QC plots
 
-In addition to the multi-run overview (`plot_QC_metrics.py`), two scripts generate a per-sample QC panel used in sample-level reporting. Each produces a self-contained figure with colour-coded pass/fail rows covering all QC thresholds for a single sample. Both are Python re-implementations of the original R scripts (`01_plot_sample_metrics_DNA.R`, `plot_sample_metrics_RNA.R`).
+In addition to the multi-run overview (`plot_QC_metrics.py`), `plot_sample_metrics.py` generates a per-sample QC panel for sample-level reporting. It produces a self-contained figure with colour-coded pass/fail rows covering all QC thresholds for a single DNA or RNA sample. The script is a unified Python re-implementation of the original R scripts (`01_plot_sample_metrics_DNA.R`, `plot_sample_metrics_RNA.R`).
 
 <br>
 
-### `01_plot_sample_metrics_DNA.py`
+### `plot_sample_metrics.py`
 
-Generates a 9-row QC panel for a single DNA sample.
+Generates a per-sample QC panel (9 rows for DNA, 8 rows for RNA) with colour-coded metrics, threshold comparisons, and red "X" fail indicators.
 
 ```bash
-uv run 01_plot_sample_metrics_DNA.py \
-    --input_tsv <path> --sample_id <id> --output_pdf <path> \
+uv run plot_sample_metrics.py \
+    --input_tsv <path> --sample_id <id> --output_pdf <path> --seq_type [DNA|RNA] \
     [--inpred_nomenclature True|False]
 ```
 
 | Argument | Description |
 |----------|-------------|
-| `--input_tsv` (required) | TSV metrics table with a `SAMPLE_ID` column and all DNA QC columns. |
+| `--input_tsv` (required) | TSV metrics table with a `SAMPLE_ID` column and all DNA or RNA QC columns (depending on `--seq_type`). |
 | `--sample_id` (required) | Sample ID to extract from the input table and display in the plot title. |
 | `--output_pdf` (required) | Output PDF path; PNG is automatically saved alongside with `.png` extension. |
+| `--seq_type` (required) | `DNA` or `RNA` — selects which metrics and QC thresholds to apply. |
 | `--inpred_nomenclature` (optional) | `True` or `False` (default: `False`). When `True`, the 13th character of `sample_id` is decoded as an InPreD sample-type code (requires a 19-character ID; e.g. `C` → cell line, `T` → tumour). |
 
-Rows plotted:
+#### DNA metrics (9 rows)
+
+```bash
+uv run plot_sample_metrics.py \
+    --input_tsv <path> --sample_id <id> --output_pdf <path> --seq_type DNA
+```
 
 | Row | Metric | Threshold | Colour logic |
 |-----|--------|-----------|---------------|
@@ -373,28 +379,12 @@ Rows plotted:
 | 8 | Median raw bin count per CNV target | ≥ 1 | FailPass |
 | 9 | CNV coverage MAD | ≤ 0.21 | PassFail |
 
-<br>
-
-### `01_plot_sample_metrics_RNA.py`
-
-Generates an 8-row QC panel for a single RNA sample.
+#### RNA metrics (8 rows)
 
 ```bash
-uv run 01_plot_sample_metrics_RNA.py \
-    --input_tsv <path> --sample_id <id> --output_pdf <path> \
-    [--inpred_nomenclature True|False]
+uv run plot_sample_metrics.py \
+    --input_tsv <path> --sample_id <id> --output_pdf <path> --seq_type RNA
 ```
-
-| Argument | Description |
-|----------|-------------|
-| `--input_tsv` (required) | TSV metrics table with a `SAMPLE_ID` column and all RNA QC columns. |
-| `--sample_id` (required) | Sample ID to extract from the input table and display in the plot title. |
-| `--output_pdf` (required) | Output PDF path; PNG is automatically saved alongside with `.png` extension. |
-| `--inpred_nomenclature` (optional) | `True` or `False` (default: `False`). When `True`, the 13th character of `sample_id` is decoded as an InPreD sample-type code (requires a 19-character ID; e.g. `C` → cell line, `T` → tumour). |
-
-> `RNA_TOTAL_ON_TARGET_READS` and `RNA_TOTAL_PF_READS` are stored as raw counts in the input TSV. The script divides them by 1 000 000 internally, so thresholds (9.0 and 30.0) are expressed in millions.
-
-Rows plotted:
 
 | Row | Metric | Threshold | Colour logic |
 |-----|--------|-----------|---------------|
@@ -407,6 +397,8 @@ Rows plotted:
 | 7 | Scaled median gene coverage | no reference | no threshold bar |
 | 8 | Total reads passing filters (millions) | no reference | no threshold bar |
 
+> **Note on RNA read counts:** `RNA_TOTAL_ON_TARGET_READS` and `RNA_TOTAL_PF_READS` are stored as raw counts in the input TSV. The script divides them by 1 000 000 internally, so thresholds (9.0 and 30.0) are expressed in millions.
+
 <br>
 
 ### Visual indicators
@@ -418,34 +410,37 @@ Each row shows:
 
 <br>
 
-### Example
+### Examples
 
 Using the bundled example data:
 
-**Passing sample (all metrics pass):**
+**Passing DNA sample:**
 ```bash
 mkdir -p results_python/sample_metrics
 
-# DNA sample – all metrics pass
-uv run 01_plot_sample_metrics_DNA.py \
+uv run plot_sample_metrics.py \
     --input_tsv data/workflow_tables/localapp_plot_metrics_table.tsv \
     --sample_id IPD0195-D01-P91-A25-0001_P \
-    --output_pdf results_python/sample_metrics/IPD0195-D01-P91-A25-0001_P_DNA_QC.pdf
-
-# RNA sample – all metrics pass
-uv run 01_plot_sample_metrics_RNA.py \
-    --input_tsv data/workflow_tables/localapp_plot_metrics_table.tsv \
-    --sample_id IPD0195-R03-P91-A25-0001_P \
-    --output_pdf results_python/sample_metrics/IPD0195-R03-P91-A25-0001_P_RNA_QC.pdf
+    --output_pdf results_python/sample_metrics/IPD0195-D01-P91-A25-0001_P_DNA_QC.pdf \
+    --seq_type DNA
 ```
 
-**Failing sample (multiple QC failures – includes red "X" markers):**
+**Passing RNA sample:**
 ```bash
-# DNA sample – multiple metrics fail (contamination, coverage, alignment)
-uv run 01_plot_sample_metrics_DNA.py \
+uv run plot_sample_metrics.py \
+    --input_tsv data/workflow_tables/localapp_plot_metrics_table.tsv \
+    --sample_id IPD0195-R03-P91-A25-0001_P \
+    --output_pdf results_python/sample_metrics/IPD0195-R03-P91-A25-0001_P_RNA_QC.pdf \
+    --seq_type RNA
+```
+
+**Failing DNA sample (multiple QC failures with red "X" markers):**
+```bash
+uv run plot_sample_metrics.py \
     --input_tsv data/workflow_tables/localapp_plot_metrics_table.tsv \
     --sample_id IPD1881-D01-D01-A25_P \
-    --output_pdf results_python/sample_metrics/IPD1881-D01-D01-A25_P_DNA_QC.pdf
+    --output_pdf results_python/sample_metrics/IPD1881-D01-D01-A25_P_DNA_QC.pdf \
+    --seq_type DNA
 ```
 
 Both scripts automatically create `.png` files alongside the `.pdf` files.

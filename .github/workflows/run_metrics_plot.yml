@@ -142,50 +142,53 @@ jobs:
                                     --workflow_type Dragen                                                   ;
 
 
-      # ========================= #
-      # Per-sample QC plots (DNA) #
-      # ========================= #
+      # ========================== #
+      # Per-sample QC plots (DNA)  #
+      # ========================== #
 
-      - name: Run 01_plot_sample_metrics_DNA.py
+      - name: Run plot_sample_metrics.py – DNA passing sample
         run: |
           RESULTS_DIR=results_python/sample_metrics
           mkdir -p ${RESULTS_DIR}
-          echo "; Running 01_plot_sample_metrics_DNA.py (IPD0195-D01-P91-A25-0001_P)"
-          uv run 01_plot_sample_metrics_DNA.py                                  \
-              --input_tsv data/workflow_tables/localapp_plot_metrics_table.tsv  \
-              --sample_id IPD0195-D01-P91-A25-0001_P                            \
-              --output_pdf ${RESULTS_DIR}/IPD0195-D01-P91-A25-0001_P_DNA_QC.pdf \
-              --inpred_nomenclature False                                       ;
+          echo "; Running plot_sample_metrics.py --seq_type DNA (IPD0195-D01-P91-A25-0001_P)"
+          uv run plot_sample_metrics.py                                          \
+              --input_tsv data/workflow_tables/localapp_plot_metrics_table.tsv   \
+              --sample_id IPD0195-D01-P91-A25-0001_P                             \
+              --output_pdf ${RESULTS_DIR}/IPD0195-D01-P91-A25-0001_P_DNA_QC.pdf  \
+              --seq_type DNA                                                      \
+              --inpred_nomenclature False                                        ;
 
-      # ========================= #
-      # Per-sample QC plots (RNA) #
-      # ========================= #
+      # ========================== #
+      # Per-sample QC plots (RNA)  #
+      # ========================== #
 
-      - name: Run 01_plot_sample_metrics_RNA.py
+      - name: Run plot_sample_metrics.py – RNA passing sample
         run: |
           RESULTS_DIR=results_python/sample_metrics
           mkdir -p ${RESULTS_DIR}
-          echo "; Running 01_plot_sample_metrics_RNA.py (IPD0195-R03-P91-A25-0001_P)"
-          uv run 01_plot_sample_metrics_RNA.py                                  \
-              --input_tsv data/workflow_tables/localapp_plot_metrics_table.tsv  \
-              --sample_id IPD0195-R03-P91-A25-0001_P                            \
-              --output_pdf ${RESULTS_DIR}/IPD0195-R03-P91-A25-0001_P_RNA_QC.pdf \
-              --inpred_nomenclature False                                       ;
+          echo "; Running plot_sample_metrics.py --seq_type RNA (IPD0195-R03-P91-A25-0001_P)"
+          uv run plot_sample_metrics.py                                          \
+              --input_tsv data/workflow_tables/localapp_plot_metrics_table.tsv   \
+              --sample_id IPD0195-R03-P91-A25-0001_P                             \
+              --output_pdf ${RESULTS_DIR}/IPD0195-R03-P91-A25-0001_P_RNA_QC.pdf  \
+              --seq_type RNA                                                      \
+              --inpred_nomenclature False                                        ;
 
-      # ================================================= #
-      # Per-sample QC plots (DNA – failing sample)       #
-      # ================================================= #
+      # ================================================== #
+      # Per-sample QC plots (DNA – failing sample)         #
+      # ================================================== #
 
-      - name: Run 01_plot_sample_metrics_DNA.py (failing sample)
+      - name: Run plot_sample_metrics.py – DNA failing sample
         run: |
           RESULTS_DIR=results_python/sample_metrics
           mkdir -p ${RESULTS_DIR}
-          echo "; Running 01_plot_sample_metrics_DNA.py (IPD1881-D01-D01-A25_P – multiple QC failures)"
-          uv run 01_plot_sample_metrics_DNA.py                                  \
-              --input_tsv data/workflow_tables/localapp_plot_metrics_table.tsv  \
-              --sample_id IPD1881-D01-D01-A25_P                                 \
-              --output_pdf ${RESULTS_DIR}/IPD1881-D01-D01-A25_P_DNA_QC.pdf      \
-              --inpred_nomenclature False                                       ;
+          echo "; Running plot_sample_metrics.py --seq_type DNA (IPD1881-D01-D01-A25_P – multiple QC failures)"
+          uv run plot_sample_metrics.py                                          \
+              --input_tsv data/workflow_tables/localapp_plot_metrics_table.tsv   \
+              --sample_id IPD1881-D01-D01-A25_P                                  \
+              --output_pdf ${RESULTS_DIR}/IPD1881-D01-D01-A25_P_DNA_QC.pdf       \
+              --seq_type DNA                                                      \
+              --inpred_nomenclature False                                        ;
 
 
       - name: Enable caching
