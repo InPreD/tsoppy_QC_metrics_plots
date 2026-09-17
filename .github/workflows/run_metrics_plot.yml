@@ -146,7 +146,7 @@ jobs:
       # Per-sample QC plots (DNA)  #
       # ========================== #
 
-      - name: Run plot_sample_metrics.py – DNA passing sample
+      - name: Run plot_sample_metrics.py – DNA passing sample [LocalApp + Dragen]
         run: |
           RESULTS_DIR=results_python/sample_metrics
           mkdir -p ${RESULTS_DIR}
@@ -155,14 +155,14 @@ jobs:
               --input_tsv data/workflow_tables/localapp_plot_metrics_table.tsv   \
               --sample_id IPD0195-D01-P91-A25-0001_P                             \
               --output_pdf ${RESULTS_DIR}/IPD0195-D01-P91-A25-0001_P_DNA_QC.pdf  \
-              --seq_type DNA                                                      \
+              --seq_type DNA                                                     \
               --inpred_nomenclature False                                        ;
 
       # ========================== #
       # Per-sample QC plots (RNA)  #
       # ========================== #
 
-      - name: Run plot_sample_metrics.py – RNA passing sample
+      - name: Run plot_sample_metrics.py – RNA passing sample [LocalApp + Dragen]
         run: |
           RESULTS_DIR=results_python/sample_metrics
           mkdir -p ${RESULTS_DIR}
@@ -178,7 +178,7 @@ jobs:
       # Per-sample QC plots (DNA – failing sample)         #
       # ================================================== #
 
-      - name: Run plot_sample_metrics.py – DNA failing sample
+      - name: Run plot_sample_metrics.py – DNA failing sample [LocalApp + Dragen]
         run: |
           RESULTS_DIR=results_python/sample_metrics
           mkdir -p ${RESULTS_DIR}
