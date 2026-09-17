@@ -69,94 +69,86 @@
 
 SAMPLE_METRICS_SPECS = {
 
-    # ============================== #
-    # Shared (both DNA and RNA)      #
-    # ============================== #
+    # ========================= #
+    # Shared (both DNA and RNA) #
+    # ========================= #
 
     "COMPLETED_ALL_STEPS": {
-        "localapp": {"plot": True, "index": 1, "seq_type": ["dna", "rna"]},
-        "dragen":   {"plot": True, "index": 1, "seq_type": ["dna", "rna"]},
 
-        "qc_type":          "TrueFalse",
-        "label":            "PIPELINE COMPLETED",
-        "threshold_label":  "",
-        "pass_value":       1.0,      # obs == 1.0 → pipeline ran → PASS (green)
-        "variable":         "COMPLETED_ALL_STEPS",
-        "lowest":           None,
-        "threshold_source": None,
-        "highest":          None,
-        "float_format":     False,
+        "localapp": { 
+            "plot"     : True, 
+            "index"    : 1, 
+            "seq_type" : ["dna", "rna"]
+        },
+        "dragen": {
+            "plot"     : True,
+            "index"    : 1,
+            "seq_type" : ["dna", "rna"]
+        },
+
+        "qc_type"          : "TrueFalse",
+        "label"            : "PIPELINE COMPLETED",
+        "threshold_label"  : "",
+        "pass_value"       : 1.0,      # obs == 1.0 → pipeline ran → PASS (green)
+        "variable"         : "COMPLETED_ALL_STEPS",
+        "lowest"           : None,
+        "threshold_source" : None,
+        "highest"          : None,
+        "float_format"     : False,
     },
 
 
-    # ===================================== #
-    # DNA rows                             #
-    # ===================================== #
-
-    # The contamination boolean (index 2) is derived from two raw metrics.
-    # DNA_CONTAMINATION_SCORE and DNA_CONTAMINATION_P_VALUE are helper entries:
-    # they are loaded from the TSV (load=True) and their UPPER_THRESHOLD values
-    # are consumed by _compute_obs_dna(), but they are never rendered as plot rows.
+    # ================ #
+    # DNA metrics rows #
+    # ================ #
 
     "DNA_CONTAMINATION": {
-        "localapp": {"plot": True, "index": 2, "seq_type": ["dna"]},
-        "dragen":   {"plot": True, "index": 2, "seq_type": ["dna"]},
+        "localapp": {
+            "plot"     : True,
+            "index"    : 2,
+            "seq_type" : ["dna"]
+        },
+        "dragen": {
+            "plot"     : True,
+            "index"    : 2,
+            "seq_type" : ["dna"]
+        },
 
-        "qc_type":          "TrueFalse",
-        "label":            "CONTAMINATION",
-        "threshold_label":  "",
-        "pass_value":       0.0,      # obs == 0.0 → sample clean → PASS (green)
-        "variable":         None,     # derived — see _compute_obs_dna()
-        "lowest":           None,
-        "threshold_source": None,
-        "highest":          None,
-        "float_format":     False,
+        "qc_type"          : "TrueFalse",
+        "label"            : "CONTAMINATION",
+        "threshold_label"  : "",
+        "pass_value"       : 0.0,      # obs == 0.0 → sample clean → PASS (green)
+        "variable"         : None,     # derived — see _compute_obs_dna()
+        "lowest"           : None,
+        "threshold_source" : None,
+        "highest"          : None,
+        "float_format"     : False,
     },
 
-    "DNA_CONTAMINATION_SCORE": {
-        "localapp": {"plot": False, "index": 0, "load": True, "seq_type": ["dna"]},
-        "dragen":   {"plot": False, "index": 0, "load": True, "seq_type": ["dna"]},
-
-        "qc_type":          None,
-        "label":            None,
-        "threshold_label":  None,
-        "pass_value":       None,
-        "variable":         "DNA_CONTAMINATION_SCORE",
-        "lowest":           0.0,
-        "threshold_source": "upper",  # UPPER_THRESHOLD row: score > upper → contamination
-        "highest":          None,
-        "float_format":     False,
-    },
-
-    "DNA_CONTAMINATION_P_VALUE": {
-        "localapp": {"plot": False, "index": 0, "load": True, "seq_type": ["dna"]},
-        "dragen":   {"plot": False, "index": 0, "load": True, "seq_type": ["dna"]},
-
-        "qc_type":          None,
-        "label":            None,
-        "threshold_label":  None,
-        "pass_value":       None,
-        "variable":         "DNA_CONTAMINATION_P_VALUE",
-        "lowest":           0.0,
-        "threshold_source": "upper",  # UPPER_THRESHOLD row: p-value > upper → contamination
-        "highest":          1.0,
-        "float_format":     False,
-    },
 
     "DNA_MEDIAN_EXON_COVERAGE": {
-        "localapp": {"plot": True, "index": 3, "seq_type": ["dna"]},
-        "dragen":   {"plot": True, "index": 3, "seq_type": ["dna"]},
+        "localapp": {
+            "plot" : True,
+            "index"    : 3,
+            "seq_type" : ["dna"]
+        },
+        "dragen": {
+            "plot"     : True,
+            "index"    : 3,
+            "seq_type" : ["dna"]
+        },
 
-        "qc_type":          "FailPass",
-        "label":            "MEDIAN EXON COVERAGE",
-        "threshold_label":  ">= 150   [small variants, TMB]",
-        "pass_value":       None,
-        "variable":         "DNA_MEDIAN_EXON_COVERAGE",
-        "lowest":           0.0,
-        "threshold_source": "lower",  # LOWER_THRESHOLD row
-        "highest":          1000.0,
-        "float_format":     False,
+        "qc_type"          : "FailPass",
+        "label"            : "MEDIAN EXON COVERAGE",
+        "threshold_label"  : ">= {threshold} [small variants, TMB]",
+        "pass_value"       : None,
+        "variable"         : "DNA_MEDIAN_EXON_COVERAGE",
+        "lowest"           : 0.0,
+        "threshold_source" : "lower",  # LOWER_THRESHOLD row
+        "highest"          : 1000.0,
+        "float_format"     : False,
     },
+
 
     "DNA_PCT_EXON_50X": {
         "localapp": {"plot": True, "index": 4, "seq_type": ["dna"]},
@@ -164,7 +156,7 @@ SAMPLE_METRICS_SPECS = {
 
         "qc_type":          "FailPass",
         "label":            "EXON BASES WITH COVERAGE >=50 (%)",
-        "threshold_label":  ">= 90   [small variants, TMB]",
+        "threshold_label":  ">= {threshold}   [small variants, TMB]",
         "pass_value":       None,
         "variable":         "DNA_PCT_EXON_50X",
         "lowest":           0.0,
@@ -179,7 +171,7 @@ SAMPLE_METRICS_SPECS = {
 
         "qc_type":          "FailPass",
         "label":            "MEDIAN INSERT SIZE",
-        "threshold_label":  ">= 70   [small variants, TMB]",
+        "threshold_label":  ">= {threshold}   [small variants, TMB]",
         "pass_value":       None,
         "variable":         "DNA_MEDIAN_INSERT_SIZE",
         "lowest":           0.0,
@@ -194,7 +186,7 @@ SAMPLE_METRICS_SPECS = {
 
         "qc_type":           "FailPass",
         "label":             "ALIGNED READS (%)",
-        "threshold_label":   ">= 70",
+        "threshold_label":   ">= {threshold}",
         "pass_value":        None,
         "variable":          "DNA_PCT_ALIGNED_READS",
         "lowest":            0.0,
@@ -210,7 +202,7 @@ SAMPLE_METRICS_SPECS = {
 
         "qc_type":          "FailPass",
         "label":            "USABLE MSI SITES",
-        "threshold_label":  ">= 40   [MSI]",
+        "threshold_label":  ">= {threshold}   [MSI]",
         "pass_value":       None,
         "variable":         "DNA_USABLE_MSI_SITES",
         "lowest":           0.0,
@@ -225,7 +217,7 @@ SAMPLE_METRICS_SPECS = {
 
         "qc_type":          "FailPass",
         "label":            "MEDIAN RAW BIN COUNT PER CNV TARGET",
-        "threshold_label":  ">= 1   [CNV]",
+        "threshold_label":  ">= {threshold}   [CNV]",
         "pass_value":       None,
         "variable":         "DNA_MEDIAN_BIN_COUNT_CNV_TARGET",
         "lowest":           0.0,
@@ -240,7 +232,7 @@ SAMPLE_METRICS_SPECS = {
 
         "qc_type":          "PassFail",  # lower is better; right half = fail
         "label":            "CNV COVERAGE MAD",
-        "threshold_label":  "<= 0.21   [CNV]",
+        "threshold_label":  "<= {threshold}   [CNV]",
         "pass_value":       None,
         "variable":         "DNA_COVERAGE_MAD",
         "lowest":           0.0,
@@ -260,7 +252,7 @@ SAMPLE_METRICS_SPECS = {
 
         "qc_type":          "PassFail",  # lower CV is better; right half = fail
         "label":            "CV FOR GENES AT MEDIAN COVERAGE >500",
-        "threshold_label":  "<= 93   [fusions, splice variants]",
+        "threshold_label":  "<= {threshold}   [fusions, splice variants]",
         "pass_value":       None,
         "variable":         "RNA_MEDIAN_CV_GENE_500X",
         "lowest":           0.0,
@@ -275,7 +267,7 @@ SAMPLE_METRICS_SPECS = {
 
         "qc_type":          "FailPass",
         "label":            "TOTAL ON-TARGET READS (MILLIONS)",
-        "threshold_label":  ">= 9   [fusions, splice variants]",
+        "threshold_label":  ">= {threshold}   [fusions, splice variants]",
         "pass_value":       None,
         "variable":         "RNA_TOTAL_ON_TARGET_READS",
         "lowest":           0.0,
@@ -291,7 +283,7 @@ SAMPLE_METRICS_SPECS = {
 
         "qc_type":          "FailPass",
         "label":            "MEDIAN INSERT SIZE",
-        "threshold_label":  ">= 80   [fusions, splice variants]",
+        "threshold_label":  ">= {threshold}   [fusions, splice variants]",
         "pass_value":       None,
         "variable":         "RNA_MEDIAN_INSERT_SIZE",
         "lowest":           0.0,
