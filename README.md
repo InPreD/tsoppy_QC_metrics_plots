@@ -16,6 +16,7 @@ Python re-implementation of the TSO500 run metrics plotting from [TSOPPI](https:
 - [Running locally](#running-locally)
 - [Adding new plots](#adding-new-plots)
 - [Per-sample QC plots](#per-sample-qc-plots)
+- [Modifying per-sample metrics](#modifying-per-sample-metrics)
 - [Contributors](#contributors)
 
 
@@ -99,18 +100,20 @@ The plot specifications are defined in `specs/plot_specs_workflows.py` as the `P
 ## Project structure
 
 ```
-plot_QC_metrics.py         # Entry point: CLI argument parsing, table loading, plot dispatch
-plots.py                   # Reusable plotnine rendering functions
-plot_run_metrics.R         # Original R implementation (used as reference)
+plot_QC_metrics.py              # Entry point: CLI argument parsing, table loading, plot dispatch
+plots.py                        # Reusable plotnine rendering functions
+plot_sample_metrics.py          # Per-sample QC panel generator (DNA + RNA, LocalApp + Dragen)
+plot_run_metrics.R              # Original R implementation (used as reference)
 specs/
-    __init__.py            # Marks specs/ as a Python package
-    plot_specs_workflows.py # Active specs dictionary (unified for all workflows with routing)
-    plot_specs_Dragen.py   # Plot specifications template for DRAGEN workflow (reference)
-    plot_specs_LocalApp.py # Plot specifications template for LocalApp workflow (reference)
-example_command.bash       # Local run example with loop over all run counts
-pyproject.toml             # Project metadata and dependencies
+    __init__.py                 # Marks specs/ as a Python package
+    plot_specs_workflows.py     # Active specs for multi-run plots (run-level QC)
+    plot_specs_sample_metrics.py # Active specs for per-sample plots (workflow + seq-type routing)
+    plot_specs_Dragen.py        # Plot specifications template for DRAGEN workflow (reference)
+    plot_specs_LocalApp.py      # Plot specifications template for LocalApp workflow (reference)
+example_command.bash            # Local run example with loop over all run counts
+pyproject.toml                  # Project metadata and dependencies
 .github/workflows/
-    run_metrics_plot.yml   # CI workflow (uv + ubuntu-latest)
+    run_metrics_plot.yml        # CI workflow (uv + ubuntu-latest)
 ```
 
 **Design principle:** Rendering logic lives in `plots.py`; what to plot and how to configure each panel is declared in `specs/plot_specs_workflows.py`—a unified specification file with workflow-specific routing. Each plot entry contains workflow-specific sub-dictionaries (`localapp`, `dragen`) that control whether the plot is generated for each workflow and at what position (index).
@@ -340,6 +343,8 @@ If none of the three existing `plot_kind` values fits, add a `render_<kind>` fun
 
 In addition to the multi-run overview (`plot_QC_metrics.py`), `plot_sample_metrics.py` generates a per-sample QC panel for sample-level reporting. It produces a self-contained figure with colour-coded pass/fail rows covering all QC thresholds for a single DNA or RNA sample. The script is a unified Python re-implementation of the original R scripts (`01_plot_sample_metrics_DNA.R`, `plot_sample_metrics_RNA.R`).
 
+A single invocation produces **one PDF + PNG pair per workflow** (currently LocalApp and Dragen). Output files are named `{base}_{LocalApp}.pdf` / `{base}_{Dragen}.pdf` (and matching `.png`), where `{base}` is the value of `--output_pdf` without its `.pdf` extension. Workflows with no metrics defined for the requested `--seq_type` are silently skipped.
+
 <br>
 
 ### `plot_sample_metrics.py`
@@ -356,7 +361,7 @@ uv run plot_sample_metrics.py \
 |----------|-------------|
 | `--input_tsv` (required) | TSV metrics table with a `SAMPLE_ID` column and all DNA or RNA QC columns (depending on `--seq_type`). |
 | `--sample_id` (required) | Sample ID to extract from the input table and display in the plot title. |
-| `--output_pdf` (required) | Output PDF path; PNG is automatically saved alongside with `.png` extension. |
+| `--output_pdf` (required) | Output PDF base path (e.g. `results/sample_QC.pdf`). The script appends `_LocalApp` / `_Dragen` before the extension and writes one PDF + PNG pair per workflow: `sample_QC_LocalApp.pdf`, `sample_QC_Dragen.pdf`, `sample_QC_LocalApp.png`, `sample_QC_Dragen.png`. |
 | `--seq_type` (required) | `DNA` or `RNA` — selects which metrics and QC thresholds to apply. |
 | `--inpred_nomenclature` (optional) | `True` or `False` (default: `False`). When `True`, the 13th character of `sample_id` is decoded as an InPreD sample-type code (requires a 19-character ID; e.g. `C` → cell line, `T` → tumour). |
 
@@ -423,6 +428,9 @@ uv run plot_sample_metrics.py \
     --sample_id IPD0195-D01-P91-A25-0001_P \
     --output_pdf results_python/sample_metrics/IPD0195-D01-P91-A25-0001_P_DNA_QC.pdf \
     --seq_type DNA
+# Produces:
+#   results_python/sample_metrics/IPD0195-D01-P91-A25-0001_P_DNA_QC_LocalApp.pdf  (+ .png)
+#   results_python/sample_metrics/IPD0195-D01-P91-A25-0001_P_DNA_QC_Dragen.pdf   (+ .png)
 ```
 
 **Passing RNA sample:**
@@ -432,6 +440,9 @@ uv run plot_sample_metrics.py \
     --sample_id IPD0195-R03-P91-A25-0001_P \
     --output_pdf results_python/sample_metrics/IPD0195-R03-P91-A25-0001_P_RNA_QC.pdf \
     --seq_type RNA
+# Produces:
+#   results_python/sample_metrics/IPD0195-R03-P91-A25-0001_P_RNA_QC_LocalApp.pdf  (+ .png)
+#   results_python/sample_metrics/IPD0195-R03-P91-A25-0001_P_RNA_QC_Dragen.pdf   (+ .png)
 ```
 
 **Failing DNA sample (multiple QC failures with red "X" markers):**
@@ -441,9 +452,66 @@ uv run plot_sample_metrics.py \
     --sample_id IPD1881-D01-D01-A25_P \
     --output_pdf results_python/sample_metrics/IPD1881-D01-D01-A25_P_DNA_QC.pdf \
     --seq_type DNA
+# Produces:
+#   results_python/sample_metrics/IPD1881-D01-D01-A25_P_DNA_QC_LocalApp.pdf  (+ .png)
+#   results_python/sample_metrics/IPD1881-D01-D01-A25_P_DNA_QC_Dragen.pdf   (+ .png)
 ```
 
 Both scripts automatically create `.png` files alongside the `.pdf` files.
+
+<br>
+
+<br>
+
+## Modifying per-sample metrics
+
+All per-sample metric row definitions live in `specs/plot_specs_sample_metrics.py` as entries in the `SAMPLE_METRICS_SPECS` dictionary. No changes to `plot_sample_metrics.py` are needed unless a genuinely new row rendering type is required.
+
+Each entry controls:
+- Which workflows display the row and at what position (`localapp` / `dragen` sub-dicts with `plot`, `index`, and `seq_type` keys)
+- Visual rendering mode (`qc_type`: `TrueFalse`, `FailPass`, `PassFail`, `NoThold`)
+- Display range, pass/fail threshold, label text, and optional value scaling
+
+### Workflow routing sub-dict format
+
+```python
+"METRIC_NAME": {
+    "localapp": {
+        "plot":     bool,        # True = include this row in the LocalApp plot
+        "index":    int,         # Row position (1-based, top-to-bottom); 0 = not relevant
+        "seq_type": list[str],   # ["dna"], ["rna"], or ["dna", "rna"]
+    },
+    "dragen": {                  # Omit if this metric does not exist in Dragen
+        "plot":     bool,
+        "index":    int,
+        "seq_type": list[str],
+    },
+
+    # Row rendering fields
+    "qc_type":         str | None,   # "TrueFalse" | "FailPass" | "PassFail" | "NoThold" | None
+    "label":           str | None,   # Display label (None for helper entries)
+    "threshold_label": str | None,   # Threshold annotation shown below the label
+    "pass_value":      float | None, # TrueFalse only: the value that maps to PASS (green)
+    "variable":        str | None,   # TSV column name; None for derived boolean rows
+    "lowest":          float | None, # Left edge of the display bar
+    "threshold":       float | None, # Pass/fail boundary
+    "highest":         float | None, # Right edge of the display bar
+    "float_format":    bool,         # True = display values with 1 decimal place
+    "scale_factor":    int,          # Optional; divide raw value before display (e.g. 1_000_000)
+},
+```
+
+### Adding a new metric row
+
+1. Add an entry to `SAMPLE_METRICS_SPECS` with the correct workflow sub-dict(s), `qc_type`, label, threshold, and display range.
+2. Indexes must be unique per workflow × seq_type combination.
+3. No changes to `plot_sample_metrics.py` are required.
+
+### Adding Dragen-specific thresholds or metrics
+
+- To use **different thresholds** for Dragen, update the top-level `threshold` field. If LocalApp and Dragen need different threshold values, the threshold can be moved into the workflow sub-dict in a future extension.
+- To **enable an existing entry for Dragen**, add or update the `"dragen"` sub-dict.
+- To add a **Dragen-exclusive metric**, create a new entry with only a `"dragen"` sub-dict (no `"localapp"` key needed).
 
 <br>
 
