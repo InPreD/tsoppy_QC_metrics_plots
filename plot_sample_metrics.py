@@ -9,10 +9,10 @@ is shared and generic.
 Usage
 -----
     python3 01_plot_sample_metrics.py \\
-        --input_tsv  <path>         \\
-        --sample_id  <id>           \\
-        --output_pdf <path>         \\
-        --seq_type   [DNA|RNA]      \\
+        --input_tsv  <path>           \\
+        --sample_id  <id>             \\
+        --output_pdf <path>           \\
+        --seq_type   [DNA|RNA]        \\
         --inpred_nomenclature [True|False]
 
 Arguments
@@ -49,6 +49,8 @@ from plotnine import (
     theme_void,
     element_text,
 )
+
+from specs.plot_specs_sample_metrics import SAMPLE_METRICS_SPECS
 
 # ---------------------------------------------------------------------------
 # Shared visual constants
@@ -119,205 +121,123 @@ ROW_BG_ODD  = "#FFFFFF"
 
 
 # ---------------------------------------------------------------------------
-# DNA configuration
-# ---------------------------------------------------------------------------
-# QC_METRICS layout:
-#   Index 0:   pipeline completion  → boolean row 0
-#   Index 1-2: contamination score + p-value → boolean row 1 (derived)
-#   Index 3-9: seven continuous metrics → plot rows 2-8
-#
-# Each PLOT_ROW carries a direct reference to its QC_METRICS entry ("metric"),
-# eliminating index-offset arithmetic in the rendering functions.
-# Boolean rows store the value that constitutes PASS in "pass_value".
-
-DNA_FLOAT_METRICS: set[str] = {"DNA_COVERAGE_MAD"}
-
-DNA_QC_METRICS: list[dict] = [
-    #                                               lowest    threshold   highest
-    {"variable": "COMPLETED_ALL_STEPS",             "lowest": np.nan, "threshold": np.nan, "highest": np.nan},
-    {"variable": "DNA_CONTAMINATION_SCORE",         "lowest": 0.0,   "threshold": 3106.0, "highest": np.nan},
-    {"variable": "DNA_CONTAMINATION_P_VALUE",       "lowest": 0.0,   "threshold": 0.049,  "highest": 1.0},
-    {"variable": "DNA_MEDIAN_EXON_COVERAGE",        "lowest": 0.0,   "threshold": 150.0,  "highest": 1000.0},
-    {"variable": "DNA_PCT_EXON_50X",                "lowest": 0.0,   "threshold": 90.0,   "highest": 100.0},
-    {"variable": "DNA_MEDIAN_INSERT_SIZE",          "lowest": 0.0,   "threshold": 70.0,   "highest": 200.0},
-    {"variable": "DNA_PCT_ALIGNED_READS",           "lowest": 0.0,   "threshold": 70.0,   "highest": 100.0},
-    {"variable": "DNA_USABLE_MSI_SITES",            "lowest": 0.0,   "threshold": 40.0,   "highest": 130.0},
-    {"variable": "DNA_MEDIAN_BIN_COUNT_CNV_TARGET", "lowest": 0.0,   "threshold": 1.0,    "highest": 20.0},
-    {"variable": "DNA_COVERAGE_MAD",                "lowest": 0.0,   "threshold": 0.21,   "highest": 0.3},
-]
-
-DNA_PLOT_ROWS: list[dict] = [
-    {
-        "label":           "PIPELINE COMPLETED",
-        "threshold_label": "",
-        "qc_type":         "TrueFalse",
-        "pass_value":      1.0,    # obs == 1 → pipeline ran → PASS (green)
-        "metric":          None,
-    },
-    {
-        "label":           "CONTAMINATION",
-        "threshold_label": "",
-        "qc_type":         "TrueFalse",
-        "pass_value":      0.0,    # obs == 0 → sample clean → PASS (green)
-        "metric":          None,
-    },
-    {
-        "label":           "MEDIAN EXON COVERAGE",
-        "threshold_label": ">= 150   [small variants, TMB]",
-        "qc_type":         "FailPass",
-        "pass_value":      None,
-        "metric":          DNA_QC_METRICS[3],
-    },
-    {
-        "label":           "EXON BASES WITH COVERAGE >=50 (%)",
-        "threshold_label": ">= 90   [small variants, TMB]",
-        "qc_type":         "FailPass",
-        "pass_value":      None,
-        "metric":          DNA_QC_METRICS[4],
-    },
-    {
-        "label":           "MEDIAN INSERT SIZE",
-        "threshold_label": ">= 70   [small variants, TMB]",
-        "qc_type":         "FailPass",
-        "pass_value":      None,
-        "metric":          DNA_QC_METRICS[5],
-    },
-    {
-        "label":           "ALIGNED READS (%)",
-        "threshold_label": ">= 70",
-        "qc_type":         "FailPass",
-        "pass_value":      None,
-        "metric":          DNA_QC_METRICS[6],
-    },
-    {
-        "label":           "USABLE MSI SITES",
-        "threshold_label": ">= 40   [MSI]",
-        "qc_type":         "FailPass",
-        "pass_value":      None,
-        "metric":          DNA_QC_METRICS[7],
-    },
-    {
-        "label":           "MEDIAN RAW BIN COUNT PER CNV TARGET",
-        "threshold_label": ">= 1   [CNV]",
-        "qc_type":         "FailPass",
-        "pass_value":      None,
-        "metric":          DNA_QC_METRICS[8],
-    },
-    {
-        "label":           "CNV COVERAGE MAD",
-        "threshold_label": "<= 0.21   [CNV]",
-        "qc_type":         "PassFail",   # lower is better; right half = fail
-        "pass_value":      None,
-        "metric":          DNA_QC_METRICS[9],
-    },
-]
-
-
-# ---------------------------------------------------------------------------
-# RNA configuration
-# ---------------------------------------------------------------------------
-# QC_METRICS layout:
-#   Index 0:   pipeline completion  → boolean row 0
-#   Index 1-7: continuous metrics   → plot rows 1-7 (direct 1:1 mapping)
-#
-# RNA_TOTAL_ON_TARGET_READS (index 2) and RNA_TOTAL_PF_READS (index 7) are
-# raw counts in the TSV; compute_plot_obs_values scales them to millions.
-# Thresholds are therefore expressed in millions.
-#
-# qc_type "NoThold": metric is informational only; no pass/fail threshold.
-
-RNA_FLOAT_METRICS: set[str] = {"RNA_PCT_CHIMERIC_READS"}
-
-RNA_QC_METRICS: list[dict] = [
-    #                                                   lowest    threshold  highest
-    {"variable": "COMPLETED_ALL_STEPS",                 "lowest": np.nan, "threshold": np.nan, "highest": np.nan},
-    {"variable": "RNA_MEDIAN_CV_GENE_500X",             "lowest": 0.0,   "threshold": 93.0,   "highest": 130.0},
-    {"variable": "RNA_TOTAL_ON_TARGET_READS",           "lowest": 0.0,   "threshold": 9.0,    "highest": 30.0},
-    {"variable": "RNA_MEDIAN_INSERT_SIZE",              "lowest": 0.0,   "threshold": 80.0,   "highest": 200.0},
-    {"variable": "RNA_PCT_CHIMERIC_READS",              "lowest": 0.0,   "threshold": 0.0,    "highest": 0.3},
-    {"variable": "RNA_PCT_ON_TARGET_READS",             "lowest": 0.0,   "threshold": 0.0,    "highest": 100.0},
-    {"variable": "RNA_SCALED_MEDIAN_GENE_COVERAGE",     "lowest": 0.0,   "threshold": 0.0,    "highest": 7000.0},
-    {"variable": "RNA_TOTAL_PF_READS",                  "lowest": 0.0,   "threshold": 0.0,    "highest": 30.0},
-]
-
-RNA_PLOT_ROWS: list[dict] = [
-    {
-        "label":           "PIPELINE COMPLETED",
-        "threshold_label": "",
-        "qc_type":         "TrueFalse",
-        "pass_value":      1.0,
-        "metric":          None,
-    },
-    {
-        "label":           "CV FOR GENES AT MEDIAN COVERAGE >500",
-        "threshold_label": "<= 93   [fusions, splice variants]",
-        "qc_type":         "PassFail",   # lower CV is better; right half = fail
-        "pass_value":      None,
-        "metric":          RNA_QC_METRICS[1],
-    },
-    {
-        "label":           "TOTAL ON-TARGET READS (MILLIONS)",
-        "threshold_label": ">= 9   [fusions, splice variants]",
-        "qc_type":         "FailPass",
-        "pass_value":      None,
-        "metric":          RNA_QC_METRICS[2],
-    },
-    {
-        "label":           "MEDIAN INSERT SIZE",
-        "threshold_label": ">= 80   [fusions, splice variants]",
-        "qc_type":         "FailPass",
-        "pass_value":      None,
-        "metric":          RNA_QC_METRICS[3],
-    },
-    {
-        "label":           "CHIMERIC READS (%)",
-        "threshold_label": "No reference value",
-        "qc_type":         "NoThold",
-        "pass_value":      None,
-        "metric":          RNA_QC_METRICS[4],
-    },
-    {
-        "label":           "ON-TARGET READS (%)",
-        "threshold_label": "No reference value",
-        "qc_type":         "NoThold",
-        "pass_value":      None,
-        "metric":          RNA_QC_METRICS[5],
-    },
-    {
-        "label":           "SCALED MEDIAN GENE COVERAGE",
-        "threshold_label": "No reference value",
-        "qc_type":         "NoThold",
-        "pass_value":      None,
-        "metric":          RNA_QC_METRICS[6],
-    },
-    {
-        "label":           "TOTAL READS PASSING FILTERS (MILLIONS)",
-        "threshold_label": "No reference value",
-        "qc_type":         "NoThold",
-        "pass_value":      None,
-        "metric":          RNA_QC_METRICS[7],
-    },
-]
-
-
-# ---------------------------------------------------------------------------
-# Configuration registry
+# Configuration builders  (derived from SAMPLE_METRICS_SPECS)
 # ---------------------------------------------------------------------------
 
-SEQ_TYPE_CONFIGS: dict[str, dict] = {
-    "DNA": {
-        "qc_metrics":    DNA_QC_METRICS,
-        "plot_rows":     DNA_PLOT_ROWS,
-        "float_metrics": DNA_FLOAT_METRICS,
-        "seq_label":     "DNA",
-    },
-    "RNA": {
-        "qc_metrics":    RNA_QC_METRICS,
-        "plot_rows":     RNA_PLOT_ROWS,
-        "float_metrics": RNA_FLOAT_METRICS,
-        "seq_label":     "RNA",
-    },
-}
+def _get_sorted_specs(seq_type: str, workflow: str) -> list[tuple[str, dict]]:
+    """
+    Return (key, spec) pairs for all plotted rows of *seq_type* / *workflow*,
+    sorted by index.
+    """
+    wkey  = workflow.lower()
+    stype = seq_type.lower()
+    return sorted(
+        [
+            (k, v) for k, v in SAMPLE_METRICS_SPECS.items()
+            if wkey in v
+            and v[wkey].get("plot", False)
+            and stype in v[wkey].get("seq_type", [])
+        ],
+        key=lambda x: x[1][wkey]["index"],
+    )
+
+
+def _resolve_threshold(
+    spec: dict, thresholds: dict[str, dict[str, float]]
+) -> float:
+    """
+    Look up the QC threshold for a row from the runtime-loaded TSV thresholds.
+
+    - FailPass  → LOWER_THRESHOLD row  ("lower" key)
+    - PassFail  → UPPER_THRESHOLD row  ("upper" key)
+    - NoThold / TrueFalse / helpers → np.nan
+
+    If the variable has no threshold in the TSV (e.g. DNA_PCT_ALIGNED_READS),
+    np.nan is returned and the row renders without a threshold line.
+    scale_factor is applied when present (e.g. raw read counts → millions).
+    """
+    source = spec.get("threshold_source")
+    if source is None:
+        return np.nan
+
+    variable = spec.get("variable")
+    if variable is None:
+        return np.nan
+
+    raw_thr = thresholds.get(source, {}).get(variable, np.nan)
+    if np.isnan(raw_thr):
+        raw_thr = spec.get("threshold_fallback", np.nan)
+    if np.isnan(raw_thr):
+        return np.nan
+
+    factor = spec.get("scale_factor", 1)
+    if factor != 1:
+        return round(raw_thr / factor, 1)
+    return raw_thr
+
+
+def build_plot_rows(
+    seq_type: str, workflow: str, thresholds: dict[str, dict[str, float]]
+) -> list[dict]:
+    """
+    Build the plot_rows list consumed by build_layer_data() for the given
+    seq_type and workflow.
+
+    Each entry has:
+      label, threshold_label, qc_type, pass_value, metric (or None for TrueFalse rows).
+    """
+    rows = []
+    for _, spec in _get_sorted_specs(seq_type, workflow):
+        row: dict = {
+            "label":           spec["label"],
+            "threshold_label": spec["threshold_label"],
+            "qc_type":         spec["qc_type"],
+            "pass_value":      spec["pass_value"],
+            "metric":          None,
+        }
+        if spec["qc_type"] != "TrueFalse":
+            row["metric"] = {
+                "variable":  spec["variable"],
+                "lowest":    spec["lowest"]  if spec["lowest"]  is not None else np.nan,
+                "threshold": _resolve_threshold(spec, thresholds),
+                "highest":   spec["highest"] if spec["highest"] is not None else np.nan,
+            }
+        rows.append(row)
+    return rows
+
+
+def build_float_metrics(seq_type: str, workflow: str) -> set[str]:
+    """
+    Return the set of variable names that use 1 d.p. (float) display for the
+    given seq_type and workflow.
+    """
+    wkey  = workflow.lower()
+    stype = seq_type.lower()
+    return {
+        spec["variable"]
+        for spec in SAMPLE_METRICS_SPECS.values()
+        if spec.get("float_format") and spec["variable"] is not None
+        and wkey in spec
+        and spec[wkey].get("plot", False)
+        and stype in spec[wkey].get("seq_type", [])
+    }
+
+
+def _get_loadable_variables(seq_type: str, workflow: str) -> list[str]:
+    """
+    Return all TSV column names that must be loaded for the given seq_type and
+    workflow.  Includes plotted rows and any helper entries marked with load=True.
+    """
+    wkey  = workflow.lower()
+    stype = seq_type.lower()
+    return [
+        spec["variable"]
+        for spec in SAMPLE_METRICS_SPECS.values()
+        if spec["variable"] is not None
+        and wkey in spec
+        and stype in spec[wkey].get("seq_type", [])
+        and (spec[wkey].get("plot", False) or spec[wkey].get("load", False))
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -402,76 +322,117 @@ def _to_float(val) -> float:
 
 
 def load_and_extract(
-    tsv_path: str, sample_id: str, qc_metrics: list[dict]
+    tsv_path: str, sample_id: str, seq_type: str, workflow: str
 ) -> dict[str, float]:
     """Load the metrics TSV and return {variable: float_value} for the given sample."""
-    df       = pl.read_csv(tsv_path, separator="\t", infer_schema=False)
-    filtered = df.filter(pl.col("SAMPLE_ID") == sample_id)
+    variables = _get_loadable_variables(seq_type, workflow)
+    df        = pl.read_csv(tsv_path, separator="\t", infer_schema=False)
+    filtered  = df.filter(pl.col("SAMPLE_ID") == sample_id)
     if filtered.is_empty():
         sys.exit(
             f"ERROR: sample ID '{sample_id}' not found in '{tsv_path}'.\n"
             f"Available IDs: {df['SAMPLE_ID'].to_list()}"
         )
     row = filtered.row(0, named=True)
-    return {m["variable"]: _to_float(row.get(m["variable"])) for m in qc_metrics}
+    return {var: _to_float(row.get(var)) for var in variables}
+
+
+def load_thresholds(tsv_path: str) -> dict[str, dict[str, float]]:
+    """
+    Extract QC threshold values from LOWER_THRESHOLD and UPPER_THRESHOLD rows.
+
+    Returns::
+
+        {
+            "lower": {"DNA_MEDIAN_EXON_COVERAGE": 150.0, ...},  # LSL_Guideline row
+            "upper": {"DNA_CONTAMINATION_SCORE":  3106.0, ...},  # USL_Guideline row
+        }
+
+    Only the first occurrence of each RECORD_TYPE is used; thresholds are
+    consistent across all runs within the same TSV file.  NA values are omitted.
+    """
+    df = pl.read_csv(tsv_path, separator="\t", infer_schema=False)
+    result: dict[str, dict[str, float]] = {"lower": {}, "upper": {}}
+
+    for record_type, key in [("LOWER_THRESHOLD", "lower"), ("UPPER_THRESHOLD", "upper")]:
+        rows = df.filter(pl.col("RECORD_TYPE") == record_type)
+        if rows.is_empty():
+            continue
+        row = rows.row(0, named=True)
+        for col, val in row.items():
+            fval = _to_float(val)
+            if not np.isnan(fval):
+                result[key][col] = fval
+
+    return result
 
 
 # ---------------------------------------------------------------------------
 # Observed values computation (seq-type-specific)
 # ---------------------------------------------------------------------------
 
-def _compute_obs_dna(raw: dict[str, float], qc_metrics: list[dict]) -> list[float]:
+def _compute_obs_dna(
+    raw: dict[str, float], workflow: str,
+    thresholds: dict[str, dict[str, float]]
+) -> list[float]:
     """
-    Derive 9 observed values for the DNA plot.
+    Derive observed values for the DNA plot rows (in index order).
 
-    Row 0   : COMPLETED_ALL_STEPS flag (1 = TRUE, 0 = FALSE)
-    Row 1   : contamination flag, derived from score + p-value (1 = contaminated)
-    Rows 2-8: continuous metrics at qc_metrics indices 3-9
+    The contamination boolean is derived from DNA_CONTAMINATION_SCORE and
+    DNA_CONTAMINATION_P_VALUE using the UPPER_THRESHOLD values from the TSV.
+    All other rows read their value directly from the raw dict.
     """
-    obs: list[float] = [np.nan] * 9
-    obs[0] = raw["COMPLETED_ALL_STEPS"]
+    sorted_rows = _get_sorted_specs("DNA", workflow)
+    obs: list[float] = [np.nan] * len(sorted_rows)
 
-    score, pval = raw["DNA_CONTAMINATION_SCORE"], raw["DNA_CONTAMINATION_P_VALUE"]
-    obs[1] = 1.0 if (
-        not np.isnan(score) and not np.isnan(pval)
-        and score > qc_metrics[1]["threshold"]
-        and pval  > qc_metrics[2]["threshold"]
-    ) else 0.0
-
-    for j, metric in enumerate(qc_metrics[3:], start=2):
-        obs[j] = raw[metric["variable"]]
+    for i, (key, spec) in enumerate(sorted_rows):
+        if key == "DNA_CONTAMINATION":
+            score_thr = thresholds["upper"].get("DNA_CONTAMINATION_SCORE", np.nan)
+            pval_thr  = thresholds["upper"].get("DNA_CONTAMINATION_P_VALUE", np.nan)
+            score     = raw.get("DNA_CONTAMINATION_SCORE", np.nan)
+            pval      = raw.get("DNA_CONTAMINATION_P_VALUE", np.nan)
+            obs[i]    = 1.0 if (
+                not np.isnan(score)     and not np.isnan(pval)
+                and not np.isnan(score_thr) and not np.isnan(pval_thr)
+                and score > score_thr and pval > pval_thr
+            ) else 0.0
+        elif spec["variable"] is not None:
+            obs[i] = raw.get(spec["variable"], np.nan)
 
     return obs
 
 
-def _compute_obs_rna(raw: dict[str, float], qc_metrics: list[dict]) -> list[float]:
+def _compute_obs_rna(raw: dict[str, float], workflow: str) -> list[float]:
     """
-    Derive 8 observed values for the RNA plot.
+    Derive observed values for the RNA plot rows (in index order).
 
-    Row 0   : COMPLETED_ALL_STEPS flag
-    Rows 1-7: continuous metrics at qc_metrics indices 1-7;
-              read counts at rows 2 and 7 are scaled from raw counts to millions.
+    Entries with a scale_factor in the spec are divided and rounded to 1 d.p.
+    (e.g. raw read counts → millions).
     """
-    obs: list[float] = [np.nan] * 8
-    obs[0] = raw["COMPLETED_ALL_STEPS"]
+    sorted_rows = _get_sorted_specs("RNA", workflow)
+    obs: list[float] = [np.nan] * len(sorted_rows)
 
-    for j, metric in enumerate(qc_metrics[1:], start=1):
-        obs[j] = raw[metric["variable"]]
-
-    # Scale raw read counts to millions (thresholds defined in millions above)
-    obs[2] = round(obs[2] / 1_000_000, 1) if not np.isnan(obs[2]) else np.nan
-    obs[7] = round(obs[7] / 1_000_000, 1) if not np.isnan(obs[7]) else np.nan
+    for i, (_, spec) in enumerate(sorted_rows):
+        if spec["variable"] is None:
+            continue
+        val    = raw.get(spec["variable"], np.nan)
+        factor = spec.get("scale_factor", 1)
+        if factor != 1 and not np.isnan(val):
+            obs[i] = round(val / factor, 1)
+        else:
+            obs[i] = val
 
     return obs
 
 
 def compute_plot_obs_values(
-    raw: dict[str, float], seq_type: str, qc_metrics: list[dict]
+    raw: dict[str, float], seq_type: str, workflow: str,
+    thresholds: dict[str, dict[str, float]]
 ) -> list[float]:
     """Dispatch to the seq-type-specific observed-values computation."""
     if seq_type == "DNA":
-        return _compute_obs_dna(raw, qc_metrics)
-    return _compute_obs_rna(raw, qc_metrics)
+        return _compute_obs_dna(raw, workflow, thresholds)
+    return _compute_obs_rna(raw, workflow)
 
 
 # ---------------------------------------------------------------------------
@@ -575,11 +536,18 @@ def _build_continuous_row(
 
     # Geometry ---------------------------------------------------------------
     bands: list[dict] = []
-    # Left region [0, threshold] — skipped when threshold is at the origin
-    if thr_scaled > X_BAR_LEFT:
-        bands.append({"xmin": X_BAR_LEFT, "xmax": thr_scaled, "ymin": yb, "ymax": yt, "fill": color_left})
-    # Right region [threshold, bar_right]
-    bands.append({"xmin": thr_scaled, "xmax": X_BAR_RIGHT, "ymin": yb, "ymax": yt, "fill": color_right})
+    if np.isnan(thr_scaled):
+        # No threshold in TSV — no fail region exists, so the whole bar is the
+        # pass colour (color_right for FailPass = green; color_left for PassFail = green).
+        # NoThold rows always enter this branch because color_left == color_right == white.
+        pass_color = color_right if qc_type in ("FailPass", "NoThold") else color_left
+        bands.append({"xmin": X_BAR_LEFT, "xmax": X_BAR_RIGHT, "ymin": yb, "ymax": yt, "fill": pass_color})
+    else:
+        # Left region [0, threshold] — skipped when threshold is at the origin
+        if thr_scaled > X_BAR_LEFT:
+            bands.append({"xmin": X_BAR_LEFT, "xmax": thr_scaled, "ymin": yb, "ymax": yt, "fill": color_left})
+        # Right region [threshold, bar_right]
+        bands.append({"xmin": thr_scaled, "xmax": X_BAR_RIGHT, "ymin": yb, "ymax": yt, "fill": color_right})
 
     # Softer red marker; bright red only when value exceeds the plotted range
     marker_fill = COLOR_RED if (not np.isnan(obs) and obs > highest) else "#D4534A"
@@ -874,24 +842,33 @@ def make_plot(
 # ---------------------------------------------------------------------------
 
 def main() -> None:
-    args   = parse_args()
-    config = SEQ_TYPE_CONFIGS[args.seq_type]
+    args     = parse_args()
+    seq_type = args.seq_type
 
     use_inpred  = args.inpred_nomenclature == "True"
     sample_type = get_sample_type(args.sample_id, use_inpred)
-    title       = f'QC for {config["seq_label"]} sample "{args.sample_id}"\n{sample_type}'
-    output_png  = args.output_pdf.rsplit(".", 1)[0] + ".png"
+    base_path   = args.output_pdf.rsplit(".", 1)[0]
+    thresholds  = load_thresholds(args.input_tsv)
 
-    raw_values = load_and_extract(args.input_tsv, args.sample_id, config["qc_metrics"])
-    obs_values = compute_plot_obs_values(raw_values, args.seq_type, config["qc_metrics"])
+    for workflow in ("LocalApp", "Dragen"):
+        plot_rows = build_plot_rows(seq_type, workflow, thresholds)
+        if not plot_rows:
+            continue
 
-    p = make_plot(obs_values, title, config["plot_rows"], config["float_metrics"])
+        raw_values    = load_and_extract(args.input_tsv, args.sample_id, seq_type, workflow)
+        obs_values    = compute_plot_obs_values(raw_values, seq_type, workflow, thresholds)
+        float_metrics = build_float_metrics(seq_type, workflow)
 
-    p.save(args.output_pdf, width=9, height=7, units="in", verbose=False)
-    p.save(output_png,      width=9, height=7, units="in", dpi=150, verbose=False)
+        title   = f'QC for {seq_type} sample "{args.sample_id}" [{workflow}]\n{sample_type}'
+        pdf_out = f"{base_path}_{workflow}.pdf"
+        png_out = f"{base_path}_{workflow}.png"
 
-    print(f"Saved PDF : {args.output_pdf}")
-    print(f"Saved PNG : {output_png}")
+        p = make_plot(obs_values, title, plot_rows, float_metrics)
+        p.save(pdf_out, width=9, height=7, units="in", verbose=False)
+        p.save(png_out, width=9, height=7, units="in", dpi=150, verbose=False)
+
+        print(f"Saved PDF : {pdf_out}")
+        print(f"Saved PNG : {png_out}")
 
 
 if __name__ == "__main__":
