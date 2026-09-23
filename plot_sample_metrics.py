@@ -530,7 +530,8 @@ def _make_row_annotations(
     """
     Return text annotation records for one continuous row.
 
-    Keys: "center" (range boundary labels + red X on failure),
+    Keys: "center" (range boundary labels + red X on failure, or black ↑ arrow
+          for NoThold rows where obs exceeds highest),
           "obs_left", "obs_right" (observed value label, side chosen to avoid
           overlap with the marker).
     """
@@ -545,6 +546,10 @@ def _make_row_annotations(
     if _is_value_in_fail_region(obs, metric, qc_type):
         center.append({"x": (X_BOX_LEFT + X_BOX_RIGHT) / 2.0, "y": yb + CENTER_OFFSET,
                         "label": "X", "color": COLOR_RED, "size": 18})
+    elif qc_type == "NoThold" and not np.isnan(obs) and obs > metric["highest"]:
+        # For NoThold rows where obs exceeds highest, display a black upward arrow
+        center.append({"x": (X_BOX_LEFT + X_BOX_RIGHT) / 2.0, "y": yb + CENTER_OFFSET,
+                        "label": "↑", "color": "#000000", "size": 18})
 
     obs_left:  list[dict] = []
     obs_right: list[dict] = []
@@ -788,7 +793,7 @@ def make_plot(
             mapping     = aes(x="x", y="y", label="label"),
             ha          = "right",
             va          = "center",
-            size        = 6,
+            size        = 9.5,
             color       = "#777777",
             inherit_aes = False,
         )
