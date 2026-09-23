@@ -118,13 +118,43 @@ SAMPLE_METRICS_SPECS = {
         "label"            : "CONTAMINATION",
         "threshold_label"  : "",
         "pass_value"       : 0.0,      # obs == 0.0 → sample clean → PASS (green)
-        "variable"         : None,     # derived — see _compute_obs_dna()
+        "variable"         : None,     # derived — see compute_obs_values()
         "lowest"           : None,
         "threshold_source" : None,
         "highest"          : None,
         "float_format"     : False,
     },
 
+    # Helper variables: loaded but not plotted; feed the DNA_CONTAMINATION derived row.
+    "DNA_CONTAMINATION_SCORE": {
+        "localapp": {"plot": False, "load": True, "index": 0, "seq_type": ["dna"]},
+        "dragen":   {"plot": False, "load": True, "index": 0, "seq_type": ["dna"]},
+
+        "qc_type":          None,
+        "label":            None,
+        "threshold_label":  None,
+        "pass_value":       None,
+        "variable":         "DNA_CONTAMINATION_SCORE",
+        "lowest":           None,
+        "threshold_source": "upper",
+        "highest":          None,
+        "float_format":     False,
+    },
+
+    "DNA_CONTAMINATION_P_VALUE": {
+        "localapp": {"plot": False, "load": True, "index": 0, "seq_type": ["dna"]},
+        "dragen":   {"plot": False, "load": True, "index": 0, "seq_type": ["dna"]},
+
+        "qc_type":          None,
+        "label":            None,
+        "threshold_label":  None,
+        "pass_value":       None,
+        "variable":         "DNA_CONTAMINATION_P_VALUE",
+        "lowest":           None,
+        "threshold_source": "upper",
+        "highest":          None,
+        "float_format":     False,
+    },
 
     "DNA_MEDIAN_EXON_COVERAGE": {
         "localapp": {
@@ -151,12 +181,18 @@ SAMPLE_METRICS_SPECS = {
 
 
     "DNA_PCT_EXON_50X": {
-        "localapp": {"plot": True, "index": 4, "seq_type": ["dna"]},
-        "dragen":   {"plot": True, "index": 4, "seq_type": ["dna"]},
+        "localapp": {
+            "plot"     : True,
+            "index"    : 4,
+            "seq_type" : ["dna"]},
+        "dragen":   {
+            "plot"     : True,
+            "index"    : 4,
+            "seq_type" : ["dna"]},
 
         "qc_type":          "FailPass",
         "label":            "EXON BASES WITH COVERAGE >=50 (%)",
-        "threshold_label":  ">= {threshold}   [small variants, TMB]",
+        "threshold_label":  ">= {threshold} [small variants, TMB]",
         "pass_value":       None,
         "variable":         "DNA_PCT_EXON_50X",
         "lowest":           0.0,
@@ -165,13 +201,20 @@ SAMPLE_METRICS_SPECS = {
         "float_format":     False,
     },
 
+
     "DNA_MEDIAN_INSERT_SIZE": {
-        "localapp": {"plot": True, "index": 5, "seq_type": ["dna"]},
-        "dragen":   {"plot": True, "index": 5, "seq_type": ["dna"]},
+        "localapp": {
+            "plot"     : True,
+            "index"    : 5,
+            "seq_type" : ["dna"]},
+        "dragen":   {
+            "plot"     : True,
+            "index"    : 5,
+            "seq_type" : ["dna"]},
 
         "qc_type":          "FailPass",
         "label":            "MEDIAN INSERT SIZE",
-        "threshold_label":  ">= {threshold}   [small variants, TMB]",
+        "threshold_label":  ">= {threshold} [small variants, TMB]",
         "pass_value":       None,
         "variable":         "DNA_MEDIAN_INSERT_SIZE",
         "lowest":           0.0,
@@ -180,9 +223,16 @@ SAMPLE_METRICS_SPECS = {
         "float_format":     False,
     },
 
+
     "DNA_PCT_ALIGNED_READS": {
-        "localapp": {"plot": True, "index": 6, "seq_type": ["dna"]},
-        "dragen":   {"plot": True, "index": 6, "seq_type": ["dna"]},
+        "localapp": {
+            "plot"     : True,
+            "index"    : 6,
+            "seq_type" : ["dna"]},
+        "dragen":   {
+            "plot"     : True,
+            "index"    : 6,
+            "seq_type" : ["dna"]},
 
         "qc_type":           "FailPass",
         "label":             "ALIGNED READS (%)",
@@ -196,24 +246,38 @@ SAMPLE_METRICS_SPECS = {
         "float_format":      False,
     },
 
+
     "DNA_USABLE_MSI_SITES": {
-        "localapp": {"plot": True, "index": 7, "seq_type": ["dna"]},
-        "dragen":   {"plot": True, "index": 7, "seq_type": ["dna"]},
+        "localapp": {
+            "plot"     : True,
+            "index"    : 7,
+            "seq_type" : ["dna"]},
+        "dragen":   {
+            "plot"     : True,
+            "index"    : 7,
+            "seq_type" : ["dna"]},
 
         "qc_type":          "FailPass",
         "label":            "USABLE MSI SITES",
-        "threshold_label":  ">= {threshold}   [MSI]",
+        "threshold_label":  ">= {threshold} [MSI]",
         "pass_value":       None,
         "variable":         "DNA_USABLE_MSI_SITES",
         "lowest":           0.0,
         "threshold_source": "lower",
-        "highest":          130.0,
+        "highest":          140.0,
         "float_format":     False,
     },
 
+
     "DNA_MEDIAN_BIN_COUNT_CNV_TARGET": {
-        "localapp": {"plot": True, "index": 8, "seq_type": ["dna"]},
-        "dragen":   {"plot": True, "index": 8, "seq_type": ["dna"]},
+        "localapp": {
+            "plot"     : True,
+            "index"    : 8,
+            "seq_type" : ["dna"]},
+        "dragen":   {
+            "plot"     : True,
+            "index"    : 8,
+            "seq_type" : ["dna"]},
 
         "qc_type":          "FailPass",
         "label":            "MEDIAN RAW BIN COUNT PER CNV TARGET",
@@ -226,13 +290,20 @@ SAMPLE_METRICS_SPECS = {
         "float_format":     False,
     },
 
+
     "DNA_COVERAGE_MAD": {
-        "localapp": {"plot": True, "index": 9, "seq_type": ["dna"]},
-        "dragen":   {"plot": True, "index": 9, "seq_type": ["dna"]},
+        "localapp": {
+            "plot"     : True,
+            "index"    : 9,
+            "seq_type" : ["dna"]},
+        "dragen":   {
+            "plot"     : True,
+            "index"    : 9,
+            "seq_type" : ["dna"]},
 
         "qc_type":          "PassFail",  # lower is better; right half = fail
         "label":            "CNV COVERAGE MAD",
-        "threshold_label":  "<= {threshold}   [CNV]",
+        "threshold_label":  "<= {threshold} [CNV]",
         "pass_value":       None,
         "variable":         "DNA_COVERAGE_MAD",
         "lowest":           0.0,
@@ -247,12 +318,18 @@ SAMPLE_METRICS_SPECS = {
     # ===================================== #
 
     "RNA_MEDIAN_CV_GENE_500X": {
-        "localapp": {"plot": True, "index": 2, "seq_type": ["rna"]},
-        "dragen":   {"plot": True, "index": 2, "seq_type": ["rna"]},
+        "localapp": {
+            "plot"     : True,
+            "index"    : 2,
+            "seq_type" : ["rna"]},
+        "dragen":   {
+            "plot"     : True,
+            "index"    : 2,
+            "seq_type" : ["rna"]},
 
         "qc_type":          "PassFail",  # lower CV is better; right half = fail
         "label":            "CV FOR GENES AT MEDIAN COVERAGE >500",
-        "threshold_label":  "<= {threshold}   [fusions, splice variants]",
+        "threshold_label":  "<= {threshold} [fusions, splice variants]",
         "pass_value":       None,
         "variable":         "RNA_MEDIAN_CV_GENE_500X",
         "lowest":           0.0,
@@ -261,13 +338,20 @@ SAMPLE_METRICS_SPECS = {
         "float_format":     False,
     },
 
+
     "RNA_TOTAL_ON_TARGET_READS": {
-        "localapp": {"plot": True, "index": 3, "seq_type": ["rna"]},
-        "dragen":   {"plot": True, "index": 3, "seq_type": ["rna"]},
+        "localapp": {
+            "plot"     : True,
+            "index"    : 3,
+            "seq_type" : ["rna"]},
+        "dragen":   {
+            "plot"     : True,
+            "index"    : 3,
+            "seq_type" : ["rna"]},
 
         "qc_type":          "FailPass",
         "label":            "TOTAL ON-TARGET READS (MILLIONS)",
-        "threshold_label":  ">= {threshold}   [fusions, splice variants]",
+        "threshold_label":  ">= {threshold} [fusions, splice variants]",
         "pass_value":       None,
         "variable":         "RNA_TOTAL_ON_TARGET_READS",
         "lowest":           0.0,
@@ -277,13 +361,20 @@ SAMPLE_METRICS_SPECS = {
         "scale_factor":     1_000_000,
     },
 
+
     "RNA_MEDIAN_INSERT_SIZE": {
-        "localapp": {"plot": True, "index": 4, "seq_type": ["rna"]},
-        "dragen":   {"plot": True, "index": 4, "seq_type": ["rna"]},
+        "localapp": {
+            "plot"     : True,
+            "index"    : 4,
+            "seq_type" : ["rna"]},
+        "dragen":   {
+            "plot"     : True,
+            "index"    : 4,
+            "seq_type" : ["rna"]},
 
         "qc_type":          "FailPass",
         "label":            "MEDIAN INSERT SIZE",
-        "threshold_label":  ">= {threshold}   [fusions, splice variants]",
+        "threshold_label":  ">= {threshold} [fusions, splice variants]",
         "pass_value":       None,
         "variable":         "RNA_MEDIAN_INSERT_SIZE",
         "lowest":           0.0,
@@ -292,9 +383,16 @@ SAMPLE_METRICS_SPECS = {
         "float_format":     False,
     },
 
+
     "RNA_PCT_CHIMERIC_READS": {
-        "localapp": {"plot": True, "index": 5, "seq_type": ["rna"]},
-        "dragen":   {"plot": True, "index": 5, "seq_type": ["rna"]},
+        "localapp": {
+            "plot"     : True,
+            "index"    : 5,
+            "seq_type" : ["rna"]},
+        "dragen":   {
+            "plot"     : True,
+            "index"    : 5,
+            "seq_type" : ["rna"]},
 
         "qc_type":          "NoThold",
         "label":            "CHIMERIC READS (%)",
@@ -307,9 +405,16 @@ SAMPLE_METRICS_SPECS = {
         "float_format":     True,
     },
 
+
     "RNA_PCT_ON_TARGET_READS": {
-        "localapp": {"plot": True, "index": 6, "seq_type": ["rna"]},
-        "dragen":   {"plot": True, "index": 6, "seq_type": ["rna"]},
+        "localapp": {
+            "plot"     : True,
+            "index"    : 6,
+            "seq_type" : ["rna"]},
+        "dragen":   {
+            "plot"     : True,
+            "index"    : 6,
+            "seq_type" : ["rna"]},
 
         "qc_type":          "NoThold",
         "label":            "ON-TARGET READS (%)",
@@ -322,9 +427,16 @@ SAMPLE_METRICS_SPECS = {
         "float_format":     False,
     },
 
+
     "RNA_SCALED_MEDIAN_GENE_COVERAGE": {
-        "localapp": {"plot": True, "index": 7, "seq_type": ["rna"]},
-        "dragen":   {"plot": True, "index": 7, "seq_type": ["rna"]},
+        "localapp": {
+            "plot"     : True,
+            "index"    : 7,
+            "seq_type" : ["rna"]},
+        "dragen":   {
+            "plot"     : True,
+            "index"    : 7,
+            "seq_type" : ["rna"]},
 
         "qc_type":          "NoThold",
         "label":            "SCALED MEDIAN GENE COVERAGE",
@@ -337,9 +449,16 @@ SAMPLE_METRICS_SPECS = {
         "float_format":     False,
     },
 
+
     "RNA_TOTAL_PF_READS": {
-        "localapp": {"plot": True, "index": 8, "seq_type": ["rna"]},
-        "dragen":   {"plot": True, "index": 8, "seq_type": ["rna"]},
+        "localapp": {
+            "plot"     : True,
+            "index"    : 8,
+            "seq_type" : ["rna"]},
+        "dragen":   {
+            "plot"     : True,
+            "index"    : 8,
+            "seq_type" : ["rna"]},
 
         "qc_type":          "NoThold",
         "label":            "TOTAL READS PASSING FILTERS (MILLIONS)",
