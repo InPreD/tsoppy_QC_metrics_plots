@@ -343,7 +343,7 @@ If none of the three existing `plot_kind` values fits, add a `render_<kind>` fun
 
 In addition to the multi-run overview (`plot_QC_metrics.py`), `plot_sample_metrics.py` generates a per-sample QC panel for sample-level reporting. It produces a self-contained figure with colour-coded pass/fail rows covering all QC thresholds for a single DNA or RNA sample. The script is a unified Python re-implementation of the original R scripts (`01_plot_sample_metrics_DNA.R`, `plot_sample_metrics_RNA.R`).
 
-A single invocation produces **one PDF + PNG pair per workflow** (currently LocalApp and Dragen). Output files are named `{base}_{LocalApp}.pdf` / `{base}_{Dragen}.pdf` (and matching `.png`), where `{base}` is the value of `--output_pdf` without its `.pdf` extension. Workflows with no metrics defined for the requested `--seq_type` are silently skipped.
+A single invocation produces **one PDF + PNG pair per selected workflow**. Output files are named `{base}_{LocalApp}.pdf` / `{base}_{Dragen}.pdf` (and matching `.png`), where `{base}` is the value of `--output_pdf` without its `.pdf` extension. Which workflows are produced is controlled by `--workflow` (`L` = LocalApp only, `D` = Dragen only, `B` = both, default). Workflows with no metrics defined for the requested `--seq_type` are silently skipped.
 
 <br>
 
@@ -354,15 +354,16 @@ Generates a per-sample QC panel (9 rows for DNA, 8 rows for RNA) with colour-cod
 ```bash
 uv run plot_sample_metrics.py \
     --input_tsv <path> --sample_id <id> --output_pdf <path> --seq_type [DNA|RNA] \
-    [--inpred_nomenclature True|False]
+    [--workflow L|D|B] [--inpred_nomenclature True|False]
 ```
 
 | Argument | Description |
 |----------|-------------|
 | `--input_tsv` (required) | TSV metrics table with a `SAMPLE_ID` column and all DNA or RNA QC columns (depending on `--seq_type`). |
 | `--sample_id` (required) | Sample ID to extract from the input table and display in the plot title. |
-| `--output_pdf` (required) | Output PDF base path (e.g. `results/sample_QC.pdf`). The script appends `_LocalApp` / `_Dragen` before the extension and writes one PDF + PNG pair per workflow: `sample_QC_LocalApp.pdf`, `sample_QC_Dragen.pdf`, `sample_QC_LocalApp.png`, `sample_QC_Dragen.png`. |
+| `--output_pdf` (required) | Output PDF base path (e.g. `results/sample_QC.pdf`). The script appends `_LocalApp` / `_Dragen` before the extension and writes one PDF + PNG pair per selected workflow: `sample_QC_LocalApp.pdf`, `sample_QC_Dragen.pdf`, `sample_QC_LocalApp.png`, `sample_QC_Dragen.png`. |
 | `--seq_type` (required) | `DNA` or `RNA` — selects which metrics and QC thresholds to apply. |
+| `--workflow` (optional) | `L` (LocalApp only), `D` (Dragen only), or `B` (both; default: `B`). Controls which workflow output files are produced. |
 | `--inpred_nomenclature` (optional) | `True` or `False` (default: `False`). When `True`, the 13th character of `sample_id` is decoded as an InPreD sample-type code (requires a 19-character ID; e.g. `C` → cell line, `T` → tumour). |
 
 #### DNA metrics (9 rows)
@@ -419,7 +420,7 @@ Each row shows:
 
 Using the bundled example data:
 
-**Passing DNA sample:**
+**Passing DNA sample (LocalApp only):**
 ```bash
 mkdir -p results_python/sample_metrics
 
@@ -427,22 +428,46 @@ uv run plot_sample_metrics.py \
     --input_tsv data/workflow_tables/localapp_plot_metrics_table.tsv \
     --sample_id IPD0195-D01-P91-A25-0001_P \
     --output_pdf results_python/sample_metrics/IPD0195-D01-P91-A25-0001_P_DNA_QC.pdf \
-    --seq_type DNA
+    --seq_type DNA \
+    --workflow L
 # Produces:
+#   results_python/sample_metrics/IPD0195-D01-P91-A25-0001_P_DNA_QC_LocalApp.pdf  (+ .png)
+```
+
+**Passing DNA sample (Dragen only):**
+```bash
+uv run plot_sample_metrics.py \
+    --input_tsv data/workflow_tables/dragen_plot_metrics_table.tsv \
+    --sample_id TVD0018 \
+    --output_pdf results_python/sample_metrics/TVD0018_DNA_QC.pdf \
+    --seq_type DNA \
+    --workflow D
+# Produces:
+#   results_python/sample_metrics/TVD0018_DNA_QC_Dragen.pdf  (+ .png)
+```
+
+**Passing DNA sample (both workflows):**
+```bash
+uv run plot_sample_metrics.py \
+    --input_tsv data/workflow_tables/localapp_plot_metrics_table.tsv \
+    --sample_id IPD0195-D01-P91-A25-0001_P \
+    --output_pdf results_python/sample_metrics/IPD0195-D01-P91-A25-0001_P_DNA_QC.pdf \
+    --seq_type DNA
+# Produces (--workflow defaults to B):
 #   results_python/sample_metrics/IPD0195-D01-P91-A25-0001_P_DNA_QC_LocalApp.pdf  (+ .png)
 #   results_python/sample_metrics/IPD0195-D01-P91-A25-0001_P_DNA_QC_Dragen.pdf   (+ .png)
 ```
 
-**Passing RNA sample:**
+**Passing RNA sample (LocalApp only):**
 ```bash
 uv run plot_sample_metrics.py \
     --input_tsv data/workflow_tables/localapp_plot_metrics_table.tsv \
     --sample_id IPD0195-R03-P91-A25-0001_P \
     --output_pdf results_python/sample_metrics/IPD0195-R03-P91-A25-0001_P_RNA_QC.pdf \
-    --seq_type RNA
+    --seq_type RNA \
+    --workflow L
 # Produces:
 #   results_python/sample_metrics/IPD0195-R03-P91-A25-0001_P_RNA_QC_LocalApp.pdf  (+ .png)
-#   results_python/sample_metrics/IPD0195-R03-P91-A25-0001_P_RNA_QC_Dragen.pdf   (+ .png)
 ```
 
 **Failing DNA sample (multiple QC failures with red "X" markers):**
@@ -451,10 +476,10 @@ uv run plot_sample_metrics.py \
     --input_tsv data/workflow_tables/localapp_plot_metrics_table.tsv \
     --sample_id IPD1881-D01-D01-A25_P \
     --output_pdf results_python/sample_metrics/IPD1881-D01-D01-A25_P_DNA_QC.pdf \
-    --seq_type DNA
+    --seq_type DNA \
+    --workflow L
 # Produces:
 #   results_python/sample_metrics/IPD1881-D01-D01-A25_P_DNA_QC_LocalApp.pdf  (+ .png)
-#   results_python/sample_metrics/IPD1881-D01-D01-A25_P_DNA_QC_Dragen.pdf   (+ .png)
 ```
 
 Both scripts automatically create `.png` files alongside the `.pdf` files.
