@@ -486,6 +486,30 @@ Both scripts automatically create `.png` files alongside the `.pdf` files.
 
 <br>
 
+### Batch run: Execute all per-sample QC examples
+
+A comprehensive example script with ready-to-use commands for all per-sample QC plots is provided in [example_commands_QC_sampleID.bash](example_commands_QC_sampleID.bash). The script includes:
+
+- **Passing DNA samples** (LocalApp and Dragen workflows)
+- **Passing RNA samples** (LocalApp and Dragen workflows)
+- **Failing DNA sample** with multiple QC failures
+- **Failing RNA sample** with QC failure
+- **Edge case RNA sample** with out-of-range metric (chimeric reads above bar maximum)
+
+To run all examples:
+
+```bash
+# Review the script structure and commands
+cat example_commands_QC_sampleID.bash
+
+# Execute all per-sample QC plots
+bash example_commands_QC_sampleID.bash
+```
+
+Output PDFs and PNGs will be generated in `results_python/sample_metrics/`. Each workflow and sample type combination is processed, producing clear per-sample QC visualization panels for integration into sample reports.
+
+<br>
+
 <br>
 
 ## Modifying per-sample metrics
