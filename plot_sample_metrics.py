@@ -13,7 +13,8 @@ Usage
         --sample_id  <id>          \\
         --output_pdf <path>        \\
         --seq_type   [DNA|RNA]     \\
-        --inpred_nomenclature [True|False]
+        [--workflow  L|D|B]        \\
+        [--inpred_nomenclature True|False]
 
 Arguments
 ---------
@@ -21,6 +22,8 @@ Arguments
     --sample_id            Sample ID to extract (also used in the plot title).
     --output_pdf           Path for the output PDF figure.
     --seq_type             "DNA" or "RNA" — selects metrics and QC thresholds.
+    --workflow             "L" (LocalApp only), "D" (Dragen only), or "B" (both,
+                           default). Controls which workflow outputs are produced.
     --inpred_nomenclature  "True" | "False" — decode InPreD sample-type codes
                            from sample_id (optional, default: False).
 
@@ -281,6 +284,12 @@ def parse_args() -> argparse.Namespace:
         required=True,
         choices=["DNA", "RNA"],
         help='"DNA" or "RNA" — selects which metrics and thresholds to apply.',
+    )
+    parser.add_argument(
+        "--workflow",
+        choices=["L", "D", "B"],
+        default="B",
+        help='Workflow(s) to produce output for: "L" = LocalApp only, "D" = Dragen only, "B" = both (default).'
     )
     parser.add_argument(
         "--inpred_nomenclature",
@@ -546,8 +555,8 @@ def _make_row_annotations(
     if _is_value_in_fail_region(obs, metric, qc_type):
         center.append({"x": (X_BOX_LEFT + X_BOX_RIGHT) / 2.0, "y": yb + CENTER_OFFSET,
                         "label": "X", "color": COLOR_RED, "size": 18})
-    elif qc_type == "NoThold" and not np.isnan(obs) and obs > metric["highest"]:
-        # For NoThold rows where obs exceeds highest, display a black upward arrow
+    elif qc_type in ("NoThold", "FailPass") and not np.isnan(obs) and obs > metric["highest"]:
+        # For NoThold/FailPass rows where obs exceeds highest, display a black upward arrow
         center.append({"x": (X_BOX_LEFT + X_BOX_RIGHT) / 2.0, "y": yb + CENTER_OFFSET,
                         "label": "↑", "color": "#000000", "size": 18})
 
@@ -868,7 +877,15 @@ def main() -> None:
     df         = load_tsv(args.input_tsv)
     thresholds = extract_thresholds(df)
 
-    for workflow in ("LocalApp", "Dragen"):
+    _all_workflows = ("LocalApp", "Dragen")
+    if args.workflow == "L":
+        workflows = ("LocalApp",)
+    elif args.workflow == "D":
+        workflows = ("Dragen",)
+    else:
+        workflows = _all_workflows
+
+    for workflow in workflows:
 
         # 'plot_rows' contains the configuration for each row of the plot, including labels, thresholds, and QC types.
         plot_rows = build_plot_rows(seq_type, workflow, thresholds)
@@ -879,7 +896,7 @@ def main() -> None:
         obs_values    = compute_obs_values(seq_type, workflow, raw_values, thresholds)
         float_metrics = build_float_metrics(seq_type, workflow)
 
-        title   = f'QC for {seq_type} sample "{args.sample_id}" [{workflow}]\n{sample_type}'
+        title   = f'QC for "{args.sample_id}"\n{workflow} | {seq_type}'
         pdf_out = f"{base_path}_{workflow}.pdf"
         png_out = f"{base_path}_{workflow}.png"
 
