@@ -64,10 +64,11 @@ VERSION = "1.0.0"
 
 COLOR_FAIL  = "#E69F00"
 COLOR_PASS  = "#009E73"
-COLOR_RED   = "red"
-COLOR_WHITE = "white"
+COLOR_RED   = "#971717"
+COLOR_WHITE = "#FFFFFF"
 
 # InPreD nomenclature: 13th character (0-based index 12) of a 19-char ID.
+# JACM: not sure when this is needed, it's not used in the current workflow, but leaving it here for now.
 INPRED_SAMPLE_TYPES: dict[str, str] = {
     "M": "(metastasis)",
     "T": "(tumor)",
@@ -81,6 +82,8 @@ INPRED_SAMPLE_TYPES: dict[str, str] = {
     "D": "(distal metastasis, naive)",
     "d": "(distal metastasis, post-treatment)",
 }
+
+
 
 # -- metric bar area (x in [0, 2]) --
 X_BAR_LEFT  = 0.0
@@ -128,32 +131,70 @@ ROW_BG_ODD  = "#FFFFFF"
 # Configuration builders  (derived from SAMPLE_METRICS_SPECS)
 # ---------------------------------------------------------------------------
 
-def _iter_specs(
-    seq_type: str, workflow: str, *, plotted: bool = True, loadable: bool = False
-) -> list[tuple[str, dict]]:
+def _spec_matches_criteria(spec     : dict,
+                           workflow : str,
+                           seq_type : str,
+                           plotted  : bool,
+                           loadable : bool) -> bool:
+    """
+    Determine if a spec entry matches the given filtering criteria.
+
+    Args:
+        spec     : A spec entry from SAMPLE_METRICS_SPECS.
+        workflow : The workflow (LocalApp or Dragen).
+        seq_type : The sequence type (DNA or RNA).
+        plotted  : Include specs with plot=True.
+        loadable : Include specs with load=True (helper variables).
+
+    Returns:
+        True if the spec passes all filters, False otherwise.
+    """
+    wkey  = workflow.lower()
+    stype = seq_type.lower()
+
+    # Workflow must be configured in this spec
+    if wkey not in spec:
+        return False
+
+    wf_config = spec[wkey]
+
+    # Sequence type must be applicable to this workflow
+    if stype not in wf_config.get("seq_type", []):
+        return False
+
+    # Must match the plot/load inclusion criteria (either can trigger inclusion)
+    is_plotted     = wf_config.get("plot", False)
+    is_loadable    = wf_config.get("load", False)
+    should_include = (plotted and is_plotted) or (loadable and is_loadable)
+
+    return should_include
+
+
+def _iter_specs(seq_type : str,
+                workflow : str,
+                *,
+                plotted  : bool = True,
+                loadable : bool = False) -> list[tuple[str, dict]]:
     """
     Return (key, spec) pairs from SAMPLE_METRICS_SPECS matching *seq_type* and
     *workflow*.
 
-    plotted=True  includes entries whose routing sub-dict has plot=True.
-    loadable=True additionally includes entries with load=True (helper variables).
+    plotted  = True  includes entries whose routing sub-dict has plot=True.
+    loadable = True additionally includes entries with load=True (helper variables).
     Both flags may be combined; their union is returned.
     """
-    wkey  = workflow.lower()
-    stype = seq_type.lower()
     return [
-        (k, v) for k, v in SAMPLE_METRICS_SPECS.items()
-        if wkey in v
-        and stype in v[wkey].get("seq_type", [])
-        and (
-            (plotted  and v[wkey].get("plot",  False))
-            or (loadable and v[wkey].get("load", False))
-        )
+        (k, v)
+        for k, v in SAMPLE_METRICS_SPECS.items()
+        if _spec_matches_criteria(v, workflow, seq_type, plotted, loadable)
     ]
 
 
-def _get_sorted_specs(seq_type: str, workflow: str) -> list[tuple[str, dict]]:
-    """Return plotted (key, spec) pairs sorted by ascending row index."""
+def _get_sorted_specs(seq_type : str,
+                      workflow : str) -> list[tuple[str, dict]]:
+    """
+    Return plotted (key, spec) pairs sorted by ascending row index.
+    """
     wkey = workflow.lower()
     return sorted(
         _iter_specs(seq_type, workflow, plotted=True),
@@ -161,9 +202,8 @@ def _get_sorted_specs(seq_type: str, workflow: str) -> list[tuple[str, dict]]:
     )
 
 
-def _resolve_threshold(
-    spec: dict, thresholds: dict[str, dict[str, float]]
-) -> float:
+def _resolve_threshold(spec       : dict,
+                       thresholds : dict[str, dict[str, float]]) -> float:
     """
     Look up the QC threshold for a row from the runtime-loaded TSV thresholds.
 
@@ -175,6 +215,7 @@ def _resolve_threshold(
     np.nan is returned and the row renders without a threshold line.
     scale_factor is applied when present (e.g. raw read counts → millions).
     """
+
     source = spec.get("threshold_source")
     if source is None:
         return np.nan
@@ -195,9 +236,9 @@ def _resolve_threshold(
     return raw_thr
 
 
-def build_plot_rows(
-    seq_type: str, workflow: str, thresholds: dict[str, dict[str, float]]
-) -> list[dict]:
+def build_plot_rows(seq_type   : str,
+                    workflow   : str,
+                    thresholds : dict[str, dict[str, float]]) -> list[dict]:
     """
     Build the plot_rows list consumed by build_layer_data() for the given
     seq_type and workflow.
@@ -211,51 +252,83 @@ def build_plot_rows(
 
         lbl = spec["threshold_label"]
         if "{threshold}" in lbl:
-            if np.isnan(thr):
-                fmt_thr = "N/A"
-            elif isinstance(spec.get("float_format"), int) and spec["float_format"] > 1:
-                fmt_thr = str(round(thr, spec["float_format"]))
-            elif spec.get("float_format"):
-                fmt_thr = str(round(thr, 1))
-            else:
-                fmt_thr = str(int(round(thr)))
+            # Use float_format from spec if available, else treat as integer
+            decimals = int(spec.get("float_format")) if spec.get("float_format") else 0
+            fmt_thr  = _format_value(thr, decimals)
             lbl = lbl.format(threshold=fmt_thr)
 
         row: dict = {
-            "label":           spec["label"],
-            "threshold_label": lbl,
-            "qc_type":         spec["qc_type"],
-            "pass_value":      spec["pass_value"],
-            "metric":          None,
+            "label"           : spec["label"],
+            "threshold_label" : lbl,
+            "qc_type"         : spec["qc_type"],
+            "pass_value"      : spec["pass_value"],
+            "metric"          : None,
         }
+
         if spec["qc_type"] != "TrueFalse":
             row["metric"] = {
-                "variable":  spec["variable"],
-                "lowest":    spec["lowest"]  if spec["lowest"]  is not None else np.nan,
-                "threshold": thr,
-                "highest":   spec["highest"] if spec["highest"] is not None else np.nan,
+                "variable"  : spec["variable"],
+                "lowest"    : spec["lowest"]  if spec["lowest"]  is not None else np.nan,
+                "threshold" : thr,
+                "highest"   : spec["highest"] if spec["highest"] is not None else np.nan,
             }
         rows.append(row)
     return rows
 
 
-def build_float_metrics(seq_type: str, workflow: str) -> dict[str, int]:
+def build_float_metrics(seq_type : str,
+                        workflow : str) -> dict[str, int]:
     """Return a mapping of variable name → decimal places for the given seq_type and workflow."""
     result = {}
     for _, spec in _iter_specs(seq_type, workflow, plotted=True):
         ff = spec.get("float_format")
         if ff and spec["variable"] is not None:
-            result[spec["variable"]] = ff if isinstance(ff, int) else 1
+            result[spec["variable"]] = int(ff)
     return result
 
 
-def _get_loadable_variables(seq_type: str, workflow: str) -> list[str]:
+def _get_loadable_variables(seq_type : str,
+                            workflow : str) -> list[str]:
     """Return all TSV column names to load: plotted rows plus load=True helper entries."""
     return [
         spec["variable"]
         for _, spec in _iter_specs(seq_type, workflow, plotted=True, loadable=True)
         if spec["variable"] is not None
     ]
+
+
+def _prepare_spec_metadata(seq_type: str, workflow: str) -> dict[str, object]:
+    """
+    Compile spec-derived metadata in a single pass to avoid repeated iteration.
+
+    This function consolidates the logic of build_float_metrics() and 
+    _get_loadable_variables() into one traversal of the specs, improving efficiency
+    when both pieces of information are needed (as in main()).
+
+    Returns:
+        Dict with keys:
+          - "float_metrics"      : dict[str, int] mapping variable → decimal places
+          - "loadable_variables" : list[str] of all TSV columns to load
+    """
+    float_metrics: dict[str, int] = {}
+    loadable_variables: list[str] = []
+
+    for _, spec in _iter_specs(seq_type, workflow, plotted=True, loadable=True):
+        var = spec["variable"]
+
+        if var is not None:
+            # Collect float formatting for plotted variables
+            ff = spec.get("float_format")
+            if ff:
+                float_metrics[var] = int(ff)
+
+            # Collect all loadable variables (plotted or load=True helper)
+            loadable_variables.append(var)
+
+    return {
+        "float_metrics"      : float_metrics,
+        "loadable_variables" : loadable_variables,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -307,8 +380,13 @@ def parse_args() -> argparse.Namespace:
 # Sample type helper
 # ---------------------------------------------------------------------------
 
-def get_sample_type(output_id: str, use_inpred: bool) -> str:
-    """Return a sample-type descriptor decoded from InPreD nomenclature when requested."""
+# JACM: not sure when this is needed, it's not used in the current workflow, but leaving it here for now.
+# Maybe we need to remove it in future versions
+def get_sample_type(output_id  : str,
+                    use_inpred : bool) -> str:
+    """
+    Return a sample-type descriptor decoded from InPreD nomenclature when requested.
+    """
     if not use_inpred:
         return "Sample type unspecified"
     if len(output_id) == 19:
@@ -322,7 +400,9 @@ def get_sample_type(output_id: str, use_inpred: bool) -> str:
 # ---------------------------------------------------------------------------
 
 def _to_float(val) -> float:
-    """Convert a raw table cell to float; handles TRUE/FALSE strings, NA, and numerics."""
+    """
+    Convert a raw table cell to float; handles TRUE/FALSE strings, NA, and numerics.
+    """
     if val is None:
         return np.nan
     if isinstance(val, float) and np.isnan(val):
@@ -346,15 +426,22 @@ def _to_float(val) -> float:
 
 
 def load_tsv(tsv_path: str) -> pl.DataFrame:
-    """Read a TSO500 metrics TSV and return a Polars DataFrame (all columns as strings)."""
+    """
+    Read a TSO500 metrics TSV and return a Polars DataFrame (all columns as strings).
+    """
     return pl.read_csv(tsv_path, separator="\t", infer_schema=False)
 
 
-def extract_sample(
-    df: pl.DataFrame, sample_id: str, seq_type: str, workflow: str) -> dict[str, float]:
-    """Return {variable: float_value} for *sample_id* from a pre-loaded TSV DataFrame."""
+def extract_sample(df        : pl.DataFrame,
+                   sample_id : str,
+                   seq_type  : str,
+                   workflow  : str) -> dict[str, float]:
+    """
+    Return {variable: float_value} for *sample_id* from a pre-loaded TSV DataFrame.
+    """
     variables = _get_loadable_variables(seq_type, workflow)
     filtered  = df.filter(pl.col("SAMPLE_ID") == sample_id)
+
     if filtered.is_empty():
         sys.exit(
             f"ERROR: sample ID '{sample_id}' not found in the TSV.\n"
@@ -394,16 +481,42 @@ def extract_thresholds(df: pl.DataFrame) -> dict[str, dict[str, float]]:
     return result
 
 
+def _compute_contamination_status(raw        : dict[str, float],
+                                  thresholds : dict[str, dict[str, float]]) -> float:
+    """
+    Compute contamination status from score and p-value thresholds.
+
+    Returns 1.0 if both score AND p-value exceed their respective upper thresholds;
+    0.0 otherwise. All values (score, p-value, and both thresholds) must be present (not NaN)
+    for the check to pass.
+
+    Args:
+        raw: Raw values extracted from the sample row.
+        thresholds: QC threshold dict from extract_thresholds().
+
+    Returns:
+        1.0 (contamination detected) or 0.0 (pass).
+    """
+    score     = raw.get("DNA_CONTAMINATION_SCORE", np.nan)
+    pval      = raw.get("DNA_CONTAMINATION_P_VALUE", np.nan)
+    score_thr = thresholds.get("DNA_CONTAMINATION_SCORE", {}).get("upper", np.nan)
+    pval_thr  = thresholds.get("DNA_CONTAMINATION_P_VALUE", {}).get("upper", np.nan)
+
+    return 1.0 if (
+        not np.isnan(score) and not np.isnan(pval)
+        and not np.isnan(score_thr) and not np.isnan(pval_thr)
+        and score > score_thr and pval > pval_thr
+    ) else 0.0
+
+
 # ---------------------------------------------------------------------------
 # Observed values computation (seq-type-specific)
 # ---------------------------------------------------------------------------
 
-def compute_obs_values(
-    seq_type:   str,
-    workflow:   str,
-    raw:        dict[str, float],
-    thresholds: dict[str, dict[str, float]],
-) -> list[float]:
+def compute_obs_values(seq_type   : str,
+                       workflow   : str,
+                       raw        : dict[str, float],
+                       thresholds : dict[str, dict[str, float]]) -> list[float]:
     """
     Derive the observed value for every plotted row of *seq_type* / *workflow*,
     returned in index order.
@@ -418,15 +531,7 @@ def compute_obs_values(
 
     for i, (key, spec) in enumerate(sorted_rows):
         if key == "DNA_CONTAMINATION":
-            score_thr = thresholds.get("DNA_CONTAMINATION_SCORE", {}).get("upper", np.nan)
-            pval_thr  = thresholds.get("DNA_CONTAMINATION_P_VALUE", {}).get("upper", np.nan)
-            score     = raw.get("DNA_CONTAMINATION_SCORE", np.nan)
-            pval      = raw.get("DNA_CONTAMINATION_P_VALUE", np.nan)
-            obs[i]    = 1.0 if (
-                not np.isnan(score)         and not np.isnan(pval)
-                and not np.isnan(score_thr) and not np.isnan(pval_thr)
-                and score > score_thr       and pval > pval_thr
-            ) else 0.0
+            obs[i] = _compute_contamination_status(raw, thresholds)
         elif spec["variable"] is not None:
             val    = raw.get(spec["variable"], np.nan)
             factor = spec.get("scale_factor", 1)
@@ -451,28 +556,58 @@ def _scale_to_bar(value: float, highest: float) -> float:
     return min(value / highest * X_BAR_RIGHT, X_BAR_RIGHT)
 
 
-def _format_number(value: float, variable: str, float_metrics: dict[str, int]) -> str:
+def _format_value(value: float, decimals: int) -> str:
     """
-    Format a float for axis annotation.
-    float_metrics maps variable name → decimal places; absent variables are formatted as integers.
+    Format a float with specified decimal places. NaN becomes "N/A".
+
+    Args:
+        value: The value to format.
+        decimals: Number of decimal places (0 for integer, >0 for fractional).
+
+    Returns:
+        Formatted string.
     """
-    decimals = float_metrics.get(variable, 0)
+    if np.isnan(value):
+        return "N/A"
     if decimals > 0:
         return f"{value:.{decimals}f}"
     return str(int(round(value)))
 
 
-def _is_value_in_fail_region(obs: float, metric: dict, qc_type: str) -> bool:
+def _format_number(value: float, variable: str, float_metrics: dict[str, int]) -> str:
+    """
+    Format a float for axis annotation using spec-defined precision.
+
+    Args:
+        value         : The value to format.
+        variable      : The variable name to look up in float_metrics.
+        float_metrics : Mapping of variable → decimal places.
+
+    Returns:
+        Formatted string.
+    """
+    decimals = float_metrics.get(variable, 0)
+    return _format_value(value, decimals)
+
+
+def _is_value_in_fail_region(obs     : float,
+                             metric  : dict,
+                             qc_type : str) -> bool:
     """Return True when obs falls in the fail (amber) colour band."""
     if np.isnan(obs):
         return False
+    
     threshold = metric["threshold"]
+
     if np.isnan(threshold):
         return False
+
     if qc_type == "FailPass":
         return obs < threshold
+
     if qc_type == "PassFail":
         return obs > threshold
+
     return False   # NoThold and TrueFalse rows never trigger a red X
 
 
@@ -480,9 +615,11 @@ def _is_value_in_fail_region(obs: float, metric: dict, qc_type: str) -> bool:
 # Per-row-type rendering helpers
 # ---------------------------------------------------------------------------
 
-def _build_boolean_row(
-    i: int, row: dict, obs: float, n_rows: int, float_metrics: dict[str, int]
-) -> dict[str, list[dict]]:
+def _build_boolean_row(i             : int,
+                       row           : dict,
+                       obs           : float,
+                       n_rows        : int,
+                       float_metrics : dict[str, int]) -> dict[str, list[dict]]:
     """
     Build geometry and text records for a TrueFalse (boolean) row.
 
@@ -510,8 +647,7 @@ def _make_bands(
     thr_scaled:  float,
     qc_type:     str,
     color_left:  str,
-    color_right: str,
-) -> list[dict]:
+    color_right: str,) -> list[dict]:
     """
     Return the coloured rectangular band(s) for one continuous row.
 
@@ -538,8 +674,7 @@ def _make_row_annotations(
     yb:            float,
     metric:        dict,
     float_metrics: dict[str, int],
-    qc_type:       str,
-) -> dict[str, list[dict]]:
+    qc_type:       str,) -> dict[str, list[dict]]:
     """
     Return text annotation records for one continuous row.
 
@@ -578,9 +713,11 @@ def _make_row_annotations(
     return {"center": center, "obs_left": obs_left, "obs_right": obs_right}
 
 
-def _build_continuous_row(
-    i: int, row: dict, obs: float, n_rows: int, float_metrics: dict[str, int]
-) -> dict[str, list[dict]] | None:
+def _build_continuous_row(i             : int,
+                          row           : dict,
+                          obs           : float,
+                          n_rows        : int,
+                          float_metrics : dict[str, int]) -> dict[str, list[dict]] | None:
     """
     Build geometry and text records for a continuous metric row (FailPass, PassFail, NoThold).
     Returns None when the row has no valid display range (highest is nan or 0).
@@ -623,10 +760,10 @@ def _build_continuous_row(
 # To support a new qc_type, implement a builder with the same signature
 # (i, row, obs, n_rows, float_metrics) and register it here.
 _ROW_BUILDERS: dict[str, callable] = {
-    "TrueFalse": _build_boolean_row,
-    "FailPass":  _build_continuous_row,
-    "PassFail":  _build_continuous_row,
-    "NoThold":   _build_continuous_row,
+    "TrueFalse" : _build_boolean_row,
+    "FailPass"  : _build_continuous_row,
+    "PassFail"  : _build_continuous_row,
+    "NoThold"   :  _build_continuous_row,
 }
 
 
@@ -634,11 +771,9 @@ _ROW_BUILDERS: dict[str, callable] = {
 # Unified layer builder (single pass over plot_rows)
 # ---------------------------------------------------------------------------
 
-def build_layer_data(
-    obs_values:    list[float],
-    plot_rows:     list[dict],
-    float_metrics: dict[str, int],
-) -> dict[str, pl.DataFrame]:
+def build_layer_data(obs_values    : list[float],
+                     plot_rows     : list[dict],
+                     float_metrics : dict[str, int]) -> dict[str, pl.DataFrame]:
     """
     Build all geometry and annotation DataFrames in a single pass over plot_rows.
 
@@ -724,12 +859,12 @@ def build_layer_data(
 # Plot assembly
 # ---------------------------------------------------------------------------
 
-def make_plot(
-    layers: dict[str, pl.DataFrame],
-    title:  str,
-    n_rows: int,
-) -> ggplot:
-    """Assemble and return the complete plotnine ggplot from pre-built layer DataFrames."""
+def make_plot(layers : dict[str, pl.DataFrame],
+              title  :  str,
+              n_rows : int) -> ggplot:
+    """
+    Assemble and return the complete plotnine ggplot from pre-built layer DataFrames.
+    """
     pd_layers = {k: v.to_pandas() for k, v in layers.items()}
 
     title_parts = title.split("\n", maxsplit=1)
@@ -891,14 +1026,17 @@ def main() -> None:
 
     for workflow in workflows:
 
+        # Compile all spec-derived metadata in a single pass
+        metadata      = _prepare_spec_metadata(seq_type, workflow)
+        float_metrics = metadata["float_metrics"]
+
         # 'plot_rows' contains the configuration for each row of the plot, including labels, thresholds, and QC types.
         plot_rows = build_plot_rows(seq_type, workflow, thresholds)
         if not plot_rows:
             continue
 
-        raw_values    = extract_sample(df, args.sample_id, seq_type, workflow)
-        obs_values    = compute_obs_values(seq_type, workflow, raw_values, thresholds)
-        float_metrics = build_float_metrics(seq_type, workflow)
+        raw_values = extract_sample(df, args.sample_id, seq_type, workflow)
+        obs_values = compute_obs_values(seq_type, workflow, raw_values, thresholds)
 
         title   = f'QC for "{args.sample_id}"\n{workflow} | {seq_type}'
         pdf_out = f"{base_path}_{workflow}.pdf"
