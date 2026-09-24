@@ -44,7 +44,8 @@
 #                     If the TSV has NA for the variable's threshold, np.nan is returned
 #                     and the row renders without a threshold line (equivalent to NoThold).
 #    highest          Right (maximum) edge of the display bar.  None for TrueFalse / helpers.
-#    float_format     True to display axis annotations with 1 decimal place.
+#    float_format     Integer (or True) to display axis annotations with that many decimal places.
+#                     True is equivalent to 1.  Use 2 for metrics like MAD (0.00–0.30).
 #                     Defaults to False when omitted.
 #    scale_factor     Divide the raw TSV value by this before display.
 #                     Use 1_000_000 to convert raw read counts to millions.
@@ -309,7 +310,7 @@ SAMPLE_METRICS_SPECS = {
         "lowest":           0.0,
         "threshold_source": "upper",  # UPPER_THRESHOLD row
         "highest":          0.3,
-        "float_format":     True,
+        "float_format":     2,
     },
 
 
@@ -331,7 +332,7 @@ SAMPLE_METRICS_SPECS = {
         "lowest":           0.0,
         "threshold_source": "upper",  # UPPER_THRESHOLD row
         "highest":          0.3,
-        "float_format":     True,
+        "float_format":     2,
     },
 
 

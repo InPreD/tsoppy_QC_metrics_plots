@@ -213,6 +213,8 @@ def build_plot_rows(
         if "{threshold}" in lbl:
             if np.isnan(thr):
                 fmt_thr = "N/A"
+            elif isinstance(spec.get("float_format"), int) and spec["float_format"] > 1:
+                fmt_thr = str(round(thr, spec["float_format"]))
             elif spec.get("float_format"):
                 fmt_thr = str(round(thr, 1))
             else:
@@ -237,13 +239,14 @@ def build_plot_rows(
     return rows
 
 
-def build_float_metrics(seq_type: str, workflow: str) -> set[str]:
-    """Return variable names that use 1 d.p. display for the given seq_type and workflow."""
-    return {
-        spec["variable"]
-        for _, spec in _iter_specs(seq_type, workflow, plotted=True)
-        if spec.get("float_format") and spec["variable"] is not None
-    }
+def build_float_metrics(seq_type: str, workflow: str) -> dict[str, int]:
+    """Return a mapping of variable name → decimal places for the given seq_type and workflow."""
+    result = {}
+    for _, spec in _iter_specs(seq_type, workflow, plotted=True):
+        ff = spec.get("float_format")
+        if ff and spec["variable"] is not None:
+            result[spec["variable"]] = ff if isinstance(ff, int) else 1
+    return result
 
 
 def _get_loadable_variables(seq_type: str, workflow: str) -> list[str]:
@@ -448,13 +451,14 @@ def _scale_to_bar(value: float, highest: float) -> float:
     return min(value / highest * X_BAR_RIGHT, X_BAR_RIGHT)
 
 
-def _format_number(value: float, variable: str, float_metrics: set[str]) -> str:
+def _format_number(value: float, variable: str, float_metrics: dict[str, int]) -> str:
     """
     Format a float for axis annotation.
-    Metrics in float_metrics display 1 decimal place; all others are rounded to integer.
+    float_metrics maps variable name → decimal places; absent variables are formatted as integers.
     """
-    if variable in float_metrics:
-        return str(round(value, 1))
+    decimals = float_metrics.get(variable, 0)
+    if decimals > 0:
+        return f"{value:.{decimals}f}"
     return str(int(round(value)))
 
 
@@ -477,7 +481,7 @@ def _is_value_in_fail_region(obs: float, metric: dict, qc_type: str) -> bool:
 # ---------------------------------------------------------------------------
 
 def _build_boolean_row(
-    i: int, row: dict, obs: float, n_rows: int, float_metrics: set[str]
+    i: int, row: dict, obs: float, n_rows: int, float_metrics: dict[str, int]
 ) -> dict[str, list[dict]]:
     """
     Build geometry and text records for a TrueFalse (boolean) row.
@@ -533,7 +537,7 @@ def _make_row_annotations(
     obs_x:         float,
     yb:            float,
     metric:        dict,
-    float_metrics: set[str],
+    float_metrics: dict[str, int],
     qc_type:       str,
 ) -> dict[str, list[dict]]:
     """
@@ -575,7 +579,7 @@ def _make_row_annotations(
 
 
 def _build_continuous_row(
-    i: int, row: dict, obs: float, n_rows: int, float_metrics: set[str]
+    i: int, row: dict, obs: float, n_rows: int, float_metrics: dict[str, int]
 ) -> dict[str, list[dict]] | None:
     """
     Build geometry and text records for a continuous metric row (FailPass, PassFail, NoThold).
@@ -633,7 +637,7 @@ _ROW_BUILDERS: dict[str, callable] = {
 def build_layer_data(
     obs_values:    list[float],
     plot_rows:     list[dict],
-    float_metrics: set[str],
+    float_metrics: dict[str, int],
 ) -> dict[str, pl.DataFrame]:
     """
     Build all geometry and annotation DataFrames in a single pass over plot_rows.
