@@ -297,8 +297,8 @@ SAMPLE_METRICS_SPECS = {
             "index"    : 9,
             "seq_type" : ["dna"]},
         "dragen":   {
-            "plot"     : True,
-            "index"    : 9,
+            "plot"     : False,
+            "index"    : 0,
             "seq_type" : ["dna"]},
 
         "qc_type":          "PassFail",  # lower is better; right half = fail
@@ -311,6 +311,29 @@ SAMPLE_METRICS_SPECS = {
         "highest":          0.3,
         "float_format":     True,
     },
+
+
+    "DNA_GENE_SCALED_MAD": {
+        "localapp": {
+            "plot"     : False,
+            "index"    : 0,
+            "seq_type" : ["dna"]},
+        "dragen":   {
+            "plot"     : True,
+            "index"    : 9,
+            "seq_type" : ["dna"]},
+
+        "qc_type":          "PassFail",  # lower is better; right half = fail
+        "label":            "CNV GENE-SCALED MAD",
+        "threshold_label":  "<= {threshold} [CNV]",
+        "pass_value":       None,
+        "variable":         "DNA_GENE_SCALED_MAD",
+        "lowest":           0.0,
+        "threshold_source": "upper",  # UPPER_THRESHOLD row
+        "highest":          0.3,
+        "float_format":     True,
+    },
+
 
 
     # ===================================== #
