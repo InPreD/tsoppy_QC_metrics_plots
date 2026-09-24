@@ -336,6 +336,48 @@ SAMPLE_METRICS_SPECS = {
     },
 
 
+    "DNA_MEDIAN_TARGET_HRD_COVERAGE": {
+        "localapp": {
+            "plot"     : False,
+            "index"    : 0,
+            "seq_type" : ["dna"]},
+        "dragen":   {
+            "plot"     : True,
+            "index"    : 10,
+            "seq_type" : ["dna"]},
+
+        "qc_type":          "NoThold", 
+        "label":            "MEDIAN TARGET HRD COVERAGE",
+        "threshold_label":  "No reference value [HRD]",
+        "pass_value":       None,
+        "variable":         "DNA_MEDIAN_TARGET_HRD_COVERAGE",
+        "lowest":           0.0,
+        "threshold_source": None,
+        "highest":          1000,
+    },
+
+
+    "DNA_PCT_SOFT_CLIPPED_BASES": {
+        "localapp": {
+            "plot"     : False,
+            "index"    : 0,
+            "seq_type" : ["dna"]},
+        "dragen":   {
+            "plot"     : True,
+            "index"    : 10,
+            "seq_type" : ["dna"]},
+
+        "qc_type":          "NoThold", 
+        "label":            "PERCENT SOFT-CLIPPED BASES",
+        "threshold_label":  "No reference value",
+        "pass_value":       None,
+        "variable":         "DNA_PCT_SOFT_CLIPPED_BASES",
+        "lowest":           0.0,
+        "threshold_source": None,
+        "highest":          100.0,
+        "float_format":     2,
+    },
+
 
     # ===================================== #
     # RNA rows                             #
@@ -494,5 +536,26 @@ SAMPLE_METRICS_SPECS = {
         "highest":          30.0,     # expressed in millions (after scale_factor)
         "float_format":     False,
         "scale_factor":     1_000_000,
+    },
+
+    "RNA_PCT_SOFT_CLIPPED_BASES": {
+        "localapp": {
+            "plot"     : False,
+            "index"    : 0,
+            "seq_type" : ["rna"]},
+        "dragen":   {
+            "plot"     : True,
+            "index"    : 9,
+            "seq_type" : ["rna"]},
+
+        "qc_type":          "NoThold", 
+        "label":            "PERCENT SOFT-CLIPPED BASES",
+        "threshold_label":  "No reference value",
+        "pass_value":       None,
+        "variable":         "RNA_PCT_SOFT_CLIPPED_BASES",
+        "lowest":           0.0,
+        "threshold_source": None,
+        "highest":          100.0,
+        "float_format":     2,
     },
 }
